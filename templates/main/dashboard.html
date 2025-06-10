@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - CheckMate{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>45</h4>
+                        <p>Total Tests</p>
+                    </div>
+                    <i class="fas fa-clipboard-list fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>1,234</h4>
+                        <p>Graded Papers</p>
+                    </div>
+                    <i class="fas fa-check-circle fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>23</h4>
+                        <p>Pending</p>
+                    </div>
+                    <i class="fas fa-clock fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>87%</h4>
+                        <p>Accuracy</p>
+                    </div>
+                    <i class="fas fa-percentage fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <i class="fas fa-upload text-primary"></i>
+                        <strong>Math Test 101</strong> answer key uploaded
+                        <small class="text-muted float-end">2 hours ago</small>
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-check text-success"></i>
+                        <strong>Science Quiz</strong> grading completed
+                        <small class="text-muted float-end">4 hours ago</small>
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-download text-info"></i>
+                        <strong>History Exam</strong> results exported
+                        <small class="text-muted float-end">1 day ago</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'main:answer_keys' %}" class="btn btn-primary btn-block mb-2 w-100">
+                    <i class="fas fa-plus"></i> Create Answer Key
+                </a>
+                <a href="{% url 'main:grade_test' %}" class="btn btn-success btn-block mb-2 w-100">
+                    <i class="fas fa-upload"></i> Upload Test Sheets
+                </a>
+                <a href="{% url 'main:export_results' %}" class="btn btn-info btn-block w-100">
+                    <i class="fas fa-download"></i> Export Results
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

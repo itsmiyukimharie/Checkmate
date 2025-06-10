@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Grade Test - CheckMate{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-graduation-cap"></i> Grade Test</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-upload"></i> Upload Answer Sheets</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="selectTest" class="form-label">Select Test</label>
+                        <select class="form-select" id="selectTest">
+                            <option value="">Choose a test...</option>
+                            <option value="math1">Mathematics Test 1</option>
+                            <option value="science2">Science Quiz 2</option>
+                            <option value="history1">History Exam</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="answerSheets" class="form-label">Answer Sheets</label>
+                        <input type="file" class="form-control" id="answerSheets" multiple accept=".pdf,.jpg,.png">
+                        <div class="form-text">Upload multiple answer sheets (PDF, JPG, PNG)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="autoProcess">
+                            <label class="form-check-label" for="autoProcess">
+                                Automatically process after upload
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload Answer Sheets
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Processing Queue</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Test</th>
+                                <th>Status</th>
+                                <th>Progress</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>student_001.pdf</td>
+                                <td>Mathematics Test 1</td>
+                                <td><span class="badge bg-success">Completed</span></td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-success" style="width: 100%">100%</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>student_002.pdf</td>
+                                <td>Mathematics Test 1</td>
+                                <td><span class="badge bg-warning">Processing</span></td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" style="width: 65%">65%</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-secondary" disabled>
+                                        <i class="fas fa-clock"></i> Wait
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Grading Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6>Total Processed</h6>
+                    <h3 class="text-primary">156</h3>
+                </div>
+                <div class="mb-3">
+                    <h6>In Queue</h6>
+                    <h3 class="text-warning">23</h3>
+                </div>
+                <div class="mb-3">
+                    <h6>Failed</h6>
+                    <h3 class="text-danger">2</h3>
+                </div>
+                <div class="mb-3">
+                    <h6>Average Score</h6>
+                    <h3 class="text-success">78.5%</h3>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-success btn-block mb-2 w-100">
+                    <i class="fas fa-play"></i> Process All
+                </button>
+                <button class="btn btn-warning btn-block mb-2 w-100">
+                    <i class="fas fa-pause"></i> Pause Processing
+                </button>
+                <button class="btn btn-info btn-block w-100">
+                    <i class="fas fa-download"></i> Download Results
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

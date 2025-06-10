@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Answer Keys - CheckMate{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-key"></i> Manage Answer Keys</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-upload"></i> Upload Answer Key</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="testName" class="form-label">Test Name</label>
+                        <input type="text" class="form-control" id="testName" placeholder="Enter test name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="answerFile" class="form-label">Answer Key File</label>
+                        <input type="file" class="form-control" id="answerFile" accept=".pdf,.jpg,.png">
+                        <div class="form-text">Supported formats: PDF, JPG, PNG</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload Answer Key
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-plus"></i> Create Answer Key</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="newTestName" class="form-label">Test Name</label>
+                        <input type="text" class="form-control" id="newTestName" placeholder="Enter test name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="questionCount" class="form-label">Number of Questions</label>
+                        <input type="number" class="form-control" id="questionCount" min="1" max="200" value="50">
+                    </div>
+                    <div class="mb-3">
+                        <label for="answerType" class="form-label">Answer Type</label>
+                        <select class="form-select" id="answerType">
+                            <option value="multiple">Multiple Choice (A-D)</option>
+                            <option value="multiple5">Multiple Choice (A-E)</option>
+                            <option value="truefalse">True/False</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Create Answer Key
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5>Existing Answer Keys</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Questions</th>
+                        <th>Created Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Mathematics Test 1</td>
+                        <td>50</td>
+                        <td>2024-01-15</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Science Quiz 2</td>
+                        <td>25</td>
+                        <td>2024-01-10</td>
+                        <td><span class="badge bg-warning">Draft</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}Performance Analytics - CheckMate{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-bar"></i> Performance Analytics</h1>
+    <div>
+        <select class="form-select d-inline-block w-auto">
+            <option>Last 30 Days</option>
+            <option>Last 90 Days</option>
+            <option>Last Year</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Score Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="scoreChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Overall Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Average Score:</span>
+                        <strong>78.5%</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Highest Score:</span>
+                        <strong>98%</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Lowest Score:</span>
+                        <strong>45%</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Pass Rate:</span>
+                        <strong>82%</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Total Students:</span>
+                        <strong>245</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Common Mistakes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Question</th>
+                                <th>Error Rate</th>
+                                <th>Most Common Wrong Answer</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Q15</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-danger" style="width: 65%">65%</div>
+                                    </div>
+                                </td>
+                                <td>Option C</td>
+                            </tr>
+                            <tr>
+                                <td>Q23</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" style="width: 45%">45%</div>
+                                    </div>
+                                </td>
+                                <td>Option B</td>
+                            </tr>
+                            <tr>
+                                <td>Q8</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" style="width: 38%">38%</div>
+                                    </div>
+                                </td>
+                                <td>Option A</td>
+                            </tr>
+                            <tr>
+                                <td>Q31</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" style="width: 33%">33%</div>
+                                    </div>
+                                </td>
+                                <td>Option D</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Performance Trends</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="trendChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Test Comparison</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Test Name</th>
+                                <th>Students</th>
+                                <th>Average Score</th>
+                                <th>Pass Rate</th>
+                                <th>Difficulty</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Mathematics Test 1</td>
+                                <td>45</td>
+                                <td>78.5%</td>
+                                <td>82%</td>
+                                <td><span class="badge bg-warning">Medium</span></td>
+                                <td>2024-01-15</td>
+                            </tr>
+                            <tr>
+                                <td>Science Quiz 2</td>
+                                <td>32</td>
+                                <td>85.2%</td>
+                                <td>91%</td>
+                                <td><span class="badge bg-success">Easy</span></td>
+                                <td>2024-01-10</td>
+                            </tr>
+                            <tr>
+                                <td>History Exam</td>
+                                <td>28</td>
+                                <td>71.8%</td>
+                                <td>75%</td>
+                                <td><span class="badge bg-danger">Hard</span></td>
+                                <td>2024-01-05</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Score Distribution Chart
+const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+new Chart(scoreCtx, {
+    type: 'bar',
+    data: {
+        labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
+        datasets: [{
+            label: 'Number of Students',
+            data: [12, 19, 43, 87, 84],
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+// Trend Chart
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+        datasets: [{
+            label: 'Average Score',
+            data: [75, 78, 82, 78.5],
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+</script>
+{% endblock %}
