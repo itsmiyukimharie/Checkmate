@@ -95,6 +95,14 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Custom User Model
+AUTH_USER_MODEL = 'main.User'
+
+# Authentication settings
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/'
+
 # Internationalization
 # https://docs.djangoproject.com/en/4.x/topics/i18n/
 
@@ -116,7 +124,6 @@ STATIC_URL = '/static/'
 # Additional locations of static files
 STATICFILES_DIRS = [
     BASE_DIR / "static",
-    BASE_DIR / "main" / "static",
 ]
 
 # Static files will be collected here in production

@@ -178,6 +178,22 @@
                 </li>
             </ul>
         </div>
+        
+        <!-- User Profile & Logout Section -->
+        <div class="mt-auto px-3 pb-3">
+            {% if user.is_authenticated %}
+                <div class="text-white mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <span class="small">{{ user.first_name }} {{ user.last_name }}</span>
+                    </div>
+                    <div class="small opacity-75">{{ user.email }}</div>
+                </div>
+                <a class="nav-link text-white" href="{% url 'main:logout' %}">
+                    <i class="fas fa-sign-out-alt me-2"></i> Logout
+                </a>
+            {% endif %}
+        </div>
     </nav>
 
     <!-- Main Content -->

@@ -44,7 +44,9 @@ my-django-project
 
 4. **Run migrations**:
    ```
+   python manage.py makemigrations main
    python manage.py migrate
+   python manage.py createsuperuser
    ```
 
 5. **Start the development server**:
@@ -53,7 +55,7 @@ my-django-project
    ```
 
 ## Usage
-- Access the application at `http://127.0.0.1:8000/`.
+- Access the application at `http://127.0.0.1:8080/`.
 - Customize the application by modifying the settings in `checkmate/settings.py` and adding your own apps in the `apps` directory.
 
 ## Contributing
