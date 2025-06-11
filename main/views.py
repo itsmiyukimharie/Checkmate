@@ -50,8 +50,22 @@ def analytics(request):
     return render(request, 'main/analytics.html', context)
 
 def landingpage(request):
+    """Landing page - main entry point"""
     context = {
-        'page_title': 'CheckMate',
-        'current_page': 'landingpage'
+        'page_title': 'CheckMate - AI-Powered Test Score Scanner',
     }
     return render(request, 'main/landingpage.html', context)
+
+def login(request):
+    """Login page"""
+    context = {
+        'page_title': 'Login - CheckMate',
+    }
+    return render(request, 'main/login.html', context)
+
+def signup(request):
+    """Signup page"""
+    context = {
+        'page_title': 'Sign Up - CheckMate',
+    }
+    return render(request, 'main/signup.html', context)

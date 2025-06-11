@@ -211,7 +211,7 @@
     </nav>
     <div class="actions">
       <img src="{% static 'images/flowbite_envelope-solid.png' %}" alt="Email" class="icon" />
-      <a href="{% url 'main:dashboard' %}" class="login">Log in</a>
+      <a href="{% url 'main:login' %}" class="login">Log in</a>
       <a href="{% url 'main:dashboard' %}" class="signup">Sign up</a>
     </div>
   </header>
@@ -246,7 +246,7 @@
 
   <script>
     function startApp() {
-      window.location.href = "{% url 'main:dashboard' %}";
+      window.location.href = "{% url 'main:login' %}";
     }
   </script>
 </body>
