@@ -11,4 +11,5 @@ urlpatterns = [
     path('grade-test/', views.grade_test, name='grade_test'),
     path('export-results/', views.export_results, name='export_results'),
     path('analytics/', views.analytics, name='analytics'),
+    path('landingpage/', views.landingpage, name='landingpage'),
 ]

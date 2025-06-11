@@ -1,61 +1,142 @@
 {% extends 'base.html' %}
 
-{% block title %}Performance Analytics - CheckMate{% endblock %}
+{# --------------------------------------------------------------------------- #}
+{#  Performance Analytics – Glassmorphism Redesign (Modernised)               #}
+{# --------------------------------------------------------------------------- #}
+
+{% block title %}Performance Analytics – CheckMate{% endblock %}
+
+{% block styles %}
+<style>
+    /* ---- Page backdrop --------------------------------------------------- */
+    body {
+        background: linear-gradient(135deg, #e8f3ff 0%, #ffffff 100%) no-repeat fixed;
+        min-height: 100vh;
+        color: #333;
+        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* ---- Glass container with more pronounced blur ---------------------- */
+    .glass-card {
+        backdrop-filter: blur(20px) saturate(150%);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        background: rgba(255, 255, 255, 0.45);
+        border-radius: 1.5rem;  /* Slightly more rounded corners */
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        transition: transform .3s ease, box-shadow .3s ease;
+    }
+    .glass-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+    }
+
+    /* ---- Card headers with bold text ----------------------------------- */
+    .card-header {
+        background: transparent;
+        border-bottom: none;
+        padding-bottom: .5rem;
+    }
+    .card-header h5 {
+        color: #000;
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-size: 1.2rem;  /* Increase font size */
+    }
+
+    /* ---- Interactive widgets with smooth hover ------------------------- */
+    .form-select {
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(0,0,0,0.15);
+        transition: background 0.3s ease;
+    }
+    .form-select:hover {
+        background: rgba(255,255,255,0.85);
+    }
+
+    .progress {
+        background-color: rgba(0,0,0,0.05);
+    }
+    .progress-bar {
+        backdrop-filter: blur(4px);
+        color: #000;
+        font-weight: 600;
+    }
+
+    /* ---- Tables with hover effect -------------------------------------- */
+    table thead th {
+        font-weight: 700; /* Bold headers */
+        border: none;
+    }
+    table tbody tr:hover {
+        background-color: rgba(0,0,0,0.035);
+        cursor: pointer;
+    }
+
+    /* ---- Typography tweaks for headers -------------------------------- */
+    h1 {
+        font-weight: 700;
+        color: #333;
+        font-size: 2rem;
+    }
+
+    /* ---- Utility for badges with better visibility --------------------- */
+    .badge {
+        font-weight: 600;
+    }
+
+    /* ---- Responsive design tweaks for modern feel ---------------------- */
+    .card-body {
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-chart-bar"></i> Performance Analytics</h1>
-    <div>
-        <select class="form-select d-inline-block w-auto">
-            <option>Last 30 Days</option>
-            <option>Last 90 Days</option>
-            <option>Last Year</option>
-        </select>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Performance Analytics</h1>
+    <select class="form-select d-inline-block w-auto">
+        <option>Last 30 Days</option>
+        <option>Last 90 Days</option>
+        <option>Last Year</option>
+    </select>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
+<div class="row g-4"><!-- unified gutter -->
+    <div class="col-lg-8">
+        <div class="card glass-card h-100">
             <div class="card-header">
-                <h5>Score Distribution</h5>
+                <h5 class="mb-0">Score Distribution</h5>
             </div>
             <div class="card-body">
                 <canvas id="scoreChart" height="100"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
+    <div class="col-lg-4">
+        <div class="card glass-card h-100">
             <div class="card-header">
-                <h5>Overall Statistics</h5>
+                <h5 class="mb-0">Overall Statistics</h5>
             </div>
             <div class="card-body">
-                <div class="mb-3">
+                <div class="vstack gap-3">
                     <div class="d-flex justify-content-between">
                         <span>Average Score:</span>
                         <strong>78.5%</strong>
                     </div>
-                </div>
-                <div class="mb-3">
                     <div class="d-flex justify-content-between">
                         <span>Highest Score:</span>
                         <strong>98%</strong>
                     </div>
-                </div>
-                <div class="mb-3">
                     <div class="d-flex justify-content-between">
                         <span>Lowest Score:</span>
                         <strong>45%</strong>
                     </div>
-                </div>
-                <div class="mb-3">
                     <div class="d-flex justify-content-between">
                         <span>Pass Rate:</span>
                         <strong>82%</strong>
                     </div>
-                </div>
-                <div class="mb-3">
                     <div class="d-flex justify-content-between">
                         <span>Total Students:</span>
                         <strong>245</strong>
@@ -66,15 +147,15 @@
     </div>
 </div>
 
-<div class="row mt-4">
+<div class="row g-4 mt-1">
     <div class="col-md-6">
-        <div class="card">
+        <div class="card glass-card h-100">
             <div class="card-header">
-                <h5>Common Mistakes</h5>
+                <h5 class="mb-0">Common Mistakes</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-sm">
+                    <table class="table table-sm align-middle">
                         <thead>
                             <tr>
                                 <th>Question</th>
@@ -125,11 +206,11 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-6">
-        <div class="card">
+        <div class="card glass-card h-100">
             <div class="card-header">
-                <h5>Performance Trends</h5>
+                <h5 class="mb-0">Performance Trends</h5>
             </div>
             <div class="card-body">
                 <canvas id="trendChart" height="150"></canvas>
@@ -138,15 +219,15 @@
     </div>
 </div>
 
-<div class="row mt-4">
+<div class="row g-4 mt-1">
     <div class="col-12">
-        <div class="card">
+        <div class="card glass-card">
             <div class="card-header">
-                <h5>Test Comparison</h5>
+                <h5 class="mb-0">Test Comparison</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-striped">
+                    <table class="table table-striped align-middle">
                         <thead>
                             <tr>
                                 <th>Test Name</th>
@@ -163,7 +244,7 @@
                                 <td>45</td>
                                 <td>78.5%</td>
                                 <td>82%</td>
-                                <td><span class="badge bg-warning">Medium</span></td>
+                                <td><span class="badge bg-warning text-dark">Medium</span></td>
                                 <td>2024-01-15</td>
                             </tr>
                             <tr>
@@ -194,44 +275,77 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Score Distribution Chart
-const scoreCtx = document.getElementById('scoreChart').getContext('2d');
-new Chart(scoreCtx, {
-    type: 'bar',
-    data: {
-        labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
-        datasets: [{
-            label: 'Number of Students',
-            data: [12, 19, 43, 87, 84],
-            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false
+    /* Gradient helpers ----------------------------------------------------- */
+    function buildGradient(ctx, colorStops) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        colorStops.forEach(stop => gradient.addColorStop(stop.offset, stop.color));
+        return gradient;
     }
-});
 
-// Trend Chart
-const trendCtx = document.getElementById('trendChart').getContext('2d');
-new Chart(trendCtx, {
-    type: 'line',
-    data: {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        datasets: [{
-            label: 'Average Score',
-            data: [75, 78, 82, 78.5],
-            borderColor: 'rgba(75, 192, 192, 1)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false
-    }
-});
+    /* Score Distribution Chart -------------------------------------------- */
+    const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+    const scoreGradient = buildGradient(scoreCtx, [
+        { offset: 0, color: 'rgba(54, 162, 235, 0.8)' },
+        { offset: 1, color: 'rgba(54, 162, 235, 0.2)' }
+    ]);
+    new Chart(scoreCtx, {
+        type: 'bar',
+        data: {
+            labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
+            datasets: [{
+                label: 'Number of Students',
+                data: [12, 19, 43, 87, 84],
+                backgroundColor: scoreGradient,
+                borderColor: 'rgba(54,162,235,1)',
+                borderWidth: 1,
+                borderRadius: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#333' } },
+                y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#333', beginAtZero: true } }
+            },
+            plugins: {
+                legend: { labels: { color: '#333' } },
+            }
+        }
+    });
+
+    /* Trend Chart ---------------------------------------------------------- */
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    const trendGradient = buildGradient(trendCtx, [
+        { offset: 0, color: 'rgba(75, 192, 192, 0.4)' },
+        { offset: 1, color: 'rgba(75, 192, 192, 0.05)' }
+    ]);
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+            datasets: [{
+                label: 'Average Score',
+                data: [75, 78, 82, 78.5],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: trendGradient,
+                tension: 0.35,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#fff' } },
+                y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' } }
+            },
+            plugins: {
+                legend: { labels: { color: '#fff' } },
+            }
+        }
+    });
 </script>
 {% endblock %}

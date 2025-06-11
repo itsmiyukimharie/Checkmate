@@ -1,86 +1,215 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CheckMate{% endblock %}</title>
+
+    <!-- Google Fonts: Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap & Font Awesome -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
     <style>
+        :root {
+            --brand-primary: #4e6bff;
+            --brand-secondary: #a667ff;
+            --sidebar-width: 260px;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Poppins', sans-serif;
+            background: #f0f2f5;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar */
         .sidebar {
-            min-height: 100vh;
-            background-color: #2c3e50;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            padding-top: 3.5rem; /* space for title */
+            background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+            backdrop-filter: blur(14px) saturate(180%);
+            -webkit-backdrop-filter: blur(14px) saturate(180%);
+            border-right: 1px solid rgba(255, 255, 255, 0.25);
+            transition: transform 0.3s ease;
+            z-index: 1040;
+        }
+        .sidebar h4, .sidebar .nav-link {
+            color: #ffffff;
         }
         .sidebar .nav-link {
-            color: #ecf0f1;
-            border-radius: 5px;
-            margin: 2px 0;
+            border-radius: 12px;
+            transition: background 0.25s ease;
         }
         .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background-color: #34495e;
-            color: white;
+            background: rgba(255, 255, 255, 0.25);
         }
+        .logo-img {
+            height: 28px;
+            width: auto;
+        }
+
+        /* Collapsed state */
+        body.sidebar-collapsed .sidebar {
+            transform: translateX(-100%);
+        }
+        body.sidebar-collapsed .main-content {
+            margin-left: 0;
+        }
+
+        /* Main content wrapper */
         .main-content {
-            background-color: #f8f9fa;
-            min-height: 100vh;
+            margin-left: var(--sidebar-width);
+            padding: 2.5rem;
+            transition: margin-left 0.3s ease;
+        }
+        .content-card {
+            padding: 2rem;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Toggle button at right-top of sidebar */
+        .sidebar-toggle {
+            position: fixed;
+            top: 1rem;
+            left: var(--sidebar-width); /* align with sidebar right edge */
+            transform: translateX(-50%); /* half overlaps sidebar/content */
+            border: none;
+            background: #ffffff;
+            color: var(--brand-primary);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1100;
+            transition: transform 0.2s ease, left 0.3s ease;
+        }
+        .sidebar-toggle:hover {
+            transform: translateX(-50%) rotate(90deg);
+        }
+        /* Toggle style when collapsed */
+        body.sidebar-collapsed .sidebar-toggle {
+            left: 1rem; /* stick to edge of viewport */
+            transform: rotate(0deg);
+            color: #ffffff;
+            background: var(--brand-primary);
+        }
+
+        /* Auto-collapse on small screens */
+        @media (max-width: 991.98px) {
+            body:not(.sidebar-collapsed) .sidebar {
+                transform: translateX(-100%);
+            }
+            body:not(.sidebar-collapsed) .main-content {
+                margin-left: 0;
+            }
+            body:not(.sidebar-collapsed) .sidebar-toggle {
+                left: 1rem;
+                transform: none;
+            }
+        }
+
+        /* Scrollbar subtlety */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-2 sidebar">
-                <div class="p-3">
-                    <h4 class="text-white mb-4">
-                        <i class="fas fa-check-circle"></i> CheckMate
-                    </h4>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if current_page == 'dashboard' %}active{% endif %}" href="{% url 'main:dashboard' %}">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if current_page == 'test_overview' %}active{% endif %}" href="{% url 'main:test_overview' %}">
-                                <i class="fas fa-clipboard-list"></i> Test Overview
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if current_page == 'answer_keys' %}active{% endif %}" href="{% url 'main:answer_keys' %}">
-                                <i class="fas fa-key"></i> Answer Keys
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if current_page == 'grade_test' %}active{% endif %}" href="{% url 'main:grade_test' %}">
-                                <i class="fas fa-graduation-cap"></i> Grade Test
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if current_page == 'export_results' %}active{% endif %}" href="{% url 'main:export_results' %}">
-                                <i class="fas fa-download"></i> Export Results
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if current_page == 'analytics' %}active{% endif %}" href="{% url 'main:analytics' %}">
-                                <i class="fas fa-chart-bar"></i> Analytics
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+    <!-- Toggle Button -->
+    <button id="sidebarToggle" class="sidebar-toggle" aria-label="Toggle navigation">
+        <i class="fas fa-bars"></i>
+    </button>
 
-            <!-- Main Content -->
-            <main class="col-md-10 main-content">
-                <div class="p-4">
-                    {% block content %}
-                    {% endblock %}
-                </div>
-            </main>
+    <!-- Sidebar -->
+    <nav class="sidebar d-flex flex-column">
+        <div class="px-3">
+            <h4 class="text-white mb-4 d-flex align-items-center gap-2">
+                <img src="{% static 'images/Checkmate_Logo.png' %}" alt="CheckMate logo" class="logo-img me-2">
+                <span>CheckMate</span>
+            </h4>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if current_page == 'dashboard' %}active{% endif %}" href="{% url 'main:dashboard' %}">
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if current_page == 'test_overview' %}active{% endif %}" href="{% url 'main:test_overview' %}">
+                        <i class="fas fa-clipboard-list me-2"></i> Test Overview
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if current_page == 'answer_keys' %}active{% endif %}" href="{% url 'main:answer_keys' %}">
+                        <i class="fas fa-key me-2"></i> Answer Keys
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if current_page == 'grade_test' %}active{% endif %}" href="{% url 'main:grade_test' %}">
+                        <i class="fas fa-graduation-cap me-2"></i> Grade Test
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if current_page == 'export_results' %}active{% endif %}" href="{% url 'main:export_results' %}">
+                        <i class="fas fa-download me-2"></i> Export Results
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if current_page == 'analytics' %}active{% endif %}" href="{% url 'main:analytics' %}">
+                        <i class="fas fa-chart-bar me-2"></i> Analytics
+                    </a>
+                </li>
+            </ul>
         </div>
-    </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-card">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const bodyEl = document.body;
+        const toggleBtn = document.getElementById('sidebarToggle');
+
+        // Apply stored sidebar state on page load
+        function applySidebarState() {
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed) {
+                bodyEl.classList.add('sidebar-collapsed');
+            } else {
+                bodyEl.classList.remove('sidebar-collapsed');
+            }
+        }
+        applySidebarState();
+
+        toggleBtn.addEventListener('click', function () {
+            bodyEl.classList.toggle('sidebar-collapsed');
+            // Store the current state
+            localStorage.setItem('sidebar-collapsed', bodyEl.classList.contains('sidebar-collapsed'));
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

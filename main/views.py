@@ -48,3 +48,10 @@ def analytics(request):
         'current_page': 'analytics'
     }
     return render(request, 'main/analytics.html', context)
+
+def landingpage(request):
+    context = {
+        'page_title': 'CheckMate',
+        'current_page': 'landingpage'
+    }
+    return render(request, 'main/landingpage.html', context)
