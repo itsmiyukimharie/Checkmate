@@ -103,19 +103,31 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{% url 'main:enter_answers' test.id %}" class="btn btn-sm btn-outline-primary rounded-pill me-1">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </a>
+                                    {% if test.status == 'draft' %}
+                                        <a href="{% url 'main:enter_answers' test.id %}" class="btn btn-sm btn-outline-primary rounded-pill me-1">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill me-1" disabled title="Cannot edit active tests">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                    {% endif %}
                                     <button type="button" class="btn btn-sm btn-outline-info rounded-pill me-1" onclick="printAnswerKey({{ test.id }})">
                                         <i class="fas fa-print"></i> Print
                                     </button>
                                     <a href="{% url 'main:download_answer_key' test.id %}" class="btn btn-sm btn-outline-success rounded-pill me-1">
                                         <i class="fas fa-download"></i> Download
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" 
-                                            onclick="confirmDelete('{{ test.test_name|escapejs }}', '{% url 'main:delete_test' test.id %}')">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
+                                    {% if test.status == 'draft' %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" 
+                                                onclick="confirmDelete('{{ test.test_name|escapejs }}', '{% url 'main:delete_test' test.id %}')">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled title="Cannot delete active tests">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

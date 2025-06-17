@@ -14,6 +14,13 @@
                 margin: 3mm;
                 size: A4;
             }
+            /* Ensure filled bubbles print as black */
+            .bubble.filled {
+                background: #000 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
         
         body {
@@ -98,9 +105,9 @@
         }
         
         .bubble {
-            width: 14px;
-            height: 14px;
-            border: 1.5px solid #000;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -109,11 +116,31 @@
             font-size: 8px;
             background: white;
             color: #000;
+            /* Ensure colors print correctly */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         
         .bubble.filled {
             background: #000 !important;
             color: white !important;
+            /* Force print color accuracy */
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            /* Additional fallback for stubborn browsers */
+            box-shadow: inset 0 0 0 10px #000 !important;
+        }
+        
+        /* Alternative approach using pseudo-element for maximum compatibility */
+        .bubble.filled::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #000;
+            border-radius: 50%;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         
         .print-footer {

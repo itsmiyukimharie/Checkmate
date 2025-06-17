@@ -82,7 +82,6 @@ def enter_answers(request, test_id):
             return redirect('main:answer_keys')
         
         # Create a temporary test object for form generation (not saved to DB)
-        from .models import TestInformation
         test_info = TestInformation(
             test_name=temp_test_data['test_name'],
             test_type=temp_test_data['test_type'],
@@ -283,30 +282,55 @@ def download_answer_key(request, test_id):
     
     writer = csv.writer(response)
     
-    # Write header information
-    writer.writerow(['CheckMate Answer Key'])
-    writer.writerow(['Test Name', test_info.test_name])
-    writer.writerow(['Test Type', test_info.get_test_type_display()])
-    writer.writerow(['Total Questions', test_info.question_count])
-    writer.writerow(['Created', test_info.created_at.strftime('%B %d, %Y at %I:%M %p')])
-    writer.writerow(['Generated', test_info.updated_at.strftime('%B %d, %Y at %I:%M %p')])
-    writer.writerow([])  # Empty row for spacing
+    # Write structured header for machine processing
+    writer.writerow(['# CheckMate Answer Key - Machine Readable Format'])
+    writer.writerow(['# Test Name:', test_info.test_name])
+    writer.writerow(['# Test Type:', test_info.test_type])
+    writer.writerow(['# Question Count:', test_info.question_count])
+    writer.writerow(['# Answer Choices:', ','.join(test_info.get_answer_choices())])
+    writer.writerow(['# Created:', test_info.created_at.isoformat()])
+    writer.writerow(['# Generated:', test_info.updated_at.isoformat()])
+    writer.writerow([])  # Empty row separator
     
-    # Write answer key headers
-    writer.writerow(['Question Number', 'Correct Answer'])
+    # Write structured answer data for comparison
+    writer.writerow(['question_number', 'correct_answer', 'answer_index'])
     
-    # Write answer data
+    answer_choices = test_info.get_answer_choices()
+    
     if answer_keys:
         for answer_key in answer_keys:
-            writer.writerow([answer_key.question_number, answer_key.answer])
+            # Get answer index for numerical comparison
+            try:
+                answer_index = answer_choices.index(answer_key.answer)
+            except ValueError:
+                answer_index = -1  # Invalid answer
+            
+            writer.writerow([
+                answer_key.question_number,
+                answer_key.answer,
+                answer_index
+            ])
     else:
-        writer.writerow(['No answers', 'entered yet'])
+        # Write placeholder for empty answer key
+        for i in range(1, test_info.question_count + 1):
+            writer.writerow([i, '', -1])
     
-    # Add metadata at the bottom
-    writer.writerow([])  # Empty row
-    writer.writerow(['Available Choices', ', '.join(test_info.get_answer_choices())])
-    writer.writerow(['Export Source', 'CheckMate Test Scanner'])
-    writer.writerow(['Compatible with', 'OMR Processing & Image Comparison'])
+    # Write additional metadata for verification
+    writer.writerow([])
+    writer.writerow(['# Metadata for Verification'])
+    writer.writerow(['# Total Questions Expected:', test_info.question_count])
+    writer.writerow(['# Total Answers Provided:', len(answer_keys)])
+    writer.writerow(['# Answer Choice Count:', len(answer_choices)])
+    writer.writerow(['# Format Version:', '1.0'])
+    writer.writerow(['# Compatible with CheckMate Image Processing'])
+    
+    # Write answer choice mapping for reference
+    writer.writerow([])
+    writer.writerow(['# Answer Choice Mapping'])
+    writer.writerow(['index', 'choice', 'display'])
+    for i, choice in enumerate(answer_choices):
+        display = 'T' if choice == 'True' else 'F' if choice == 'False' else choice
+        writer.writerow([i, choice, display])
     
     return response
 
