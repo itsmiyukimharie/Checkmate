@@ -62,6 +62,10 @@ def analytics(request):
 
 def landingpage(request):
     """Landing page - main entry point"""
+    # Redirect to dashboard if user is already logged in
+    if request.user.is_authenticated:
+        return redirect('main:dashboard')
+    
     context = {
         'page_title': 'CheckMate - AI-Powered Test Score Scanner',
     }
