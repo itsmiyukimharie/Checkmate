@@ -48,15 +48,18 @@ def answer_keys(request):
             # Handle create form
             create_form = CreateAnswerKeyForm(request.POST)
             if create_form.is_valid():
-                # Create test information
-                test_info = create_form.save(commit=False)
-                test_info.user = request.user
-                test_info.name = test_info.test_name  # Set name same as test_name
-                test_info.status = 'draft'  # Set to draft when created manually
-                test_info.save()
+                # Don't save to DB yet, just pass data to enter_answers view
+                test_data = {
+                    'test_name': create_form.cleaned_data['test_name'],
+                    'test_type': create_form.cleaned_data['test_type'],
+                    'question_count': create_form.cleaned_data['question_count']
+                }
                 
-                messages.success(request, f'Test "{test_info.test_name}" created successfully!')
-                return redirect('main:enter_answers', test_id=test_info.id)
+                # Store in session for the enter_answers view
+                request.session['temp_test_data'] = test_data
+                
+                messages.success(request, f'Test "{test_data["test_name"]}" setup complete. Please enter answers to save.')
+                return redirect('main:enter_answers', test_id=0)  # Use 0 for new test
             else:
                 messages.error(request, 'Please correct the errors in the create form.')
     
@@ -71,11 +74,29 @@ def answer_keys(request):
 @login_required
 def enter_answers(request, test_id):
     """Enter answers for a specific test"""
-    try:
-        test_info = TestInformation.objects.get(id=test_id, user=request.user)
-    except TestInformation.DoesNotExist:
-        messages.error(request, 'Test not found.')
-        return redirect('main:answer_keys')
+    # Handle new test creation (test_id = 0)
+    if test_id == 0:
+        temp_test_data = request.session.get('temp_test_data')
+        if not temp_test_data:
+            messages.error(request, 'No test data found. Please create a new test.')
+            return redirect('main:answer_keys')
+        
+        # Create a temporary test object for form generation (not saved to DB)
+        from .models import TestInformation
+        test_info = TestInformation(
+            test_name=temp_test_data['test_name'],
+            test_type=temp_test_data['test_type'],
+            question_count=temp_test_data['question_count']
+        )
+        is_new_test = True
+    else:
+        # Handle existing test
+        try:
+            test_info = TestInformation.objects.get(id=test_id, user=request.user)
+            is_new_test = False
+        except TestInformation.DoesNotExist:
+            messages.error(request, 'Test not found.')
+            return redirect('main:answer_keys')
     
     # Get answer choices based on test type
     answer_choices = test_info.get_answer_choices()
@@ -87,8 +108,19 @@ def enter_answers(request, test_id):
             answer_choices=answer_choices
         )
         if form.is_valid():
-            # Delete existing answers for this test
-            TestAnswerKey.objects.filter(test_information=test_info).delete()
+            if is_new_test:
+                # Now save the test to database
+                test_info.user = request.user
+                test_info.name = test_info.test_name
+                test_info.status = 'draft'
+                test_info.save()
+                
+                # Clear session data
+                if 'temp_test_data' in request.session:
+                    del request.session['temp_test_data']
+            else:
+                # Delete existing answers for existing test
+                TestAnswerKey.objects.filter(test_information=test_info).delete()
             
             # Save new answers
             for i in range(1, test_info.question_count + 1):
@@ -102,24 +134,32 @@ def enter_answers(request, test_id):
             messages.success(request, f'Answer key for "{test_info.test_name}" has been saved successfully!')
             return redirect('main:answer_keys')
     else:
-        # Load existing answers if they exist
-        existing_answers = TestAnswerKey.objects.filter(test_information=test_info)
-        initial_data = {}
-        for answer_key in existing_answers:
-            initial_data[f'question_{answer_key.question_number}'] = answer_key.answer
-        
-        form = AnswerKeyEntryForm(
-            initial=initial_data,
-            question_count=test_info.question_count,
-            answer_choices=answer_choices
-        )
+        if is_new_test:
+            # New test - no existing answers
+            form = AnswerKeyEntryForm(
+                question_count=test_info.question_count,
+                answer_choices=answer_choices
+            )
+        else:
+            # Load existing answers if they exist
+            existing_answers = TestAnswerKey.objects.filter(test_information=test_info)
+            initial_data = {}
+            for answer_key in existing_answers:
+                initial_data[f'question_{answer_key.question_number}'] = answer_key.answer
+            
+            form = AnswerKeyEntryForm(
+                initial=initial_data,
+                question_count=test_info.question_count,
+                answer_choices=answer_choices
+            )
     
     context = {
         'page_title': f'Enter Answers - {test_info.test_name}',
         'current_page': 'answer_keys',
         'test_info': test_info,
         'form': form,
-        'answer_choices': answer_choices
+        'answer_choices': answer_choices,
+        'is_new_test': is_new_test
     }
     return render(request, 'main/answer_keys_enter.html', context)
 

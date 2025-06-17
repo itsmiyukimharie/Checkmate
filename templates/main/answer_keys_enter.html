@@ -7,6 +7,11 @@
     <div>
         <h1><i class="fas fa-edit"></i> {{ test_info.test_name }}</h1>
         <p class="text-muted">{{ test_info.get_test_type_display }} - {{ test_info.question_count }} questions</p>
+        {% if is_new_test %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> This test will be created when you save the answer key.
+            </div>
+        {% endif %}
     </div>
     <a href="{% url 'main:answer_keys' %}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Back to Answer Keys
@@ -57,9 +62,15 @@
             </div>
         </div>
         <div class="card-footer text-end">
-            <button type="submit" class="btn btn-success">
-                <i class="fas fa-save"></i> Save Answer Key
-            </button>
+            {% if is_new_test %}
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Create Test & Save Answer Key
+                </button>
+            {% else %}
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Save Answer Key
+                </button>
+            {% endif %}
         </div>
     </div>
 </form>
