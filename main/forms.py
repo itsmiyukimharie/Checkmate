@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import authenticate
-from .models import User, TestInformation, TestAnswerKey, Courses
+from .models import User, TestInformation, TestAnswerKey, Courses, Students
 
 class SignUpForm(UserCreationForm):
     """Custom signup form with additional fields"""
@@ -217,13 +217,15 @@ class CourseForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.course_id = kwargs.pop('course_id', None)  # For edit mode
         super().__init__(*args, **kwargs)
         for field in self.fields:
             self.fields[field].widget.attrs.update({'class': 'form-control'})
         self.fields['semester'].widget.attrs.update({'class': 'form-select'})
     
     def clean_course_code(self):
-        """Validate course code format"""
+        """Validate course code format and uniqueness"""
         course_code = self.cleaned_data.get('course_code')
         if course_code:
             # Remove extra spaces and convert to uppercase
@@ -238,6 +240,23 @@ class CourseForm(forms.ModelForm):
                 raise forms.ValidationError(
                     'Course code must be 2-4 letters followed by 1-4 numbers (e.g., CS101, MATH201) or 2-4 letters, hyphen, then 1-4 numbers (e.g., MATH-001, CS-101)'
                 )
+            
+            # Check for uniqueness within user's courses
+            if self.user:
+                existing_courses = Courses.objects.filter(
+                    user=self.user,
+                    course_code=course_code
+                )
+                
+                # If editing, exclude the current course from the check
+                if self.course_id:
+                    existing_courses = existing_courses.exclude(id=self.course_id)
+                
+                if existing_courses.exists():
+                    raise forms.ValidationError(
+                        f'You already have a course with code "{course_code}". Course codes must be unique.'
+                    )
+        
         return course_code
     
     def clean_course_name(self):
@@ -310,6 +329,150 @@ class CourseFilterForm(forms.Form):
             ('-course_code', 'Course Code Z-A'),
             ('course_name', 'Course Name A-Z'),
             ('-course_name', 'Course Name Z-A')
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+class StudentForm(forms.ModelForm):
+    """Form for creating and editing students"""
+    
+    # Add a multiple choice field for courses
+    courses = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set dynamically
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'form-check-input'
+        }),
+        required=True,
+        help_text='Select at least one course to assign to this student'
+    )
+    
+    class Meta:
+        model = Students
+        fields = ['student_id', 'first_name', 'middle_name', 'last_name', 'email', 'section']
+        widgets = {
+            'student_id': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 2024001, STU-001'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'First name'
+            }),
+            'middle_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Middle name (optional)'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Last name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'student@example.com (optional)'
+            }),
+            'section': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., CS-A, BSIT-1A'
+            })
+        }
+    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Set the queryset for courses based on the user
+        if user:
+            self.fields['courses'].queryset = Courses.objects.filter(user=user).order_by('course_code')
+        else:
+            self.fields['courses'].queryset = Courses.objects.none()
+        
+        # If editing an existing student, pre-select assigned courses
+        if self.instance and self.instance.pk:
+            self.fields['courses'].initial = self.instance.assigned_courses.values_list('course', flat=True)
+    
+    def clean_student_id(self):
+        """Validate student ID format"""
+        student_id = self.cleaned_data.get('student_id')
+        if student_id:
+            student_id = student_id.strip()
+            if len(student_id) < 3:
+                raise forms.ValidationError('Student ID must be at least 3 characters long.')
+            if len(student_id) > 20:
+                raise forms.ValidationError('Student ID cannot exceed 20 characters.')
+        return student_id
+    
+    def clean_first_name(self):
+        """Validate first name"""
+        first_name = self.cleaned_data.get('first_name')
+        if first_name:
+            first_name = first_name.strip().title()
+            if len(first_name) < 2:
+                raise forms.ValidationError('First name must be at least 2 characters long.')
+            if not first_name.replace(' ', '').replace('-', '').isalpha():
+                raise forms.ValidationError('First name can only contain letters, spaces, and hyphens.')
+        return first_name
+    
+    def clean_last_name(self):
+        """Validate last name"""
+        last_name = self.cleaned_data.get('last_name')
+        if last_name:
+            last_name = last_name.strip().title()
+            if len(last_name) < 2:
+                raise forms.ValidationError('Last name must be at least 2 characters long.')
+            if not last_name.replace(' ', '').replace('-', '').isalpha():
+                raise forms.ValidationError('Last name can only contain letters, spaces, and hyphens.')
+        return last_name
+    
+    def clean_middle_name(self):
+        """Validate middle name"""
+        middle_name = self.cleaned_data.get('middle_name')
+        if middle_name:
+            middle_name = middle_name.strip().title()
+            if not middle_name.replace(' ', '').replace('-', '').isalpha():
+                raise forms.ValidationError('Middle name can only contain letters, spaces, and hyphens.')
+        return middle_name
+    
+    def clean_email(self):
+        """Validate email"""
+        email = self.cleaned_data.get('email')
+        if email:
+            email = email.strip().lower()
+            # Basic email format validation (Django already does this, but we can add custom messages)
+            if '@' not in email:
+                raise forms.ValidationError('Please enter a valid email address.')
+        return email
+
+class StudentFilterForm(forms.Form):
+    """Form for filtering students"""
+    search = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search by ID, name, or email...'
+        })
+    )
+    
+    section = forms.CharField(
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Filter by section...'
+        })
+    )
+    
+    sort_by = forms.ChoiceField(
+        choices=[
+            ('last_name', 'Last Name A-Z'),
+            ('-last_name', 'Last Name Z-A'),
+            ('first_name', 'First Name A-Z'),
+            ('-first_name', 'First Name Z-A'),
+            ('student_id', 'Student ID A-Z'),
+            ('-student_id', 'Student ID Z-A'),
+            ('-created_at', 'Newest First'),
+            ('created_at', 'Oldest First')
         ],
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'})

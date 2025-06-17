@@ -84,7 +84,7 @@ class Courses(models.Model):
     academic_year = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., 2023-2024")
     semester = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., 1st Semester, 2nd Semester, 3rd Semester, Summer")
     name = models.CharField(max_length=100, blank=True, null=True, help_text="Optional course name")
-    course_code = models.CharField(max_length=20, unique=True, help_text="Unique course identifier")
+    course_code = models.CharField(max_length=20, help_text="Course identifier")
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -92,6 +92,7 @@ class Courses(models.Model):
     class Meta:
         db_table = 'main_courses'
         ordering = ['-created_at']
+        unique_together = ('user', 'course_code')  # Unique per user
 
     def __str__(self):
         return self.course_name
@@ -165,4 +166,4 @@ class SpecificTestResult(models.Model):
     def __str__(self):
         return f"Q{self.question_number} - {self.student_answer} ({'Correct' if self.is_correct else 'Incorrect'})"
 
-    
+

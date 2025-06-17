@@ -4,13 +4,14 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 
-from .forms import CreateAnswerKeyForm, CourseForm, CourseFilterForm
 from .services.answer_key_service import AnswerKeyService
 from .services.auth_service import AuthService
 from .services.course_service import CourseService
+from .services.student_service import StudentService
 from .utils.form_helpers import FormHelper
 from .utils.session_helpers import SessionHelper
 from .utils.auth_helpers import AuthFormHelper
+from .forms import CreateAnswerKeyForm, CourseForm, CourseFilterForm, StudentForm, StudentFilterForm
 
 @login_required
 def dashboard(request):
@@ -195,9 +196,8 @@ def landingpage(request):
 # Simplified view functions
 @login_required
 def test_overview(request):
-    """Students Management - View and manage students"""
-    context = {'page_title': 'Students', 'current_page': 'test_overview'}
-    return render(request, 'main/student_management.html', context)
+    """Redirect to student management"""
+    return redirect('main:student_management')
 
 @login_required
 def course_management(request):
@@ -229,7 +229,7 @@ def course_management(request):
         'current_page': 'course_management',
         'user_courses': page_obj,
         'course_stats': course_stats,
-        'course_form': CourseForm(),
+        'course_form': CourseForm(user=request.user),  # Pass user to form
         'filter_form': filter_form,
         'unique_years': unique_years,
         'has_filters': any(filters.values()) if filters else False
@@ -240,20 +240,34 @@ def course_management(request):
 def add_course(request):
     """Add a new course"""
     if request.method == 'POST':
-        form = CourseForm(request.POST)
+        form = CourseForm(request.POST, user=request.user)
         if form.is_valid():
             try:
                 course = CourseService.create_course(request.user, form.cleaned_data)
-                messages.success(request, f'Course "{course.course_name}" has been created successfully!')
-                return redirect('main:course_management')
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Course "{course.course_name}" has been created successfully!'
+                })
             except ValidationError as e:
-                messages.error(request, str(e))
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [str(e)]}
+                })
             except Exception as e:
-                messages.error(request, f'Error creating course: {str(e)}')
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [f'Error creating course: {str(e)}']}
+                })
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field.title()}: {error}')
+            # Format form errors for JSON response
+            errors = {}
+            for field, field_errors in form.errors.items():
+                errors[field] = field_errors
+            
+            return JsonResponse({
+                'success': False,
+                'errors': errors
+            })
     
     return redirect('main:course_management')
 
@@ -261,19 +275,34 @@ def add_course(request):
 def edit_course(request, course_id):
     """Edit an existing course"""
     if request.method == 'POST':
-        form = CourseForm(request.POST)
+        form = CourseForm(request.POST, user=request.user, course_id=course_id)
         if form.is_valid():
             try:
                 course = CourseService.update_course(course_id, request.user, form.cleaned_data)
-                messages.success(request, f'Course "{course.course_name}" has been updated successfully!')
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Course "{course.course_name}" has been updated successfully!'
+                })
             except ValidationError as e:
-                messages.error(request, str(e))
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [str(e)]}
+                })
             except Exception as e:
-                messages.error(request, f'Error updating course: {str(e)}')
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [f'Error updating course: {str(e)}']}
+                })
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field.title()}: {error}')
+            # Format form errors for JSON response
+            errors = {}
+            for field, field_errors in form.errors.items():
+                errors[field] = field_errors
+            
+            return JsonResponse({
+                'success': False,
+                'errors': errors
+            })
     
     return redirect('main:course_management')
 
@@ -305,3 +334,184 @@ def analytics(request):
     """Performance Analytics - View common mistakes and trends"""
     context = {'page_title': 'Performance Analytics', 'current_page': 'analytics'}
     return render(request, 'main/analytics.html', context)
+
+@login_required
+def student_management(request):
+    """Student Management - View and manage students"""
+    # Handle filter form
+    filter_form = StudentFilterForm(request.GET or None)
+    filters = None
+    
+    if filter_form.is_valid():
+        filters = {
+            'search': filter_form.cleaned_data.get('search'),
+            'section': filter_form.cleaned_data.get('section'),
+            'sort_by': filter_form.cleaned_data.get('sort_by', 'last_name')
+        }
+    
+    user_students = StudentService.get_user_students(request.user, filters)
+    student_stats = StudentService.get_student_stats(request.user, filters)
+    unique_sections = StudentService.get_unique_sections(request.user)
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(user_students, 10)  # Show 10 students per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_title': 'Students',
+        'current_page': 'student_management',
+        'user_students': page_obj,
+        'student_stats': student_stats,
+        'student_form': StudentForm(user=request.user),
+        'filter_form': filter_form,
+        'unique_sections': unique_sections,
+        'has_filters': any(filters.values()) if filters else False
+    }
+    return render(request, 'main/student_management.html', context)
+
+@login_required
+def add_student(request):
+    """Add a new student"""
+    if request.method == 'POST':
+        form = StudentForm(request.POST, user=request.user)
+        if form.is_valid():
+            try:
+                # Check if at least one course is selected
+                courses = form.cleaned_data.get('courses', [])
+                if not courses:
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'courses': ['Please select at least one course for the student.']}
+                    })
+                
+                student = StudentService.create_student(request.user, form.cleaned_data)
+                
+                # Get assigned courses count for success message
+                course_count = len(courses)
+                if course_count == 1:
+                    course_msg = f" and assigned to {course_count} course"
+                else:
+                    course_msg = f" and assigned to {course_count} courses"
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Student "{student.first_name} {student.last_name}" has been added successfully{course_msg}!'
+                })
+                
+            except ValidationError as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [str(e)]}
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [f'An unexpected error occurred: {str(e)}']}
+                })
+        else:
+            # Format form errors for JSON response with better field names
+            errors = {}
+            field_name_mapping = {
+                'student_id': 'Student ID',
+                'first_name': 'First Name',
+                'middle_name': 'Middle Name',
+                'last_name': 'Last Name',
+                'email': 'Email',
+                'section': 'Section',
+                'courses': 'Course Assignment'
+            }
+            
+            for field, field_errors in form.errors.items():
+                # Use the original field name for JS to target the right element
+                errors[field] = [error for error in field_errors]
+            
+            return JsonResponse({
+                'success': False,
+                'errors': errors
+            })
+    
+    return redirect('main:student_management')
+
+@login_required
+def edit_student(request, student_id):
+    """Edit an existing student"""
+    if request.method == 'POST':
+        form = StudentForm(request.POST, user=request.user)
+        if form.is_valid():
+            try:
+                # Check if at least one course is selected
+                courses = form.cleaned_data.get('courses', [])
+                if not courses:
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'courses': ['Please select at least one course for the student.']}
+                    })
+                
+                student = StudentService.update_student(student_id, request.user, form.cleaned_data)
+                
+                # Get assigned courses count for success message
+                course_count = len(courses)
+                if course_count == 1:
+                    course_msg = f" and assigned to {course_count} course"
+                else:
+                    course_msg = f" and assigned to {course_count} courses"
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Student "{student.first_name} {student.last_name}" has been updated successfully{course_msg}!'
+                })
+                
+            except ValidationError as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [str(e)]}
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [f'An unexpected error occurred: {str(e)}']}
+                })
+        else:
+            # Format form errors for JSON response
+            errors = {}
+            for field, field_errors in form.errors.items():
+                errors[field] = [error for error in field_errors]
+            
+            return JsonResponse({
+                'success': False,
+                'errors': errors
+            })
+    
+    return redirect('main:student_management')
+
+@login_required
+def delete_student(request, student_id):
+    """Delete a student"""
+    try:
+        student_name = StudentService.delete_student(student_id, request.user)
+        messages.success(request, f'Student "{student_name}" has been deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting student: {str(e)}')
+    
+    return redirect('main:student_management')
+
+@login_required
+def get_student_courses(request, student_id):
+    """Get courses assigned to a student (AJAX endpoint)"""
+    try:
+        student, courses = StudentService.get_student_with_courses(student_id, request.user)
+        course_data = [
+            {
+                'id': course.id,
+                'course_code': course.course_code,
+                'course_name': course.course_name,
+                'academic_year': course.academic_year or '',
+                'semester': course.semester or ''
+            }
+            for course in courses
+        ]
+        return JsonResponse({'courses': course_data})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=404)
