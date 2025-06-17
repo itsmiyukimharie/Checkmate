@@ -34,15 +34,25 @@
             <small class="text-muted">Available choices: {{ answer_choices|join:", " }}</small>
         </div>
         <div class="card-body">
+            {% comment %} Calculate items per column based on 20% rule {% endcomment %}
+            {% widthratio test_info.question_count 5 1 as items_per_column %}
+            {% if items_per_column < 5 %}
+                {% widthratio test_info.question_count 2 1 as items_per_column %}
+            {% elif items_per_column > 20 %}
+                {% widthratio test_info.question_count 8 1 as items_per_column %}
+            {% endif %}
+            
             <div class="row">
                 {% for field in form %}
-                    <div class="col-md-2 col-sm-3 col-4 mb-3">
-                        <label class="form-label">{{ field.label }}</label>
+                    {% if forloop.counter0|divisibleby:items_per_column %}
+                        {% if not forloop.first %}</div>{% endif %}
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label small">{{ field.label }}</label>
                         {{ field }}
                     </div>
-                    {% if forloop.counter|divisibleby:6 %}
-                        </div><div class="row">
-                    {% endif %}
+                    {% if forloop.last %}</div>{% endif %}
                 {% endfor %}
             </div>
         </div>
@@ -55,3 +65,4 @@
 </form>
 
 {% endblock %}
+

@@ -4,82 +4,109 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @media print {
-            body { margin: 5mm; }
+            body { margin: 3mm; }
             .no-print { display: none; }
+            @page {
+                margin: 3mm;
+                size: A4;
+            }
         }
         
         body {
             font-family: Arial, sans-serif;
-            margin: 10px;
+            margin: 5px;
             color: #000;
             background: white;
-            font-size: 12px;
+            font-size: 10px;
         }
         
         .header {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             border-bottom: 2px solid #000;
-            padding-bottom: 8px;
+            padding-bottom: 5px;
         }
         
         .header h1 {
             margin: 0;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
+        }
+        
+        .header p {
+            margin: 2px 0;
+            font-size: 10px;
         }
         
         .test-info {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             background: #f5f5f5;
-            padding: 8px;
+            padding: 5px;
             border: 1px solid #000;
-            font-size: 10px;
+            font-size: 8px;
         }
         
         .answer-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-bottom: 15px;
+            gap: 4px;
+            margin-bottom: 10px;
+            grid-auto-flow: column;
+        }
+        
+        .grid-tf {
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(15, minmax(25px, 1fr));
+        }
+        
+        .grid-mc5 {
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(20, minmax(25px, 1fr));
+        }
+        
+        .grid-mc4 {
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(17, minmax(25px, 1fr));
         }
         
         .answer-item {
             border: 1px solid #000;
-            padding: 6px;
+            padding: 4px;
             background: #fff;
             display: flex;
             align-items: center;
-            gap: 8px;
-            min-height: 35px;
+            gap: 6px;
+            min-height: 25px;
+            page-break-inside: avoid;
         }
         
         .question-number {
             font-weight: bold;
-            min-width: 20px;
-            font-size: 12px;
+            min-width: 15px;
+            font-size: 10px;
         }
         
         .bubbles {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             align-items: center;
         }
         
         .bubble {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #000;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 8px;
             background: white;
             color: #000;
         }
@@ -89,50 +116,33 @@
             color: white !important;
         }
         
+        .print-footer {
+            margin-top: 10px;
+            text-align: center;
+            color: #666;
+            font-size: 7px;
+            border-top: 1px solid #ccc;
+            padding-top: 3px;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
         .actions {
             text-align: center;
             margin-bottom: 15px;
-        }
-        
-        .btn {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            margin: 0 5px;
-            font-size: 12px;
-        }
-        
-        .btn:hover {
-            background: #0056b3;
-        }
-        
-        .btn-secondary {
-            background: #6c757d;
-        }
-        
-        .btn-secondary:hover {
-            background: #545b62;
-        }
-        
-        .footer {
-            margin-top: 15px;
-            text-align: center;
-            color: #666;
-            font-size: 8px;
-            border-top: 1px solid #ccc;
-            padding-top: 5px;
         }
     </style>
 </head>
 <body>
     <div class="actions no-print">
-        <button onclick="window.print()" class="btn">Print Answer Sheet</button>
-        <button onclick="window.close()" class="btn">Close</button>
+        <button onclick="window.print()" class="btn btn-primary me-2">
+            <i class="fas fa-print"></i> Print Answer Sheet
+        </button>
+        <button onclick="window.close()" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Close
+        </button>
     </div>
     
     <div class="header">
@@ -156,52 +166,36 @@
         </div>
     </div>
     
-    <div class="answer-grid">
+    <div class="answer-grid {% if test_info.test_type == 'true_false' %}grid-tf{% elif test_info.test_type == 'multiple_choice_5' %}grid-mc5{% else %}grid-mc4{% endif %}">
         {% for answer_key in answer_keys %}
-        <div class="answer-item">
-            <div class="question-number">{{ answer_key.question_number }}.</div>
-            <div class="bubbles">
-                {% for choice in answer_choices %}
-                <div class="bubble{% if choice == answer_key.answer %} filled{% endif %}">{{ choice }}</div>
-                {% endfor %}
+            {% if forloop.counter0|divisibleby:60 and forloop.counter0 > 0 %}
+                </div>
+                <div class="page-break"></div>
+                <div class="answer-grid {% if test_info.test_type == 'true_false' %}grid-tf{% elif test_info.test_type == 'multiple_choice_5' %}grid-mc5{% else %}grid-mc4{% endif %}">
+            {% endif %}
+            
+            <div class="answer-item">
+                <div class="question-number">{{ answer_key.question_number }}.</div>
+                <div class="bubbles">
+                    {% for choice in answer_choices %}
+                    <div class="bubble{% if choice == answer_key.answer %} filled{% endif %}">
+                        {% if choice == 'True' %}T{% elif choice == 'False' %}F{% else %}{{ choice }}{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
         {% endfor %}
     </div>
     
-    <div class="footer">
-        <p><strong>CheckMate Scanner</strong> | Generated: {{ "now"|date:"M d, Y g:i A" }}</p>
-    </div>
-</body>
-</html>
-</body>
-</html>
-    </div>
-    
-    {% if answer_keys %}
-        <div class="answer-grid{% if test_info.test_type == 'true_false' %} true-false{% elif test_info.test_type == 'multiple_choice_5' %} mc-5{% endif %}">
-            {% for answer_key in answer_keys %}
-                <div class="answer-item">
-                    <div class="question-number">{{ answer_key.question_number }}.</div>
-                    <div class="bubbles">
-                        {% for choice in answer_choices %}
-                            <div class="bubble{% if choice == answer_key.answer %} filled{% endif %}">
-                                {% if choice == 'True' %}T{% elif choice == 'False' %}F{% else %}{{ choice }}{% endif %}
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div style="text-align: center; padding: 30px; border: 2px solid #000;">
-            <h3 style="font-size: 14px;">No Answer Key Available</h3>
-            <p style="font-size: 11px;">Please create an answer key first.</p>
-        </div>
-    {% endif %}
-    
-    <div class="footer">
+    <div class="print-footer">
         <p><strong>CheckMate Scanner</strong> | Generated: {{ "now"|date:"M d, Y g:i A" }} | Optimized for OMR Processing</p>
     </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
 </body>
 </html>

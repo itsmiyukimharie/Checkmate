@@ -2,8 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse
-from django.template.loader import get_template
+from django.http import HttpResponse, JsonResponse
 import csv
 
 # Make WeasyPrint import truly optional
@@ -229,27 +228,6 @@ def logout(request):
     return redirect('main:landingpage')
 
 @login_required
-def print_answer_key(request, test_id):
-    """Print answer key in bubble sheet format for image comparison"""
-    try:
-        test_info = TestInformation.objects.get(id=test_id, user=request.user)
-        answer_keys = TestAnswerKey.objects.filter(test_information=test_info).order_by('question_number')
-    except TestInformation.DoesNotExist:
-        messages.error(request, 'Test not found.')
-        return redirect('main:answer_keys')
-    
-    # Get answer choices based on test type
-    answer_choices = test_info.get_answer_choices()
-    
-    context = {
-        'test_info': test_info,
-        'answer_keys': answer_keys,
-        'answer_choices': answer_choices,
-        'page_title': f'Print Answer Key - {test_info.test_name}'
-    }
-    return render(request, 'main/print_answer_key.html', context)
-
-@login_required
 def download_answer_key(request, test_id):
     """Download answer key as CSV file"""
     try:
@@ -291,3 +269,52 @@ def download_answer_key(request, test_id):
     writer.writerow(['Compatible with', 'OMR Processing & Image Comparison'])
     
     return response
+
+@login_required
+def print_answer_key_data(request, test_id):
+    """Return answer key data as JSON for printing"""
+    try:
+        test_info = TestInformation.objects.get(id=test_id, user=request.user)
+        answer_keys = TestAnswerKey.objects.filter(test_information=test_info).order_by('question_number')
+    except TestInformation.DoesNotExist:
+        return JsonResponse({'error': 'Test not found'}, status=404)
+    
+    data = {
+        'test_info': {
+            'test_name': test_info.test_name,
+            'test_type_display': test_info.get_test_type_display(),
+            'question_count': test_info.question_count,
+            'created_at': test_info.created_at.isoformat(),
+        },
+        'answer_keys': [
+            {
+                'question_number': ak.question_number,
+                'answer': ak.answer
+            }
+            for ak in answer_keys
+        ],
+        'answer_choices': test_info.get_answer_choices()
+    }
+    
+    return JsonResponse(data)
+
+@login_required
+def print_answer_key(request, test_id):
+    """Print answer key in a simple HTML format"""
+    try:
+        test_info = TestInformation.objects.get(id=test_id, user=request.user)
+        answer_keys = TestAnswerKey.objects.filter(test_information=test_info).order_by('question_number')
+    except TestInformation.DoesNotExist:
+        messages.error(request, 'Test not found.')
+        return redirect('main:answer_keys')
+    
+    # Get answer choices based on test type
+    answer_choices = test_info.get_answer_choices()
+    
+    context = {
+        'test_info': test_info,
+        'answer_keys': answer_keys,
+        'answer_choices': answer_choices,
+        'page_title': f'Print Answer Key - {test_info.test_name}'
+    }
+    return render(request, 'main/print_answer_key.html', context)

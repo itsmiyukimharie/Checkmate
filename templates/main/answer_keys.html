@@ -73,10 +73,9 @@
                             <th>Test Name</th>
                             <th>Type</th>
                             <th>Questions</th>
-                            <th>Status</th>
-                            <th>Answer Keys</th>
                             <th>Created Date</th>
                             <th>Last Updated</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -93,6 +92,8 @@
                                 <span class="badge bg-info">{{ test.get_test_type_display }}</span>
                             </td>
                             <td>{{ test.question_count }}</td>
+                            <td>{{ test.created_at|date:"M d, Y" }}</td>
+                            <td>{{ test.updated_at|date:"M d, Y" }}</td>
                             <td>
                                 {% if test.status == 'active' %}
                                     <span class="badge bg-success">Active</span>
@@ -101,26 +102,13 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% with answer_count=test.answer_keys.count %}
-                                    {% if answer_count == test.question_count %}
-                                        <span class="badge bg-success">Complete ({{ answer_count }}/{{ test.question_count }})</span>
-                                    {% elif answer_count > 0 %}
-                                        <span class="badge bg-warning">Incomplete ({{ answer_count }}/{{ test.question_count }})</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">Empty (0/{{ test.question_count }})</span>
-                                    {% endif %}
-                                {% endwith %}
-                            </td>
-                            <td>{{ test.created_at|date:"M d, Y" }}</td>
-                            <td>{{ test.updated_at|date:"M d, Y" }}</td>
-                            <td>
                                 <div class="btn-group" role="group">
                                     <a href="{% url 'main:enter_answers' test.id %}" class="btn btn-sm btn-outline-primary rounded-pill me-1">
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
-                                    <a href="{% url 'main:print_answer_key' test.id %}" class="btn btn-sm btn-outline-info rounded-pill me-1" target="_blank">
+                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill me-1" onclick="printAnswerKey({{ test.id }})">
                                         <i class="fas fa-print"></i> Print
-                                    </a>
+                                    </button>
                                     <a href="{% url 'main:download_answer_key' test.id %}" class="btn btn-sm btn-outline-success rounded-pill me-1">
                                         <i class="fas fa-download"></i> Download
                                     </a>
@@ -170,6 +158,11 @@ function confirmDelete(testName, deleteUrl) {
     document.getElementById('testNameToDelete').textContent = testName;
     document.getElementById('confirmDeleteBtn').href = deleteUrl;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function printAnswerKey(testId) {
+    // Simple redirect to print data endpoint that returns HTML
+    window.open('/answer-keys/print/' + testId + '/', '_blank');
 }
 </script>
 

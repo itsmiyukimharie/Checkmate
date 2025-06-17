@@ -13,6 +13,7 @@ urlpatterns = [
     path('answer-keys/', views.answer_keys, name='answer_keys'),
     path('answer-keys/enter/<int:test_id>/', views.enter_answers, name='enter_answers'),
     path('answer-keys/print/<int:test_id>/', views.print_answer_key, name='print_answer_key'),
+    path('answer-keys/print-data/<int:test_id>/', views.print_answer_key_data, name='print_answer_key_data'),
     path('answer-keys/download/<int:test_id>/', views.download_answer_key, name='download_answer_key'),
     path('answer-keys/delete/<int:test_id>/', views.delete_test, name='delete_test'),
     path('grade-test/', views.grade_test, name='grade_test'),
