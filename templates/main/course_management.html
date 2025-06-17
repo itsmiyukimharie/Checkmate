@@ -364,72 +364,153 @@
 </div>
 
 <script>
+// Store URLs as JavaScript variables to avoid template tag issues
+const editCourseUrlTemplate = "{% url 'main:edit_course' 999999 %}".replace('999999', '{id}');
+const deleteCourseUrlTemplate = "{% url 'main:delete_course' 999999 %}".replace('999999', '{id}');
+
 function viewCourse(courseId, courseCode, courseName, description, academicYear, semester) {
-    document.getElementById('view_course_code').textContent = courseCode;
-    document.getElementById('view_course_name').textContent = courseName;
-    document.getElementById('view_academic_year').textContent = academicYear || 'Not specified';
-    document.getElementById('view_semester').textContent = semester || 'Not specified';
-    document.getElementById('view_description').textContent = description || 'No description provided';
+    console.log('View course clicked:', courseId);
     
-    new bootstrap.Modal(document.getElementById('viewCourseModal')).show();
+    try {
+        document.getElementById('view_course_code').textContent = courseCode;
+        document.getElementById('view_course_name').textContent = courseName;
+        document.getElementById('view_academic_year').textContent = academicYear || 'Not specified';
+        document.getElementById('view_semester').textContent = semester || 'Not specified';
+        document.getElementById('view_description').textContent = description || 'No description provided';
+        
+        const modal = new bootstrap.Modal(document.getElementById('viewCourseModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error in viewCourse:', error);
+    }
 }
 
 function editCourse(courseId, courseCode, courseName, description, academicYear, semester) {
-    document.getElementById('edit_course_code').value = courseCode;
-    document.getElementById('edit_course_name').value = courseName;
-    document.getElementById('edit_description').value = description;
-    document.getElementById('edit_academic_year').value = academicYear;
-    document.getElementById('edit_semester').value = semester;
+    console.log('Edit course clicked:', courseId);
     
-    document.getElementById('editCourseForm').action = '/courses/edit/' + courseId + '/';
-    
-    new bootstrap.Modal(document.getElementById('editCourseModal')).show();
+    try {
+        document.getElementById('edit_course_code').value = courseCode;
+        document.getElementById('edit_course_name').value = courseName;
+        document.getElementById('edit_description').value = description;
+        document.getElementById('edit_academic_year').value = academicYear || '';
+        document.getElementById('edit_semester').value = semester || '';
+        
+        // Set the form action URL
+        const editUrl = editCourseUrlTemplate.replace('{id}', courseId);
+        document.getElementById('editCourseForm').action = editUrl;
+        
+        const modal = new bootstrap.Modal(document.getElementById('editCourseModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error in editCourse:', error);
+    }
 }
 
 function deleteCourse(courseId, courseName) {
-    document.getElementById('courseNameToDelete').textContent = courseName;
-    document.getElementById('confirmDeleteBtn').href = '/courses/delete/' + courseId + '/';
-    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    console.log('Delete course clicked:', courseId);
+    
+    try {
+        document.getElementById('courseNameToDelete').textContent = courseName;
+        
+        // Set the delete URL
+        const deleteUrl = deleteCourseUrlTemplate.replace('{id}', courseId);
+        document.getElementById('confirmDeleteBtn').href = deleteUrl;
+        
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error in deleteCourse:', error);
+    }
 }
 
 // Add form validation feedback
 document.addEventListener('DOMContentLoaded', function() {
-    // Real-time course code validation
-    const courseCodeInput = document.getElementById('courseCode');
-    if (courseCodeInput) {
-        courseCodeInput.addEventListener('input', function() {
-            const value = this.value.toUpperCase();
-            this.value = value;
-            
-            const pattern = /^[A-Z]{2,4}[0-9]{1,4}$/;
-            if (value && !pattern.test(value)) {
-                this.classList.add('is-invalid');
-            } else {
-                this.classList.remove('is-invalid');
-            }
-        });
-    }
+    console.log('DOM loaded, initializing course management...');
     
-    // Academic year validation
-    const academicYearInputs = document.querySelectorAll('input[name="academic_year"]');
-    academicYearInputs.forEach(input => {
-        input.addEventListener('blur', function() {
-            const value = this.value;
-            const pattern = /^20\d{2}-20\d{2}$/;
-            
-            if (value && !pattern.test(value)) {
-                this.classList.add('is-invalid');
-            } else if (value) {
-                const [start, end] = value.split('-').map(Number);
-                if (end !== start + 1) {
+    try {
+        // Real-time course code validation for add form
+        const courseCodeInput = document.querySelector('#addCourseModal input[name="course_code"]');
+        if (courseCodeInput) {
+            courseCodeInput.addEventListener('input', function() {
+                const value = this.value.toUpperCase();
+                this.value = value;
+                
+                const pattern = /^[A-Z]{2,4}[0-9]{1,4}$/;
+                if (value && !pattern.test(value)) {
                     this.classList.add('is-invalid');
+                    this.setCustomValidity('Course code format: 2-4 letters followed by 1-4 numbers');
                 } else {
                     this.classList.remove('is-invalid');
+                    this.setCustomValidity('');
                 }
-            } else {
-                this.classList.remove('is-invalid');
-            }
+            });
+        }
+        
+        // Real-time course code validation for edit form
+        const editCourseCodeInput = document.getElementById('edit_course_code');
+        if (editCourseCodeInput) {
+            editCourseCodeInput.addEventListener('input', function() {
+                const value = this.value.toUpperCase();
+                this.value = value;
+                
+                const pattern = /^[A-Z]{2,4}[0-9]{1,4}$/;
+                if (value && !pattern.test(value)) {
+                    this.classList.add('is-invalid');
+                    this.setCustomValidity('Course code format: 2-4 letters followed by 1-4 numbers');
+                } else {
+                    this.classList.remove('is-invalid');
+                    this.setCustomValidity('');
+                }
+            });
+        }
+        
+        // Academic year validation
+        const academicYearInputs = document.querySelectorAll('input[name="academic_year"]');
+        academicYearInputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                const value = this.value.trim();
+                
+                if (value) {
+                    const pattern = /^20\d{2}-20\d{2}$/;
+                    
+                    if (!pattern.test(value)) {
+                        this.classList.add('is-invalid');
+                        this.setCustomValidity('Academic year format: YYYY-YYYY (e.g., 2023-2024)');
+                    } else {
+                        const [start, end] = value.split('-').map(Number);
+                        if (end !== start + 1) {
+                            this.classList.add('is-invalid');
+                            this.setCustomValidity('End year must be exactly one year after start year');
+                        } else {
+                            this.classList.remove('is-invalid');
+                            this.setCustomValidity('');
+                        }
+                    }
+                } else {
+                    this.classList.remove('is-invalid');
+                    this.setCustomValidity('');
+                }
+            });
         });
-    });
+        
+        // Form submission handlers
+        const addCourseForm = document.querySelector('#addCourseModal form');
+        if (addCourseForm) {
+            addCourseForm.addEventListener('submit', function(e) {
+                console.log('Add course form submitted');
+            });
+        }
+        
+        const editCourseForm = document.getElementById('editCourseForm');
+        if (editCourseForm) {
+            editCourseForm.addEventListener('submit', function(e) {
+                console.log('Edit course form submitted');
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error initializing course management:', error);
+    }
 });
+</script>
 {% endblock %}
