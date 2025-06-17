@@ -19,15 +19,28 @@ class User(AbstractUser):
     class Meta:
         db_table = 'main_user'
 
-# Placeholder models - implement these when building the backend
-# class Test(models.Model):
-#     pass
+class TestInformation(models.Model):
+    """Model to represent a test individual"""
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tests')
+    name = models.CharField(max_length=100)
+    test_name = models.CharField(max_length=100)
+    question_count = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-# class AnswerKey(models.Model):
-#     pass
+    class Meta:
+        db_table = 'main_test_information'
+        ordering = ['-created_at']
 
-# class StudentResponse(models.Model):
-#     pass
+class TestAnswerKey(models.Model):
+    """Model to represent the answer key for a test"""
+    id = models.AutoField(primary_key=True)
+    test_information = models.ForeignKey(TestInformation, on_delete=models.CASCADE, related_name='answer_keys')
+    question_number = models.IntegerField()
+    answer = models.CharField(max_length=100)
 
-# class GradingResult(models.Model):
-#     pass
+    class Meta:
+        db_table = 'main_test_answer_key'
+        unique_together = ('test_information', 'question_number')
+        ordering = ['question_number']
