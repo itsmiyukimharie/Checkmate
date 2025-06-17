@@ -121,7 +121,7 @@ def enter_answers(request, test_id):
         'form': form,
         'answer_choices': answer_choices
     }
-    return render(request, 'main/enter_answers.html', context)
+    return render(request, 'main/answer_keys_enter.html', context)
 
 @login_required
 def delete_test(request, test_id):
@@ -317,4 +317,4 @@ def print_answer_key(request, test_id):
         'answer_choices': answer_choices,
         'page_title': f'Print Answer Key - {test_info.test_name}'
     }
-    return render(request, 'main/print_answer_key.html', context)
+    return render(request, 'main/answer_keys_print.html', context)
