@@ -435,10 +435,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const value = this.value.toUpperCase();
                 this.value = value;
                 
-                const pattern = /^[A-Z]{2,4}[0-9]{1,4}$/;
-                if (value && !pattern.test(value)) {
+                // Allow both formats: CS101 or MATH-001
+                const pattern1 = /^[A-Z]{2,4}[0-9]{1,4}$/;  // CS101, MATH201
+                const pattern2 = /^[A-Z]{2,4}-[0-9]{1,4}$/; // MATH-001, CS-101
+                
+                if (value && !(pattern1.test(value) || pattern2.test(value))) {
                     this.classList.add('is-invalid');
-                    this.setCustomValidity('Course code format: 2-4 letters followed by 1-4 numbers');
+                    this.setCustomValidity('Course code format: CS101 or MATH-001');
                 } else {
                     this.classList.remove('is-invalid');
                     this.setCustomValidity('');
@@ -453,10 +456,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const value = this.value.toUpperCase();
                 this.value = value;
                 
-                const pattern = /^[A-Z]{2,4}[0-9]{1,4}$/;
-                if (value && !pattern.test(value)) {
+                // Allow both formats: CS101 or MATH-001
+                const pattern1 = /^[A-Z]{2,4}[0-9]{1,4}$/;  // CS101, MATH201
+                const pattern2 = /^[A-Z]{2,4}-[0-9]{1,4}$/; // MATH-001, CS-101
+                
+                if (value && !(pattern1.test(value) || pattern2.test(value))) {
                     this.classList.add('is-invalid');
-                    this.setCustomValidity('Course code format: 2-4 letters followed by 1-4 numbers');
+                    this.setCustomValidity('Course code format: CS101 or MATH-001');
                 } else {
                     this.classList.remove('is-invalid');
                     this.setCustomValidity('');

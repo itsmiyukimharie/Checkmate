@@ -229,11 +229,14 @@ class CourseForm(forms.ModelForm):
             # Remove extra spaces and convert to uppercase
             course_code = course_code.strip().upper()
             
-            # Validate format (letters followed by numbers)
+            # Validate format (letters followed by numbers OR letters-numbers)
             import re
-            if not re.match(r'^[A-Z]{2,4}[0-9]{1,4}$', course_code):
+            pattern1 = r'^[A-Z]{2,4}[0-9]{1,4}$'  # CS101, MATH201
+            pattern2 = r'^[A-Z]{2,4}-[0-9]{1,4}$'  # MATH-001, CS-101
+            
+            if not (re.match(pattern1, course_code) or re.match(pattern2, course_code)):
                 raise forms.ValidationError(
-                    'Course code must be 2-4 letters followed by 1-4 numbers (e.g., CS101, MATH201)'
+                    'Course code must be 2-4 letters followed by 1-4 numbers (e.g., CS101, MATH201) or 2-4 letters, hyphen, then 1-4 numbers (e.g., MATH-001, CS-101)'
                 )
         return course_code
     
