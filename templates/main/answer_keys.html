@@ -7,57 +7,50 @@
     <h1><i class="fas fa-key"></i> Manage Answer Keys</h1>
 </div>
 
-<div class="row">
-    <!-- Upload Answer Key Section -->
-    <div class="col-md-6">
-        <div class="card shadow-sm rounded-lg border-0">
-            <div class="card-header bg-transparent border-0">
-                <h5><i class="fas fa-upload"></i> Upload Answer Key</h5>
+<!-- Display Messages -->
+{% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-            <div class="card-body">
-                <form>
-                    <div class="mb-3">
-                        <label for="testName" class="form-label">Test Name</label>
-                        <input type="text" class="form-control rounded-pill" id="testName" placeholder="Enter test name">
-                    </div>
-                    <div class="mb-3">
-                        <label for="answerFile" class="form-label">Answer Key File</label>
-                        <input type="file" class="form-control rounded-pill" id="answerFile" accept=".pdf,.jpg,.png">
-                        <div class="form-text">Supported formats: PDF, JPG, PNG</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary rounded-pill">
-                        <i class="fas fa-upload"></i> Upload Answer Key
-                    </button>
-                </form>
-            </div>
-        </div>
+        {% endfor %}
     </div>
+{% endif %}
 
+<div class="row">
     <!-- Create Answer Key Section -->
-    <div class="col-md-6">
+    <div class="col-md-8 mx-auto">
         <div class="card shadow-sm rounded-lg border-0">
             <div class="card-header bg-transparent border-0">
                 <h5><i class="fas fa-plus"></i> Create Answer Key</h5>
             </div>
             <div class="card-body">
-                <form>
+                <form method="post">
+                    {% csrf_token %}
                     <div class="mb-3">
-                        <label for="newTestName" class="form-label">Test Name</label>
-                        <input type="text" class="form-control rounded-pill" id="newTestName" placeholder="Enter test name">
+                        <label for="{{ create_form.test_name.id_for_label }}" class="form-label">Test Name</label>
+                        {{ create_form.test_name }}
+                        {% if create_form.test_name.errors %}
+                            <div class="text-danger">{{ create_form.test_name.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
-                        <label for="questionCount" class="form-label">Number of Questions</label>
-                        <input type="number" class="form-control rounded-pill" id="questionCount" min="1" max="200" value="50">
+                        <label for="{{ create_form.test_type.id_for_label }}" class="form-label">Test Type</label>
+                        {{ create_form.test_type }}
+                        {% if create_form.test_type.errors %}
+                            <div class="text-danger">{{ create_form.test_type.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
-                        <label for="answerType" class="form-label">Answer Type</label>
-                        <select class="form-select rounded-pill" id="answerType">
-                            <option value="multiple">Multiple Choice (A-D)</option>
-                            <option value="multiple5">Multiple Choice (A-E)</option>
-                            <option value="truefalse">True/False</option>
-                        </select>
+                        <label for="{{ create_form.question_count.id_for_label }}" class="form-label">Number of Questions</label>
+                        {{ create_form.question_count }}
+                        {% if create_form.question_count.errors %}
+                            <div class="text-danger">{{ create_form.question_count.errors.0 }}</div>
+                        {% endif %}
                     </div>
-                    <button type="submit" class="btn btn-success rounded-pill">
+                    <button type="submit" name="create_form" class="btn btn-success rounded-pill">
                         <i class="fas fa-plus"></i> Create Answer Key
                     </button>
                 </form>
@@ -69,59 +62,115 @@
 <!-- Existing Answer Keys Table Section -->
 <div class="card mt-4 shadow-sm rounded-lg border-0">
     <div class="card-header bg-transparent border-0">
-        <h5>Existing Answer Keys</h5>
+        <h5>Your Answer Keys ({{ user_tests.count }})</h5>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-borderless">
-                <thead>
-                    <tr>
-                        <th>Test Name</th>
-                        <th>Questions</th>
-                        <th>Created Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Mathematics Test 1</td>
-                        <td>50</td>
-                        <td>2024-01-15</td>
-                        <td><span class="badge bg-success">Active</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary rounded-pill">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <button class="btn btn-sm btn-outline-warning rounded-pill">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger rounded-pill">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Science Quiz 2</td>
-                        <td>25</td>
-                        <td>2024-01-10</td>
-                        <td><span class="badge bg-warning">Draft</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary rounded-pill">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <button class="btn btn-sm btn-outline-warning rounded-pill">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger rounded-pill">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        {% if user_tests %}
+            <div class="table-responsive">
+                <table class="table table-striped table-borderless">
+                    <thead>
+                        <tr>
+                            <th>Test Name</th>
+                            <th>Type</th>
+                            <th>Questions</th>
+                            <th>Status</th>
+                            <th>Answer Keys</th>
+                            <th>Created Date</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for test in user_tests %}
+                        <tr>
+                            <td>
+                                <strong>{{ test.test_name }}</strong>
+                                {% if test.name != test.test_name %}
+                                    <br><small class="text-muted">{{ test.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ test.get_test_type_display }}</span>
+                            </td>
+                            <td>{{ test.question_count }}</td>
+                            <td>
+                                {% if test.status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Draft</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% with answer_count=test.answer_keys.count %}
+                                    {% if answer_count == test.question_count %}
+                                        <span class="badge bg-success">Complete ({{ answer_count }}/{{ test.question_count }})</span>
+                                    {% elif answer_count > 0 %}
+                                        <span class="badge bg-warning">Incomplete ({{ answer_count }}/{{ test.question_count }})</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Empty (0/{{ test.question_count }})</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>{{ test.created_at|date:"M d, Y" }}</td>
+                            <td>{{ test.updated_at|date:"M d, Y" }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'main:enter_answers' test.id %}" class="btn btn-sm btn-outline-primary rounded-pill me-1">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <a href="{% url 'main:print_answer_key' test.id %}" class="btn btn-sm btn-outline-info rounded-pill me-1" target="_blank">
+                                        <i class="fas fa-print"></i> Print
+                                    </a>
+                                    <a href="{% url 'main:download_answer_key' test.id %}" class="btn btn-sm btn-outline-success rounded-pill me-1">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" 
+                                            onclick="confirmDelete('{{ test.test_name|escapejs }}', '{% url 'main:delete_test' test.id %}')">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-key fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Answer Keys Created</h5>
+                <p class="text-muted">Create your first answer key using the form above.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the test "<span id="testNameToDelete"></span>"?</p>
+                <p class="text-danger"><small>This action cannot be undone and will delete all associated answer keys.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Delete</a>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+function confirmDelete(testName, deleteUrl) {
+    document.getElementById('testNameToDelete').textContent = testName;
+    document.getElementById('confirmDeleteBtn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
 
 {% endblock %}

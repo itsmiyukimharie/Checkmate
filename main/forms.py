@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import authenticate
-from .models import User
+from .models import User, TestInformation, TestAnswerKey
 
 class SignUpForm(UserCreationForm):
     """Custom signup form with additional fields"""
@@ -109,3 +109,74 @@ class LoginForm(AuthenticationForm):
                 raise forms.ValidationError("Invalid email or password.")
         
         return self.cleaned_data
+
+class CreateAnswerKeyForm(forms.ModelForm):
+    """Form for creating a new answer key"""
+    
+    class Meta:
+        model = TestInformation
+        fields = ['test_name', 'test_type', 'question_count']
+        widgets = {
+            'test_name': forms.TextInput(attrs={
+                'class': 'form-control rounded-pill',
+                'placeholder': 'Enter test name'
+            }),
+            'test_type': forms.Select(attrs={
+                'class': 'form-select rounded-pill'
+            }),
+            'question_count': forms.NumberInput(attrs={
+                'class': 'form-control rounded-pill',
+                'min': 1,
+                'max': 200,
+                'value': 50
+            })
+        }
+
+class AnswerKeyEntryForm(forms.Form):
+    """Form for entering individual answer key answers"""
+    def __init__(self, *args, **kwargs):
+        question_count = kwargs.pop('question_count', 50)
+        answer_choices = kwargs.pop('answer_choices', ['A', 'B', 'C', 'D'])
+        super().__init__(*args, **kwargs)
+        
+        # Create choice tuples
+        choices = [(choice, choice) for choice in answer_choices]
+        
+        # Generate fields for each question
+        for i in range(1, question_count + 1):
+            self.fields[f'question_{i}'] = forms.ChoiceField(
+                choices=choices,
+                widget=forms.Select(attrs={
+                    'class': 'form-select form-select-sm'
+                }),
+                label=f'Q{i}'
+            )
+
+class UploadAnswerKeyForm(forms.ModelForm):
+    """Form for uploading answer key file"""
+    answer_key_image = forms.ImageField(
+        widget=forms.FileInput(attrs={
+            'class': 'form-control rounded-pill',
+            'accept': 'image/*'
+        }),
+        help_text='Upload answer key image (JPG, PNG, etc.)'
+    )
+    
+    class Meta:
+        model = TestInformation
+        fields = ['test_name', 'test_type', 'question_count', 'answer_key_image']
+        widgets = {
+            'test_name': forms.TextInput(attrs={
+                'class': 'form-control rounded-pill',
+                'placeholder': 'Enter test name'
+            }),
+            'test_type': forms.Select(attrs={
+                'class': 'form-select rounded-pill'
+            }),
+            'question_count': forms.NumberInput(attrs={
+                'class': 'form-control rounded-pill',
+                'min': 1,
+                'max': 200,
+                'value': 50
+            })
+        }
