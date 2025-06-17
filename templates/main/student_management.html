@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-users"></i> Students</h1>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal" id="addStudentBtn">
         <i class="fas fa-plus"></i> Add Student
     </button>
 </div>
@@ -117,16 +117,30 @@
                             <td>{{ student.created_at|date:"M d, Y" }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill me-1" 
-                                            onclick="viewStudent({{ student.id }}, '{{ student.student_id }}', '{{ student.first_name }}', '{{ student.middle_name|default:"" }}', '{{ student.last_name }}', '{{ student.email|default:"" }}', '{{ student.section|default:"" }}')">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill me-1 view-student-btn" 
+                                            data-student-id="{{ student.id }}" 
+                                            data-student-id-value="{{ student.student_id }}" 
+                                            data-first-name="{{ student.first_name }}" 
+                                            data-middle-name="{{ student.middle_name|default:"" }}" 
+                                            data-last-name="{{ student.last_name }}" 
+                                            data-email="{{ student.email|default:"" }}" 
+                                            data-section="{{ student.section|default:"" }}">
                                         <i class="fas fa-eye"></i> View
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-warning rounded-pill me-1" 
-                                            onclick="editStudent({{ student.id }}, '{{ student.student_id }}', '{{ student.first_name }}', '{{ student.middle_name|default:"" }}', '{{ student.last_name }}', '{{ student.email|default:"" }}', '{{ student.section|default:"" }}', [{% for course in student.assigned_courses.all %}{{ course.course.id }}{% if not forloop.last %},{% endif %}{% endfor %}])">
+                                    <button type="button" class="btn btn-sm btn-outline-warning rounded-pill me-1 edit-student-btn" 
+                                            data-student-id="{{ student.id }}" 
+                                            data-student-id-value="{{ student.student_id }}" 
+                                            data-first-name="{{ student.first_name }}" 
+                                            data-middle-name="{{ student.middle_name|default:"" }}" 
+                                            data-last-name="{{ student.last_name }}" 
+                                            data-email="{{ student.email|default:"" }}" 
+                                            data-section="{{ student.section|default:"" }}" 
+                                            data-assigned-courses="[{% for course in student.assigned_courses.all %}{{ course.course.id }}{% if not forloop.last %},{% endif %}{% endfor %}]">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" 
-                                            onclick="deleteStudent({{ student.id }}, '{{ student.first_name }} {{ student.last_name }}')">
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill delete-student-btn" 
+                                            data-student-id="{{ student.id }}" 
+                                            data-student-name="{{ student.first_name }} {{ student.last_name }}">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
                                 </div>
@@ -181,12 +195,12 @@
 </div>
 
 <!-- Add Student Modal -->
-<div class="modal fade" id="addStudentModal" tabindex="-1">
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add New Student</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="addStudentModalLabel">Add New Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post" action="{% url 'main:add_student' %}" id="addStudentForm">
                 {% csrf_token %}
@@ -203,57 +217,57 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {{ student_form.student_id.label_tag }}
-                                {{ student_form.student_id }}
-                                <div class="invalid-feedback" id="student_id_error"></div>
+                                <label for="add_student_id" class="form-label">Student ID <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="add_student_id" name="student_id" required placeholder="e.g., 2024001, STU-001">
+                                <div class="invalid-feedback" id="add_student_id_error"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {{ student_form.section.label_tag }}
-                                {{ student_form.section }}
-                                <div class="invalid-feedback" id="section_error"></div>
+                                <label for="add_section" class="form-label">Section</label>
+                                <input type="text" class="form-control" id="add_section" name="section" placeholder="e.g., CS-A, BSIT-1A">
+                                <div class="invalid-feedback" id="add_section_error"></div>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-4">
                             <div class="mb-3">
-                                {{ student_form.first_name.label_tag }}
-                                {{ student_form.first_name }}
-                                <div class="invalid-feedback" id="first_name_error"></div>
+                                <label for="add_first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="add_first_name" name="first_name" required placeholder="First name">
+                                <div class="invalid-feedback" id="add_first_name_error"></div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                {{ student_form.middle_name.label_tag }}
-                                {{ student_form.middle_name }}
-                                <div class="invalid-feedback" id="middle_name_error"></div>
+                                <label for="add_middle_name" class="form-label">Middle Name</label>
+                                <input type="text" class="form-control" id="add_middle_name" name="middle_name" placeholder="Middle name (optional)">
+                                <div class="invalid-feedback" id="add_middle_name_error"></div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                {{ student_form.last_name.label_tag }}
-                                {{ student_form.last_name }}
-                                <div class="invalid-feedback" id="last_name_error"></div>
+                                <label for="add_last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="add_last_name" name="last_name" required placeholder="Last name">
+                                <div class="invalid-feedback" id="add_last_name_error"></div>
                             </div>
                         </div>
                     </div>
                     <div class="mb-3">
-                        {{ student_form.email.label_tag }}
-                        {{ student_form.email }}
-                        <div class="invalid-feedback" id="email_error"></div>
+                        <label for="add_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="add_email" name="email" placeholder="student@example.com (optional)">
+                        <div class="invalid-feedback" id="add_email_error"></div>
                     </div>
                     
                     <!-- Course Assignment Section -->
                     <div class="mb-3">
                         <label class="form-label">Assign Courses <span class="text-danger">*</span></label>
-                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;" id="courses_container">
+                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;" id="add_courses_container">
                             {% if student_form.courses.field.queryset %}
                                 {% for course in student_form.courses.field.queryset %}
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="courses" value="{{ course.id }}" id="course_{{ course.id }}">
-                                        <label class="form-check-label" for="course_{{ course.id }}">
+                                        <input class="form-check-input" type="checkbox" name="courses" value="{{ course.id }}" id="add_course_{{ course.id }}">
+                                        <label class="form-check-label" for="add_course_{{ course.id }}">
                                             <strong>{{ course.course_code }}</strong> - {{ course.course_name }}
                                             {% if course.academic_year or course.semester %}
                                                 <small class="text-muted">
@@ -267,14 +281,14 @@
                                 <p class="text-muted mb-0">No courses available. <a href="{% url 'main:course_management' %}" target="_blank">Create courses first</a>.</p>
                             {% endif %}
                         </div>
-                        <div class="invalid-feedback d-block" id="courses_error" style="display: none !important;"></div>
+                        <div class="invalid-feedback d-block" id="add_courses_error" style="display: none !important;"></div>
                         <small class="form-text text-muted">Select at least one course to assign to this student.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="addStudentSubmitBtn">
-                        <span class="spinner-border spinner-border-sm d-none me-2" role="status"></span>
+                        <span class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true"></span>
                         <span class="btn-text">Add Student</span>
                     </button>
                 </div>
@@ -284,12 +298,12 @@
 </div>
 
 <!-- Edit Student Modal -->
-<div class="modal fade" id="editStudentModal" tabindex="-1">
+<div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Student</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post" id="editStudentForm">
                 {% csrf_token %}
@@ -306,7 +320,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="edit_student_id" class="form-label">Student ID</label>
+                                <label for="edit_student_id" class="form-label">Student ID <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="edit_student_id" name="student_id" required>
                                 <div class="invalid-feedback" id="edit_student_id_error"></div>
                             </div>
@@ -322,7 +336,7 @@
                     <div class="row">
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="edit_first_name" class="form-label">First Name</label>
+                                <label for="edit_first_name" class="form-label">First Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
                                 <div class="invalid-feedback" id="edit_first_name_error"></div>
                             </div>
@@ -336,7 +350,7 @@
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="edit_last_name" class="form-label">Last Name</label>
+                                <label for="edit_last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
                                 <div class="invalid-feedback" id="edit_last_name_error"></div>
                             </div>
@@ -361,7 +375,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-warning" id="editStudentSubmitBtn">
-                        <span class="spinner-border spinner-border-sm d-none me-2" role="status"></span>
+                        <span class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true"></span>
                         <span class="btn-text">Update Student</span>
                     </button>
                 </div>
@@ -371,12 +385,12 @@
 </div>
 
 <!-- View Student Modal -->
-<div class="modal fade" id="viewStudentModal" tabindex="-1">
+<div class="modal fade" id="viewStudentModal" tabindex="-1" aria-labelledby="viewStudentModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Student Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="viewStudentModalLabel">Student Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
@@ -408,12 +422,12 @@
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Confirm Delete</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p>Are you sure you want to delete student "<span id="studentNameToDelete"></span>"?</p>
@@ -427,170 +441,258 @@
     </div>
 </div>
 
+<!-- Include JavaScript at the end of the body -->
 <script>
-// Store URLs as JavaScript variables
-const editStudentUrlTemplate = "{% url 'main:edit_student' 999999 %}".replace('999999', '{id}');
-const deleteStudentUrlTemplate = "{% url 'main:delete_student' 999999 %}".replace('999999', '{id}');
+// CSRF Token for AJAX requests
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 
-// Store courses data for JavaScript use
-const availableCourses = [
+// Store course data for JavaScript use
+const AVAILABLE_COURSES = [
     {% for course in student_form.courses.field.queryset %}
     {
         id: {{ course.id }},
-        code: '{{ course.course_code }}',
-        name: '{{ course.course_name }}',
-        academic_year: '{{ course.academic_year|default:"" }}',
-        semester: '{{ course.semester|default:"" }}'
+        code: "{{ course.course_code|escapejs }}",
+        name: "{{ course.course_name|escapejs }}",
+        academic_year: "{{ course.academic_year|default:""|escapejs }}",
+        semester: "{{ course.semester|default:""|escapejs }}"
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ];
 
-function viewStudent(studentId, studentIdValue, firstName, middleName, lastName, email, section) {
-    console.log('View student clicked:', studentId);
-    
-    try {
-        document.getElementById('view_student_id').textContent = studentIdValue;
-        
-        let fullName = lastName + ', ' + firstName;
-        if (middleName) {
-            fullName += ' ' + middleName;
-        }
-        document.getElementById('view_full_name').textContent = fullName;
-        document.getElementById('view_email').textContent = email || 'Not provided';
-        document.getElementById('view_section').textContent = section || 'Not specified';
-        
-        // Fetch and display assigned courses
-        fetch(`/students/${studentId}/courses/`)
-            .then(response => response.json())
-            .then(data => {
-                const coursesContainer = document.getElementById('view_courses');
-                if (data.courses && data.courses.length > 0) {
-                    const coursesList = data.courses.map(course => 
-                        `<span class="badge bg-primary me-1">${course.course_code} - ${course.course_name}</span>`
-                    ).join('');
-                    coursesContainer.innerHTML = coursesList;
-                } else {
-                    coursesContainer.innerHTML = '<span class="text-muted">No courses assigned</span>';
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching courses:', error);
-                document.getElementById('view_courses').innerHTML = '<span class="text-muted">Error loading courses</span>';
-            });
-        
-        const modal = new bootstrap.Modal(document.getElementById('viewStudentModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Error in viewStudent:', error);
-    }
-}
-
-function editStudent(studentId, studentIdValue, firstName, middleName, lastName, email, section, assignedCourseIds = []) {
-    console.log('Edit student clicked:', studentId);
-    
-    try {
-        document.getElementById('edit_student_id').value = studentIdValue;
-        document.getElementById('edit_first_name').value = firstName;
-        document.getElementById('edit_middle_name').value = middleName || '';
-        document.getElementById('edit_last_name').value = lastName;
-        document.getElementById('edit_email').value = email || '';
-        document.getElementById('edit_section').value = section || '';
-        
-        // Populate courses checkboxes
-        const coursesContainer = document.getElementById('edit_courses_container');
-        if (availableCourses.length > 0) {
-            const coursesHtml = availableCourses.map(course => {
-                const isChecked = assignedCourseIds.includes(course.id) ? 'checked' : '';
-                const academicInfo = course.academic_year || course.semester 
-                    ? `<small class="text-muted">(${course.academic_year}${course.academic_year && course.semester ? ' - ' : ''}${course.semester})</small>`
-                    : '';
-                
-                return `
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="courses" value="${course.id}" id="edit_course_${course.id}" ${isChecked}>
-                        <label class="form-check-label" for="edit_course_${course.id}">
-                            <strong>${course.code}</strong> - ${course.name}
-                            ${academicInfo}
-                        </label>
-                    </div>
-                `;
-            }).join('');
-            coursesContainer.innerHTML = coursesHtml;
-        } else {
-            coursesContainer.innerHTML = '<p class="text-muted mb-0">No courses available.</p>';
-        }
-        
-        // Set the form action URL
-        const editUrl = editStudentUrlTemplate.replace('{id}', studentId);
-        document.getElementById('editStudentForm').action = editUrl;
-        
-        const modal = new bootstrap.Modal(document.getElementById('editStudentModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Error in editStudent:', error);
-    }
-}
-
-function deleteStudent(studentId, studentName) {
-    console.log('Delete student clicked:', studentId);
-    
-    try {
-        document.getElementById('studentNameToDelete').textContent = studentName;
-        
-        // Set the delete URL
-        const deleteUrl = deleteStudentUrlTemplate.replace('{id}', studentId);
-        document.getElementById('confirmDeleteBtn').href = deleteUrl;
-        
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Error in deleteStudent:', error);
-    }
-}
-
-// Form validation and submission
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing student management...');
+    console.log('Student Management - DOM Ready');
+    console.log('Available courses:', AVAILABLE_COURSES.length);
+    console.log('Bootstrap Modal available:', typeof bootstrap !== 'undefined' && typeof bootstrap.Modal === 'function');
     
-    try {
-        // Add student form submission
-        const addStudentForm = document.getElementById('addStudentForm');
-        if (addStudentForm) {
-            addStudentForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                submitStudentForm(this, 'add');
-            });
-        }
-        
-        // Edit student form submission
-        const editStudentForm = document.getElementById('editStudentForm');
-        if (editStudentForm) {
-            editStudentForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                submitStudentForm(this, 'edit');
-            });
-        }
-        
-    } catch (error) {
-        console.error('Error initializing student management:', error);
-    }
+    // Initialize all event listeners
+    initializeEventListeners();
 });
 
-function submitStudentForm(form, type) {
+function initializeEventListeners() {
+    // Add Student Button
+    const addStudentBtn = document.getElementById('addStudentBtn');
+    if (addStudentBtn) {
+        console.log('Add Student button found');
+    } else {
+        console.error('Add Student button not found');
+    }
+    
+    // View Student Buttons
+    document.querySelectorAll('.view-student-btn').forEach(button => {
+        button.addEventListener('click', handleViewStudent);
+    });
+    
+    // Edit Student Buttons
+    document.querySelectorAll('.edit-student-btn').forEach(button => {
+        button.addEventListener('click', handleEditStudent);
+    });
+    
+    // Delete Student Buttons
+    document.querySelectorAll('.delete-student-btn').forEach(button => {
+        button.addEventListener('click', handleDeleteStudent);
+    });
+    
+    // Form Submissions
+    const addStudentForm = document.getElementById('addStudentForm');
+    if (addStudentForm) {
+        addStudentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleSubmitStudentForm(this, 'add');
+        });
+        console.log('Add student form event listener attached');
+    }
+    
+    const editStudentForm = document.getElementById('editStudentForm');
+    if (editStudentForm) {
+        editStudentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleSubmitStudentForm(this, 'edit');
+        });
+        console.log('Edit student form event listener attached');
+    }
+    
+    // Modal Events
+    const addModal = document.getElementById('addStudentModal');
+    if (addModal) {
+        addModal.addEventListener('hidden.bs.modal', function() {
+            resetForm('add');
+        });
+    }
+    
+    const editModal = document.getElementById('editStudentModal');
+    if (editModal) {
+        editModal.addEventListener('hidden.bs.modal', function() {
+            resetForm('edit');
+        });
+    }
+}
+
+function handleViewStudent(event) {
+    const btn = event.currentTarget;
+    const studentId = btn.dataset.studentId;
+    const studentIdValue = btn.dataset.studentIdValue;
+    const firstName = btn.dataset.firstName;
+    const middleName = btn.dataset.middleName || '';
+    const lastName = btn.dataset.lastName;
+    const email = btn.dataset.email || '';
+    const section = btn.dataset.section || '';
+    
+    console.log('View student:', studentId);
+    
+    // Populate modal
+    document.getElementById('view_student_id').textContent = studentIdValue;
+    
+    let fullName = lastName + ', ' + firstName;
+    if (middleName.trim()) {
+        fullName += ' ' + middleName;
+    }
+    document.getElementById('view_full_name').textContent = fullName;
+    document.getElementById('view_email').textContent = email || 'Not provided';
+    document.getElementById('view_section').textContent = section || 'Not specified';
+    
+    // Fetch assigned courses
+    fetch('/students/' + studentId + '/courses/')
+        .then(response => response.json())
+        .then(data => {
+            const coursesContainer = document.getElementById('view_courses');
+            if (data.courses && data.courses.length > 0) {
+                const coursesList = data.courses.map(course => 
+                    '<span class="badge bg-primary me-1">' + course.course_code + ' - ' + course.course_name + '</span>'
+                ).join('');
+                coursesContainer.innerHTML = coursesList;
+            } else {
+                coursesContainer.innerHTML = '<span class="text-muted">No courses assigned</span>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching courses:', error);
+            document.getElementById('view_courses').innerHTML = '<span class="text-muted">Error loading courses</span>';
+        });
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('viewStudentModal'));
+    modal.show();
+}
+
+function handleEditStudent(event) {
+    const btn = event.currentTarget;
+    const studentId = btn.dataset.studentId;
+    const studentIdValue = btn.dataset.studentIdValue;
+    const firstName = btn.dataset.firstName;
+    const middleName = btn.dataset.middleName || '';
+    const lastName = btn.dataset.lastName;
+    const email = btn.dataset.email || '';
+    const section = btn.dataset.section || '';
+    
+    let assignedCourses = [];
+    try {
+        assignedCourses = JSON.parse(btn.dataset.assignedCourses || '[]');
+    } catch (e) {
+        console.error('Error parsing assigned courses:', e);
+    }
+    
+    console.log('Edit student:', studentId, 'Assigned courses:', assignedCourses);
+    
+    // Clear previous errors
+    clearValidationErrors('edit');
+    
+    // Populate form
+    document.getElementById('edit_student_id').value = studentIdValue;
+    document.getElementById('edit_first_name').value = firstName;
+    document.getElementById('edit_middle_name').value = middleName;
+    document.getElementById('edit_last_name').value = lastName;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_section').value = section;
+    
+    // Populate courses
+    populateCoursesContainer('edit', assignedCourses);
+    
+    // Set form action
+    const editForm = document.getElementById('editStudentForm');
+    editForm.action = '/students/edit/' + studentId + '/';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editStudentModal'));
+    modal.show();
+}
+
+function handleDeleteStudent(event) {
+    const btn = event.currentTarget;
+    const studentId = btn.dataset.studentId;
+    const studentName = btn.dataset.studentName;
+    
+    console.log('Delete student:', studentId);
+    
+    document.getElementById('studentNameToDelete').textContent = studentName;
+    document.getElementById('confirmDeleteBtn').href = '/students/delete/' + studentId + '/';
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+function populateCoursesContainer(type, assignedCourses = []) {
+    const containerId = type === 'edit' ? 'edit_courses_container' : 'add_courses_container';
+    const container = document.getElementById(containerId);
+    
+    if (!container) return;
+    
+    if (AVAILABLE_COURSES.length === 0) {
+        container.innerHTML = '<p class="text-muted mb-0">No courses available. <a href="/courses/" target="_blank">Create courses first</a>.</p>';
+        return;
+    }
+    
+    let html = '';
+    AVAILABLE_COURSES.forEach(course => {
+        const isChecked = assignedCourses.includes(course.id) ? 'checked' : '';
+        const checkboxId = type + '_course_' + course.id;
+        
+        let academicInfo = '';
+        if (course.academic_year || course.semester) {
+            academicInfo = '<small class="text-muted">(' + 
+                (course.academic_year || '') + 
+                ((course.academic_year && course.semester) ? ' - ' : '') + 
+                (course.semester || '') + ')</small>';
+        }
+        
+        html += '<div class="form-check">' +
+            '<input class="form-check-input" type="checkbox" name="courses" value="' + course.id + '" id="' + checkboxId + '" ' + isChecked + '>' +
+            '<label class="form-check-label" for="' + checkboxId + '">' +
+                '<strong>' + course.code + '</strong> - ' + course.name + academicInfo +
+            '</label>' +
+        '</div>';
+    });
+    
+    container.innerHTML = html;
+}
+
+function handleSubmitStudentForm(form, type) {
+    console.log('Submitting', type, 'student form');
+    
     const submitBtn = form.querySelector('button[type="submit"]');
     const spinner = submitBtn.querySelector('.spinner-border');
     const btnText = submitBtn.querySelector('.btn-text');
-    const errorContainer = form.querySelector(`#${type}StudentErrors`);
-    const errorList = form.querySelector(`#${type}StudentErrorList`);
     
-    // Clear previous validation states
-    clearValidationErrors(form, type);
+    // Clear previous errors
+    clearValidationErrors(type);
     
     // Show loading state
     submitBtn.disabled = true;
     spinner.classList.remove('d-none');
     btnText.textContent = type === 'add' ? 'Adding...' : 'Updating...';
-    errorContainer.classList.add('d-none');
     
     const formData = new FormData(form);
     
@@ -598,42 +700,48 @@ function submitStudentForm(form, type) {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+            'X-CSRFToken': getCookie('csrftoken'),
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            // Show success state briefly
+            // Show success
             submitBtn.classList.remove('btn-primary', 'btn-warning');
             submitBtn.classList.add('btn-success');
             btnText.textContent = 'Success!';
             
-            // Close modal and show success message after delay
+            // Close modal and redirect
             setTimeout(() => {
-                const modal = bootstrap.Modal.getInstance(form.closest('.modal'));
+                const modalId = type === 'add' ? 'addStudentModal' : 'editStudentModal';
+                const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
                 modal.hide();
+                
                 showToast(data.message, 'success');
                 
-                // Reload page to show updated data
                 setTimeout(() => {
                     window.location.reload();
                 }, 500);
             }, 800);
         } else {
-            // Show validation errors
-            displayFormErrors(form, type, data.errors);
+            // Show errors
+            displayFormErrors(type, data.errors);
         }
     })
     .catch(error => {
         console.error('Error submitting form:', error);
-        displayFormErrors(form, type, {
+        displayFormErrors(type, {
             '__all__': ['An error occurred while processing your request. Please try again.']
         });
     })
     .finally(() => {
-        // Reset loading state only if not successful
+        // Reset loading state if not successful
         if (!submitBtn.classList.contains('btn-success')) {
             submitBtn.disabled = false;
             spinner.classList.add('d-none');
@@ -642,135 +750,124 @@ function submitStudentForm(form, type) {
     });
 }
 
-function displayFormErrors(form, type, errors) {
-    const errorContainer = form.querySelector(`#${type}StudentErrors`);
-    const errorList = form.querySelector(`#${type}StudentErrorList`);
+function displayFormErrors(type, errors) {
+    const errorContainer = document.getElementById(type + 'StudentErrors');
+    const errorList = document.getElementById(type + 'StudentErrorList');
     
     // Clear previous errors
     errorList.innerHTML = '';
     
-    let hasFieldErrors = false;
-    
     for (const [field, fieldErrors] of Object.entries(errors)) {
         fieldErrors.forEach(error => {
             if (field === '__all__') {
-                // General errors go to the main error container
+                // General errors
                 const li = document.createElement('li');
                 li.textContent = error;
                 errorList.appendChild(li);
             } else {
                 // Field-specific errors
-                hasFieldErrors = true;
-                showFieldError(form, type, field, error);
+                showFieldError(type, field, error);
             }
         });
     }
     
-    // Show main error container if there are general errors or field errors
-    if (errorList.children.length > 0 || hasFieldErrors) {
+    // Show error container
+    if (errorList.children.length > 0 || Object.keys(errors).length > 0) {
         errorContainer.classList.remove('d-none');
-        
-        // Scroll to the error container
-        errorContainer.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'nearest' 
-        });
-        
-        // Add shake animation to draw attention
-        errorContainer.style.animation = 'shake 0.5s ease-in-out';
-        setTimeout(() => {
-            errorContainer.style.animation = '';
-        }, 500);
+        errorContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
 
-function showFieldError(form, type, fieldName, errorMessage) {
-    const prefix = type === 'edit' ? 'edit_' : '';
-    const fieldElement = form.querySelector(`[name="${fieldName}"]`);
-    const errorElement = form.querySelector(`#${prefix}${fieldName}_error`);
+function showFieldError(type, fieldName, errorMessage) {
+    const prefix = type === 'edit' ? 'edit_' : 'add_';
+    const fieldElement = document.querySelector('#' + prefix + fieldName);
+    const errorElement = document.getElementById(prefix + fieldName + '_error');
     
     if (fieldElement && errorElement) {
-        // Add Bootstrap validation classes
         fieldElement.classList.add('is-invalid');
-        
-        // Special handling for courses field
-        if (fieldName === 'courses') {
-            const coursesContainer = form.querySelector(`#${type === 'edit' ? 'edit_' : ''}courses_container`);
-            if (coursesContainer) {
-                coursesContainer.classList.add('border-danger');
-            }
-            errorElement.style.display = 'block';
-        }
-        
-        // Show error message
         errorElement.textContent = errorMessage;
         errorElement.style.display = 'block';
         
-        // Add focus event to clear error when user starts typing
+        // Special handling for courses
+        if (fieldName === 'courses') {
+            const coursesContainer = document.getElementById(prefix + 'courses_container');
+            if (coursesContainer) {
+                coursesContainer.classList.add('border-danger');
+            }
+        }
+        
+        // Clear error on input
         fieldElement.addEventListener('input', function clearError() {
             fieldElement.classList.remove('is-invalid');
             errorElement.style.display = 'none';
-            if (fieldName === 'courses') {
-                const coursesContainer = form.querySelector(`#${type === 'edit' ? 'edit_' : ''}courses_container`);
-                if (coursesContainer) {
-                    coursesContainer.classList.remove('border-danger');
-                }
+            if (fieldName === 'courses' && coursesContainer) {
+                coursesContainer.classList.remove('border-danger');
             }
             fieldElement.removeEventListener('input', clearError);
         });
-        
-        // For checkboxes (courses), add change event
-        if (fieldName === 'courses') {
-            const checkboxes = form.querySelectorAll('input[name="courses"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function clearCourseError() {
-                    const coursesContainer = form.querySelector(`#${type === 'edit' ? 'edit_' : ''}courses_container`);
-                    if (coursesContainer) {
-                        coursesContainer.classList.remove('border-danger');
-                    }
-                    errorElement.style.display = 'none';
-                    checkboxes.forEach(cb => {
-                        cb.removeEventListener('change', clearCourseError);
-                    });
-                });
-            });
-        }
     }
 }
 
-function clearValidationErrors(form, type) {
-    // Clear all field validation states
-    const invalidFields = form.querySelectorAll('.is-invalid');
-    invalidFields.forEach(field => {
-        field.classList.remove('is-invalid');
-    });
+function clearValidationErrors(type) {
+    const prefix = type === 'edit' ? 'edit_' : 'add_';
     
-    // Clear all error messages
-    const errorElements = form.querySelectorAll('.invalid-feedback');
+    // Clear field errors
+    const invalidFields = document.querySelectorAll('#' + type + 'StudentModal .is-invalid');
+    invalidFields.forEach(field => field.classList.remove('is-invalid'));
+    
+    const errorElements = document.querySelectorAll('#' + type + 'StudentModal .invalid-feedback');
     errorElements.forEach(element => {
         element.style.display = 'none';
         element.textContent = '';
     });
     
-    // Clear courses container border
-    const coursesContainer = form.querySelector(`#${type === 'edit' ? 'edit_' : ''}courses_container`);
+    // Clear courses container
+    const coursesContainer = document.getElementById(prefix + 'courses_container');
     if (coursesContainer) {
         coursesContainer.classList.remove('border-danger');
     }
     
     // Clear main error container
-    const errorContainer = form.querySelector(`#${type}StudentErrors`);
+    const errorContainer = document.getElementById(type + 'StudentErrors');
     if (errorContainer) {
         errorContainer.classList.add('d-none');
     }
 }
 
+function resetForm(type) {
+    const formId = type + 'StudentForm';
+    const form = document.getElementById(formId);
+    
+    if (form && type === 'add') {
+        form.reset();
+    }
+    
+    clearValidationErrors(type);
+    
+    // Reset submit button
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-success');
+        submitBtn.classList.add(type === 'add' ? 'btn-primary' : 'btn-warning');
+        
+        const spinner = submitBtn.querySelector('.spinner-border');
+        const btnText = submitBtn.querySelector('.btn-text');
+        if (spinner) spinner.classList.add('d-none');
+        if (btnText) btnText.textContent = type === 'add' ? 'Add Student' : 'Update Student';
+    }
+    
+    // Repopulate courses for add form
+    if (type === 'add') {
+        populateCoursesContainer('add');
+    }
+}
+
 function showToast(message, type = 'info') {
-    // Create enhanced toast notification
     const toastId = 'toast-' + Date.now();
     const toast = document.createElement('div');
     toast.id = toastId;
-    toast.className = `toast align-items-center text-white bg-${type} border-0 position-fixed`;
+    toast.className = 'toast align-items-center text-white bg-' + type + ' border-0 position-fixed';
     toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px;';
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'assertive');
@@ -783,19 +880,17 @@ function showToast(message, type = 'info') {
         'info': 'fa-info-circle'
     };
     
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body d-flex align-items-center">
-                <i class="fas ${iconMap[type] || iconMap.info} me-2 fa-lg"></i>
-                <span>${message}</span>
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
+    toast.innerHTML = 
+        '<div class="d-flex">' +
+            '<div class="toast-body d-flex align-items-center">' +
+                '<i class="fas ' + (iconMap[type] || iconMap.info) + ' me-2 fa-lg"></i>' +
+                '<span>' + message + '</span>' +
+            '</div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+        '</div>';
     
     document.body.appendChild(toast);
     
-    // Initialize Bootstrap toast
     const bsToast = new bootstrap.Toast(toast, {
         animation: true,
         autohide: true,
@@ -804,7 +899,6 @@ function showToast(message, type = 'info') {
     
     bsToast.show();
     
-    // Remove element after it's hidden
     toast.addEventListener('hidden.bs.toast', () => {
         if (toast.parentNode) {
             toast.remove();
@@ -812,64 +906,49 @@ function showToast(message, type = 'info') {
     });
 }
 
-// Clear form errors when modal is closed and reset form state
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('hidden.bs.modal', function() {
-        const form = this.querySelector('form');
-        if (form) {
-            // Reset form if it's the add form
-            if (form.id === 'addStudentForm') {
-                form.reset();
-            }
-            
-            // Clear all validation states
-            const type = form.id.includes('edit') ? 'edit' : 'add';
-            clearValidationErrors(form, type);
-            
-            // Reset submit button state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('btn-success');
-                if (type === 'add') {
-                    submitBtn.classList.add('btn-primary');
-                    submitBtn.querySelector('.btn-text').textContent = 'Add Student';
-                } else {
-                    submitBtn.classList.add('btn-warning');
-                    submitBtn.querySelector('.btn-text').textContent = 'Update Student';
-                }
-                
-                const spinner = submitBtn.querySelector('.spinner-border');
-                if (spinner) {
-                    spinner.classList.add('d-none');
-                }
-            }
-        }
-    });
-});
+// Debug function
+window.debugStudentManagement = function() {
+    console.log('=== Student Management Debug ===');
+    console.log('Available courses:', AVAILABLE_COURSES.length);
+    console.log('Add button exists:', !!document.getElementById('addStudentBtn'));
+    console.log('Add modal exists:', !!document.getElementById('addStudentModal'));
+    console.log('Add form exists:', !!document.getElementById('addStudentForm'));
+    console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+    console.log('Bootstrap Modal available:', typeof bootstrap !== 'undefined' && typeof bootstrap.Modal === 'function');
+};
 
-// Add CSS for shake animation
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
+// Test modal function
+window.testAddModal = function() {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const modal = new bootstrap.Modal(document.getElementById('addStudentModal'));
+        modal.show();
+        console.log('Modal should be showing now');
+    } else {
+        console.error('Bootstrap Modal not available');
     }
-    
-    .toast {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    }
-    
-    .border-danger {
-        border-color: #dc3545 !important;
-    }
-    
-    .invalid-feedback {
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
-    }
-`;
-document.head.appendChild(style);
+};
+</script>
+
+<!-- CSS for animations -->
+<style>
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.toast {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.invalid-feedback {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+</style>
 
 {% endblock %}

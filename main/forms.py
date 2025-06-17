@@ -379,7 +379,11 @@ class StudentForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        self.student_id = kwargs.pop('student_id', None)  # For edit mode
         super().__init__(*args, **kwargs)
+        
+        # Store user for validation
+        self.user = user
         
         # Set the queryset for courses based on the user
         if user:
@@ -392,7 +396,7 @@ class StudentForm(forms.ModelForm):
             self.fields['courses'].initial = self.instance.assigned_courses.values_list('course', flat=True)
     
     def clean_student_id(self):
-        """Validate student ID format"""
+        """Validate student ID format and uniqueness"""
         student_id = self.cleaned_data.get('student_id')
         if student_id:
             student_id = student_id.strip()
@@ -400,6 +404,23 @@ class StudentForm(forms.ModelForm):
                 raise forms.ValidationError('Student ID must be at least 3 characters long.')
             if len(student_id) > 20:
                 raise forms.ValidationError('Student ID cannot exceed 20 characters.')
+            
+            # Check for uniqueness within user's students
+            if self.user:
+                existing_students = Students.objects.filter(
+                    user=self.user,
+                    student_id=student_id
+                )
+                
+                # If editing, exclude the current student from the check
+                if self.student_id:
+                    existing_students = existing_students.exclude(id=self.student_id)
+                
+                if existing_students.exists():
+                    raise forms.ValidationError(
+                        f'You already have a student with ID "{student_id}". Student IDs must be unique.'
+                    )
+        
         return student_id
     
     def clean_first_name(self):

@@ -101,7 +101,7 @@ class Students(models.Model):
     """Model to represent a student"""
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='students')
-    student_id = models.CharField(max_length=20, unique=True, help_text="Unique student identifier")
+    student_id = models.CharField(max_length=20, help_text="Student identifier")
     first_name = models.CharField(max_length=30)
     middle_name = models.CharField(max_length=30, blank=True, null=True, help_text="Optional middle name")
     last_name = models.CharField(max_length=30)
@@ -113,6 +113,7 @@ class Students(models.Model):
     class Meta:
         db_table = 'main_students'
         ordering = ['last_name', 'first_name']
+        unique_together = ('user', 'student_id')  # Unique per user
 
     def __str__(self):
         return f"{self.last_name}, {self.first_name} ({self.student_id})"

@@ -411,20 +411,9 @@ def add_student(request):
                     'errors': {'__all__': [f'An unexpected error occurred: {str(e)}']}
                 })
         else:
-            # Format form errors for JSON response with better field names
+            # Format form errors for JSON response
             errors = {}
-            field_name_mapping = {
-                'student_id': 'Student ID',
-                'first_name': 'First Name',
-                'middle_name': 'Middle Name',
-                'last_name': 'Last Name',
-                'email': 'Email',
-                'section': 'Section',
-                'courses': 'Course Assignment'
-            }
-            
             for field, field_errors in form.errors.items():
-                # Use the original field name for JS to target the right element
                 errors[field] = [error for error in field_errors]
             
             return JsonResponse({
@@ -438,7 +427,7 @@ def add_student(request):
 def edit_student(request, student_id):
     """Edit an existing student"""
     if request.method == 'POST':
-        form = StudentForm(request.POST, user=request.user)
+        form = StudentForm(request.POST, user=request.user, student_id=student_id)
         if form.is_valid():
             try:
                 # Check if at least one course is selected
