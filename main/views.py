@@ -3,9 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 
-from .forms import CreateAnswerKeyForm
+from .forms import CreateAnswerKeyForm, CourseForm, CourseFilterForm
 from .services.answer_key_service import AnswerKeyService
 from .services.auth_service import AuthService
+from .services.course_service import CourseService
 from .utils.form_helpers import FormHelper
 from .utils.session_helpers import SessionHelper
 from .utils.auth_helpers import AuthFormHelper
@@ -200,8 +201,91 @@ def test_overview(request):
 @login_required
 def course_management(request):
     """Course Management - View and manage courses"""
-    context = {'page_title': 'Courses', 'current_page': 'course_management'}
+    # Handle filter form
+    filter_form = CourseFilterForm(request.GET or None)
+    filters = None
+    
+    if filter_form.is_valid():
+        filters = {
+            'search': filter_form.cleaned_data.get('search'),
+            'semester': filter_form.cleaned_data.get('semester'),
+            'academic_year': filter_form.cleaned_data.get('academic_year'),
+            'sort_by': filter_form.cleaned_data.get('sort_by', '-created_at')
+        }
+    
+    user_courses = CourseService.get_user_courses(request.user, filters)
+    course_stats = CourseService.get_course_stats(request.user, filters)
+    unique_years = CourseService.get_unique_academic_years(request.user)
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(user_courses, 10)  # Show 10 courses per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_title': 'Courses',
+        'current_page': 'course_management',
+        'user_courses': page_obj,
+        'course_stats': course_stats,
+        'course_form': CourseForm(),
+        'filter_form': filter_form,
+        'unique_years': unique_years,
+        'has_filters': any(filters.values()) if filters else False
+    }
     return render(request, 'main/course_management.html', context)
+
+@login_required
+def add_course(request):
+    """Add a new course"""
+    if request.method == 'POST':
+        form = CourseForm(request.POST)
+        if form.is_valid():
+            try:
+                course = CourseService.create_course(request.user, form.cleaned_data)
+                messages.success(request, f'Course "{course.course_name}" has been created successfully!')
+                return redirect('main:course_management')
+            except ValidationError as e:
+                messages.error(request, str(e))
+            except Exception as e:
+                messages.error(request, f'Error creating course: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field.title()}: {error}')
+    
+    return redirect('main:course_management')
+
+@login_required
+def edit_course(request, course_id):
+    """Edit an existing course"""
+    if request.method == 'POST':
+        form = CourseForm(request.POST)
+        if form.is_valid():
+            try:
+                course = CourseService.update_course(course_id, request.user, form.cleaned_data)
+                messages.success(request, f'Course "{course.course_name}" has been updated successfully!')
+            except ValidationError as e:
+                messages.error(request, str(e))
+            except Exception as e:
+                messages.error(request, f'Error updating course: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field.title()}: {error}')
+    
+    return redirect('main:course_management')
+
+@login_required
+def delete_course(request, course_id):
+    """Delete a course"""
+    try:
+        course_name = CourseService.delete_course(course_id, request.user)
+        messages.success(request, f'Course "{course_name}" has been deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting course: {str(e)}')
+    
+    return redirect('main:course_management')
 
 @login_required
 def grade_test(request):

@@ -75,3 +75,94 @@ class TestAnswerKey(models.Model):
 
     def __str__(self):
         return f"Q{self.question_number}: {self.answer}"
+
+class Courses(models.Model):
+    """Model to represent a course"""
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='courses')
+    course_name = models.CharField(max_length=100)
+    academic_year = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., 2023-2024")
+    semester = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., 1st Semester, 2nd Semester, 3rd Semester, Summer")
+    name = models.CharField(max_length=100, blank=True, null=True, help_text="Optional course name")
+    course_code = models.CharField(max_length=20, unique=True, help_text="Unique course identifier")
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'main_courses'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.course_name
+    
+class Students(models.Model):
+    """Model to represent a student"""
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='students')
+    student_id = models.CharField(max_length=20, unique=True, help_text="Unique student identifier")
+    first_name = models.CharField(max_length=30)
+    middle_name = models.CharField(max_length=30, blank=True, null=True, help_text="Optional middle name")
+    last_name = models.CharField(max_length=30)
+    email = models.EmailField(blank=True, null=True)
+    section = models.CharField(max_length=20, blank=True, null=True, help_text="Student's section")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'main_students'
+        ordering = ['last_name', 'first_name']
+
+    def __str__(self):
+        return f"{self.last_name}, {self.first_name} ({self.student_id})"
+    
+
+class AssignedCourse(models.Model):
+    """Model to represent a course assigned to a student"""
+    id = models.AutoField(primary_key=True)
+    course = models.ForeignKey(Courses, on_delete=models.CASCADE, related_name='assigned_courses')
+    student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name='assigned_courses')
+
+    class Meta:
+        db_table = 'main_assigned_course'
+        unique_together = ('course', 'student')
+
+    def __str__(self):
+        return f"{self.student} assigned to {self.course}"
+    
+class TestResult(models.Model):
+    """Model to represent a student's test result"""
+    id = models.AutoField(primary_key=True)
+    test_information = models.ForeignKey(TestInformation, on_delete=models.CASCADE, related_name='test_results')
+    student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name='test_results')
+    score = models.FloatField(help_text="Score achieved by the student")
+    total_questions = models.IntegerField(help_text="Total number of questions in the test")
+    correct_answers = models.IntegerField(help_text="Number of correct answers")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'main_test_result'
+        unique_together = ('test_information', 'student')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.student} - {self.test_information.test_name} - Score: {self.score}"
+    
+class SpecificTestResult(models.Model):
+    """Model to represent a specific test result for a student"""
+    id = models.AutoField(primary_key=True)
+    test_result = models.ForeignKey(TestResult, on_delete=models.CASCADE, related_name='specific_results')
+    question_number = models.IntegerField(help_text="Question number in the test")
+    student_answer = models.CharField(max_length=100, help_text="Answer provided by the student")
+    is_correct = models.BooleanField(default=False, help_text="Whether the student's answer is correct")
+
+    class Meta:
+        db_table = 'main_specific_test_result'
+        unique_together = ('test_result', 'question_number')
+        ordering = ['question_number']
+
+    def __str__(self):
+        return f"Q{self.question_number} - {self.student_answer} ({'Correct' if self.is_correct else 'Incorrect'})"
+
+    
