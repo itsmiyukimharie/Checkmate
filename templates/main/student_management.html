@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Students - CheckMate{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-users"></i> Students</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+        <i class="fas fa-plus"></i> Add Student
+    </button>
+</div>
+
+<!-- Display Messages -->
+{% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Students Table -->
+<div class="card shadow-sm rounded-lg border-0">
+    <div class="card-header bg-transparent border-0">
+        <h5>Manage Students</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-borderless">
+                <thead>
+                    <tr>
+                        <th>Student Number</th>
+                        <th>Student Name</th>
+                        <th>Section</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Sample data - replace with actual student data -->
+                    <tr>
+                        <td>2024001</td>
+                        <td>John Doe</td>
+                        <td>CS-A</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill me-1" onclick="viewStudent(1)">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill me-1" onclick="editStudent(1)">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" onclick="deleteStudent(1, 'John Doe')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2024002</td>
+                        <td>Jane Smith</td>
+                        <td>CS-A</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill me-1" onclick="viewStudent(2)">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill me-1" onclick="editStudent(2)">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" onclick="deleteStudent(2, 'Jane Smith')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2024003</td>
+                        <td>Mike Johnson</td>
+                        <td>CS-B</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill me-1" onclick="viewStudent(3)">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill me-1" onclick="editStudent(3)">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" onclick="deleteStudent(3, 'Mike Johnson')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal fade" id="addStudentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addStudentForm">
+                    <div class="mb-3">
+                        <label for="studentNumber" class="form-label">Student Number</label>
+                        <input type="text" class="form-control" id="studentNumber" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="studentName" class="form-label">Student Name</label>
+                        <input type="text" class="form-control" id="studentName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="section" class="form-label">Section</label>
+                        <input type="text" class="form-control" id="section" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addStudent()">Add Student</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete student "<span id="studentNameToDelete"></span>"?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewStudent(studentId) {
+    // Implement view student functionality
+    alert('View student ' + studentId);
+}
+
+function editStudent(studentId) {
+    // Implement edit student functionality
+    alert('Edit student ' + studentId);
+}
+
+function deleteStudent(studentId, studentName) {
+    document.getElementById('studentNameToDelete').textContent = studentName;
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        // Implement delete functionality
+        alert('Delete student ' + studentId);
+        new bootstrap.Modal(document.getElementById('deleteModal')).hide();
+    };
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function addStudent() {
+    const studentNumber = document.getElementById('studentNumber').value;
+    const studentName = document.getElementById('studentName').value;
+    const section = document.getElementById('section').value;
+    
+    if (studentNumber && studentName && section) {
+        // Implement add student functionality
+        alert('Add student: ' + studentName);
+        new bootstrap.Modal(document.getElementById('addStudentModal')).hide();
+        document.getElementById('addStudentForm').reset();
+    } else {
+        alert('Please fill in all fields');
+    }
+}
+</script>
+
+{% endblock %}

@@ -193,9 +193,15 @@ def landingpage(request):
 # Simplified view functions
 @login_required
 def test_overview(request):
-    """Test Management Section - View test overview"""
-    context = {'page_title': 'Test Overview', 'current_page': 'test_overview'}
-    return render(request, 'main/test_overview.html', context)
+    """Students Management - View and manage students"""
+    context = {'page_title': 'Students', 'current_page': 'test_overview'}
+    return render(request, 'main/student_management.html', context)
+
+@login_required
+def course_management(request):
+    """Course Management - View and manage courses"""
+    context = {'page_title': 'Courses', 'current_page': 'course_management'}
+    return render(request, 'main/course_management.html', context)
 
 @login_required
 def grade_test(request):

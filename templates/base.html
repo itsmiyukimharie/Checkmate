@@ -152,8 +152,13 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if current_page == 'test_overview' %}active{% endif %}" href="{% url 'main:test_overview' %}">
-                        <i class="fas fa-clipboard-list me-2"></i> Test Overview
+                    <a class="nav-link {% if current_page == 'course_management' %}active{% endif %}" href="{% url 'main:course_management' %}">
+                        <i class="fas fa-book me-2"></i> Courses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if current_page == 'test_overview' %}active{% endif %}" href="{% url 'main:student_management' %}">
+                        <i class="fas fa-users me-2"></i> Students
                     </a>
                 </li>
                 <li class="nav-item">
