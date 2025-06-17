@@ -113,9 +113,18 @@ class LoginForm(AuthenticationForm):
 class CreateAnswerKeyForm(forms.ModelForm):
     """Form for creating a new answer key"""
     
+    course = forms.ModelChoiceField(
+        queryset=None,  # Will be set dynamically based on user
+        empty_label="Select a course",
+        widget=forms.Select(attrs={
+            'class': 'form-select rounded-pill'
+        }),
+        help_text='Select the course this test belongs to'
+    )
+    
     class Meta:
         model = TestInformation
-        fields = ['test_name', 'test_type', 'question_count']
+        fields = ['course', 'test_name', 'test_type', 'question_count']
         widgets = {
             'test_name': forms.TextInput(attrs={
                 'class': 'form-control rounded-pill',
@@ -131,6 +140,22 @@ class CreateAnswerKeyForm(forms.ModelForm):
                 'value': 50
             })
         }
+    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        if user:
+            self.fields['course'].queryset = Courses.objects.filter(user=user).order_by('course_code')
+        else:
+            self.fields['course'].queryset = Courses.objects.none()
+    
+    def clean_course(self):
+        """Validate that a course is selected"""
+        course = self.cleaned_data.get('course')
+        if not course:
+            raise forms.ValidationError('Please select a course for this test.')
+        return course
 
 class AnswerKeyEntryForm(forms.Form):
     """Form for entering individual answer key answers"""

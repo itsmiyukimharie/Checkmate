@@ -160,6 +160,48 @@
             text-align: center;
             margin-bottom: 15px;
         }
+        
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .course-info {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .test-details {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .answer-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .answer-item {
+            border: 1px solid #12161c;
+            padding: 6px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        
+        .question-number {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .answer {
+            font-size: 10px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
     </style>
 </head>
 <body>
@@ -173,26 +215,24 @@
     </div>
     
     <div class="header">
-        <h1>ANSWER KEY</h1>
-        <p><strong>{{ test_info.test_name }}</strong></p>
-        <p>{{ test_info.get_test_type_display }} | {{ test_info.question_count }} Questions</p>
-    </div>
-    
-    <div class="test-info">
-        <div>
-            <strong>Test:</strong> {{ test_info.test_name }}<br>
-            <strong>Type:</strong> {{ test_info.get_test_type_display }}
-        </div>
-        <div>
-            <strong>Questions:</strong> {{ test_info.question_count }}<br>
-            <strong>Date:</strong> {{ test_info.created_at|date:"M d, Y" }}
-        </div>
-        <div>
-            <strong>Generated:</strong> {{ "now"|date:"M d, Y" }}<br>
-            <strong>Time:</strong> {{ "now"|date:"g:i A" }}
+        <div class="test-title">{{ test_info.test_name }}</div>
+        {% if test_info.course %}
+            <div class="course-info">
+                {{ test_info.course.course_code }}
+                {% if test_info.course.academic_year or test_info.course.semester %}
+                    {% if test_info.course.academic_year %} | {{ test_info.course.academic_year }}{% endif %}
+                    {% if test_info.course.academic_year and test_info.course.semester %} | {% endif %}
+                    {% if test_info.course.semester %} {{ test_info.course.semester }}{% endif %}
+                {% endif %}
+            </div>
+        {% endif %}
+        <div class="test-details">
+            <strong>Test Type:</strong> {{ test_info.get_test_type_display }} | 
+            <strong>Questions:</strong> {{ test_info.question_count }} | 
+            <strong>Date:</strong> {{ test_info.created_at|date:"F d, Y" }}
         </div>
     </div>
-    
+
     <div class="answer-grid {% if test_info.test_type == 'true_false' %}grid-tf{% elif test_info.test_type == 'multiple_choice_5' %}grid-mc5{% else %}grid-mc4{% endif %}">
         {% for answer_key in answer_keys %}
             {% if forloop.counter0|divisibleby:60 and forloop.counter0 > 0 %}

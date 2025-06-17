@@ -34,6 +34,7 @@ class TestInformation(models.Model):
     
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tests')
+    course = models.ForeignKey('Courses', on_delete=models.CASCADE, related_name='tests', help_text="Course associated with the test")
     name = models.CharField(max_length=100)
     test_name = models.CharField(max_length=100)
     test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES, default='multiple_choice_4')

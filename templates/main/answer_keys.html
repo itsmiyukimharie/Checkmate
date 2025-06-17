@@ -28,14 +28,14 @@
             </div>
             <div class="card-body">
                 <form method="post">
-                    {% csrf_token %}
+                    {% csrf_token %}                    
                     <div class="mb-3">
                         <label for="{{ create_form.test_name.id_for_label }}" class="form-label">Test Name</label>
                         {{ create_form.test_name }}
                         {% if create_form.test_name.errors %}
                             <div class="text-danger">{{ create_form.test_name.errors.0 }}</div>
                         {% endif %}
-                    </div>
+                    </div>                 
                     <div class="mb-3">
                         <label for="{{ create_form.test_type.id_for_label }}" class="form-label">Test Type</label>
                         {{ create_form.test_type }}
@@ -49,6 +49,14 @@
                         {% if create_form.question_count.errors %}
                             <div class="text-danger">{{ create_form.question_count.errors.0 }}</div>
                         {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ create_form.course.id_for_label }}" class="form-label">Course <span class="text-danger">*</span></label>
+                        {{ create_form.course }}
+                        {% if create_form.course.errors %}
+                            <div class="text-danger">{{ create_form.course.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ create_form.course.help_text }}</small>
                     </div>
                     <button type="submit" name="create_form" class="btn btn-success rounded-pill">
                         <i class="fas fa-plus"></i> Create Answer Key
@@ -71,6 +79,7 @@
                     <thead>
                         <tr>
                             <th>Test Name</th>
+                            <th>Course</th>
                             <th>Type</th>
                             <th>Questions</th>
                             <th>Created Date</th>
@@ -86,6 +95,21 @@
                                 <strong>{{ test.test_name }}</strong>
                                 {% if test.name != test.test_name %}
                                     <br><small class="text-muted">{{ test.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if test.course %}
+                                    <span class="badge bg-primary">{{ test.course.course_code }}</span>
+                                    <br><small class="text-muted">{{ test.course.course_name }}</small>
+                                    {% if test.course.academic_year or test.course.semester %}
+                                        <br><small class="text-muted">
+                                            {{ test.course.academic_year|default:"" }}
+                                            {% if test.course.academic_year and test.course.semester %} - {% endif %}
+                                            {{ test.course.semester|default:"" }}
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">No course assigned</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -176,6 +200,41 @@ function printAnswerKey(testId) {
     // Simple redirect to print data endpoint that returns HTML
     window.open('/answer-keys/print/' + testId + '/', '_blank');
 }
+
+// Add form validation for course selection
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[method="post"]');
+    const courseSelect = document.querySelector('#{{ create_form.course.id_for_label }}');
+    
+    if (form && courseSelect) {
+        form.addEventListener('submit', function(e) {
+            if (!courseSelect.value) {
+                e.preventDefault();
+                courseSelect.classList.add('is-invalid');
+                
+                // Show error message
+                let errorDiv = courseSelect.parentNode.querySelector('.course-error');
+                if (!errorDiv) {
+                    errorDiv = document.createElement('div');
+                    errorDiv.className = 'text-danger course-error mt-1';
+                    courseSelect.parentNode.appendChild(errorDiv);
+                }
+                errorDiv.textContent = 'Please select a course for this test.';
+                
+                courseSelect.focus();
+            }
+        });
+        
+        // Clear error when course is selected
+        courseSelect.addEventListener('change', function() {
+            this.classList.remove('is-invalid');
+            const errorDiv = this.parentNode.querySelector('.course-error');
+            if (errorDiv) {
+                errorDiv.remove();
+            }
+        });
+    }
+});
 </script>
 
 {% endblock %}

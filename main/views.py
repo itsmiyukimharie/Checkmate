@@ -29,7 +29,7 @@ def answer_keys(request):
     user_tests = AnswerKeyService.get_user_tests(request.user)
     
     if request.method == 'POST' and 'create_form' in request.POST:
-        create_form = FormHelper.create_answer_key_form(request.POST)
+        create_form = CreateAnswerKeyForm(request.POST, user=request.user)
         if create_form.is_valid():
             test_data = AnswerKeyService.create_temp_test_data(create_form.cleaned_data)
             SessionHelper.store_temp_test_data(request, test_data)
@@ -43,7 +43,7 @@ def answer_keys(request):
         'page_title': 'Manage Answer Keys',
         'current_page': 'answer_keys',
         'user_tests': user_tests,
-        'create_form': CreateAnswerKeyForm()
+        'create_form': CreateAnswerKeyForm(user=request.user)
     }
     return render(request, 'main/answer_keys.html', context)
 

@@ -13,21 +13,29 @@ class AnswerKeyService:
     
     @staticmethod
     def create_temp_test_data(form_data):
-        """Create temporary test data for session storage"""
+        """Create temporary test data from form"""
         return {
+            'course_id': form_data['course'].id,
             'test_name': form_data['test_name'],
             'test_type': form_data['test_type'],
-            'question_count': form_data['question_count']
+            'question_count': form_data['question_count'],
         }
     
     @staticmethod
     def create_temp_test_object(temp_data):
-        """Create temporary test object (not saved to DB)"""
-        return TestInformation(
+        """Create a temporary test object for processing"""
+        from ..models import TestInformation, Courses
+        
+        # Get the course object
+        course = Courses.objects.get(id=temp_data['course_id'])
+        
+        test_info = TestInformation(
+            course=course,
             test_name=temp_data['test_name'],
             test_type=temp_data['test_type'],
-            question_count=temp_data['question_count']
+            question_count=temp_data['question_count'],
         )
+        return test_info
     
     @staticmethod
     def get_test_by_id(test_id, user):
@@ -36,10 +44,9 @@ class AnswerKeyService:
     
     @staticmethod
     def save_test_to_db(test_info, user):
-        """Save test to database"""
+        """Save the test information to database"""
         test_info.user = user
-        test_info.name = test_info.test_name
-        test_info.status = 'draft'
+        test_info.name = test_info.test_name  # Set name field
         test_info.save()
         return test_info
     
@@ -89,18 +96,35 @@ class AnswerKeyService:
     # Export Methods
     @staticmethod
     def generate_csv_response(test_info, answer_keys):
-        """Generate CSV response for answer key export"""
+        """Generate CSV response for download"""
+        import csv
+        from django.http import HttpResponse
+        
         response = HttpResponse(content_type='text/csv')
-        filename = f"answer_key_{test_info.test_name.replace(' ', '_')}.csv"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Disposition'] = f'attachment; filename="{test_info.test_name}_answer_key.csv"'
         
         writer = csv.writer(response)
         
-        # Write structured header for machine processing
-        AnswerKeyService._write_csv_header(writer, test_info)
-        AnswerKeyService._write_csv_data(writer, test_info, answer_keys)
-        AnswerKeyService._write_csv_metadata(writer, test_info, answer_keys)
-        AnswerKeyService._write_csv_mapping(writer, test_info)
+        # Header with course information
+        writer.writerow(['Test Name', test_info.test_name])
+        if test_info.course:
+            writer.writerow(['Course Code', test_info.course.course_code])
+            writer.writerow(['Course Name', test_info.course.course_name])
+            if test_info.course.academic_year:
+                writer.writerow(['Academic Year', test_info.course.academic_year])
+            if test_info.course.semester:
+                writer.writerow(['Semester', test_info.course.semester])
+        writer.writerow(['Test Type', test_info.get_test_type_display()])
+        writer.writerow(['Total Questions', test_info.question_count])
+        writer.writerow(['Created Date', test_info.created_at.strftime('%Y-%m-%d')])
+        writer.writerow([])  # Empty row
+        
+        # Answer key header
+        writer.writerow(['Question Number', 'Answer'])
+        
+        # Answer key data
+        for answer in answer_keys:
+            writer.writerow([answer.question_number, answer.answer])
         
         return response
     
@@ -164,19 +188,26 @@ class AnswerKeyService:
     @staticmethod
     def generate_print_data(test_info, answer_keys):
         """Generate data structure for JSON printing"""
+        course_info = {}
+        if test_info.course:
+            course_info = {
+                'course_code': test_info.course.course_code,
+                'course_name': test_info.course.course_name,
+                'academic_year': test_info.course.academic_year or '',
+                'semester': test_info.course.semester or ''
+            }
+        
         return {
-            'test_info': {
-                'test_name': test_info.test_name,
-                'test_type_display': test_info.get_test_type_display(),
-                'question_count': test_info.question_count,
-                'created_at': test_info.created_at.isoformat(),
-            },
-            'answer_keys': [
+            'test_name': test_info.test_name,
+            'course': course_info,
+            'test_type': test_info.get_test_type_display(),
+            'question_count': test_info.question_count,
+            'created_date': test_info.created_at.strftime('%Y-%m-%d'),
+            'answers': [
                 {
-                    'question_number': ak.question_number,
-                    'answer': ak.answer
+                    'question_number': answer.question_number,
+                    'answer': answer.answer
                 }
-                for ak in answer_keys
-            ],
-            'answer_choices': test_info.get_answer_choices()
+                for answer in answer_keys
+            ]
         }
