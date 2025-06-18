@@ -312,6 +312,291 @@ class AnswerKeyService:
         except Exception as e:
             raise Exception(f"Error creating test from upload: {str(e)}")
 
+    @staticmethod
+    def generate_csv_template(test_type, question_count):
+        """Generate a blank CSV template for manual answer entry"""
+        import csv
+        from django.http import HttpResponse
+        
+        # Get answer choices
+        if test_type == 'multiple_choice_4':
+            choices = ['A', 'B', 'C', 'D']
+            type_display = 'Multiple Choice (A-D)'
+        elif test_type == 'multiple_choice_5':
+            choices = ['A', 'B', 'C', 'D', 'E']
+            type_display = 'Multiple Choice (A-E)'
+        elif test_type == 'true_false':
+            choices = ['True', 'False']
+            type_display = 'True/False'
+        else:
+            choices = ['A', 'B', 'C', 'D']
+            type_display = 'Multiple Choice (A-D)'
+        
+        # Create response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="answer_key_template_{test_type}_{question_count}q.csv"'
+        
+        writer = csv.writer(response)
+        
+        # Write header information
+        writer.writerow(['# CheckMate Answer Key Template'])
+        writer.writerow(['# Test Type:', type_display])
+        writer.writerow(['# Questions:', question_count])
+        writer.writerow(['# Valid Answers:', ', '.join(choices)])
+        writer.writerow(['# Instructions: Fill in the Answer column with your correct answers'])
+        writer.writerow(['#'])
+        writer.writerow(['# Format: Keep the Question Number column as-is, only modify the Answer column'])
+        writer.writerow(['#'])
+        
+        # Write column headers
+        writer.writerow(['Question Number', 'Answer', 'Notes (Optional)'])
+        
+        # Write empty rows for each question
+        for i in range(1, question_count + 1):
+            writer.writerow([i, '', ''])  # Empty answer and notes
+        
+        # Write footer instructions
+        writer.writerow(['#'])
+        writer.writerow(['# Upload Instructions:'])
+        writer.writerow(['# 1. Fill in the Answer column with correct answers'])
+        writer.writerow(['# 2. Save this file as CSV'])
+        writer.writerow(['# 3. Upload through CheckMate Answer Key Upload'])
+        
+        return response
+    
+    @staticmethod
+    def generate_pdf_template(test_type, question_count):
+        """Generate a blank PDF template for manual answer sheet creation"""
+        from django.http import HttpResponse
+        from django.template.loader import render_to_string
+        import io
+        
+        try:
+            # Try to use ReportLab for PDF generation
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.lib.units import inch
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib import colors
+            
+            # Create response
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="answer_sheet_template_{test_type}_{question_count}q.pdf"'
+            
+            # Create PDF
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+            
+            # Get styles
+            styles = getSampleStyleSheet()
+            title_style = styles['Title']
+            heading_style = styles['Heading2']
+            normal_style = styles['Normal']
+            
+            # Content list
+            content = []
+            
+            # Title
+            content.append(Paragraph("CheckMate Answer Sheet Template", title_style))
+            content.append(Spacer(1, 0.2*inch))
+            
+            # Test information
+            if test_type == 'multiple_choice_4':
+                type_display = 'Multiple Choice (A, B, C, D)'
+                choices = ['A', 'B', 'C', 'D']
+            elif test_type == 'multiple_choice_5':
+                type_display = 'Multiple Choice (A, B, C, D, E)'
+                choices = ['A', 'B', 'C', 'D', 'E']
+            elif test_type == 'true_false':
+                type_display = 'True or False'
+                choices = ['T', 'F']
+            else:
+                type_display = 'Multiple Choice (A, B, C, D)'
+                choices = ['A', 'B', 'C', 'D']
+            
+            content.append(Paragraph(f"<b>Test Type:</b> {type_display}", normal_style))
+            content.append(Paragraph(f"<b>Number of Questions:</b> {question_count}", normal_style))
+            content.append(Spacer(1, 0.2*inch))
+            
+            # Instructions
+            content.append(Paragraph("Instructions:", heading_style))
+            content.append(Paragraph("• Fill in the bubbles completely with a dark pencil or pen", normal_style))
+            content.append(Paragraph("• Make sure only one answer is selected per question", normal_style))
+            content.append(Paragraph("• Erase completely if you need to change an answer", normal_style))
+            content.append(Spacer(1, 0.3*inch))
+            
+            # Student information section
+            student_info = [
+                ["Name: ________________________", "Student ID: ________________________"],
+                ["Course: ______________________", "Section: ___________________________"],
+                ["Date: ________________________", "Instructor: _________________________"]
+            ]
+            
+            student_table = Table(student_info, colWidths=[3*inch, 3*inch])
+            student_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ]))
+            content.append(student_table)
+            content.append(Spacer(1, 0.3*inch))
+            
+            # Answer grid
+            content.append(Paragraph("Answer Sheet:", heading_style))
+            
+            # Create answer grid - organize in columns
+            questions_per_page = min(question_count, 60)  # Limit per page
+            cols = 3 if len(choices) <= 4 else 2  # Adjust columns based on choices
+            rows_per_col = (questions_per_page + cols - 1) // cols
+            
+            # Build answer grid data
+            grid_data = []
+            for row in range(rows_per_col + 1):  # +1 for header
+                row_data = []
+                for col in range(cols):
+                    if row == 0:  # Header row
+                        row_data.append("Q")
+                        for choice in choices:
+                            row_data.append(choice)
+                    else:
+                        q_num = (col * rows_per_col) + row
+                        if q_num <= question_count:
+                            row_data.append(f"{q_num:2d}.")
+                            for _ in choices:
+                                row_data.append("○")  # Empty bubble
+                        else:
+                            # Fill with empty cells
+                            for _ in range(len(choices) + 1):
+                                row_data.append("")
+                
+                grid_data.append(row_data)
+            
+            # Calculate column widths
+            q_width = 0.3*inch
+            choice_width = 0.25*inch
+            col_widths = []
+            for col in range(cols):
+                col_widths.extend([q_width] + [choice_width] * len(choices))
+            
+            answer_table = Table(grid_data, colWidths=col_widths)
+            answer_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),  # Header background
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightblue]),
+            ]))
+            
+            content.append(answer_table)
+            
+            # Build PDF
+            doc.build(content)
+            buffer.seek(0)
+            response.write(buffer.getvalue())
+            buffer.close()
+            
+            return response
+            
+        except ImportError:
+            # Fallback: Return HTML that can be printed as PDF
+            return AnswerKeyService._generate_html_template(test_type, question_count)
+    
+    @staticmethod
+    def _generate_html_template(test_type, question_count):
+        """Fallback HTML template when ReportLab is not available"""
+        from django.http import HttpResponse
+        
+        # Get choices
+        if test_type == 'multiple_choice_4':
+            choices = ['A', 'B', 'C', 'D']
+            type_display = 'Multiple Choice (A-D)'
+        elif test_type == 'multiple_choice_5':
+            choices = ['A', 'B', 'C', 'D', 'E']
+            type_display = 'Multiple Choice (A-E)'
+        elif test_type == 'true_false':
+            choices = ['T', 'F']
+            type_display = 'True/False'
+        else:
+            choices = ['A', 'B', 'C', 'D']
+            type_display = 'Multiple Choice (A-D)'
+        
+        html_content = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Answer Sheet Template - {type_display}</title>
+            <style>
+                @media print {{
+                    body {{ margin: 10mm; }}
+                    .no-print {{ display: none; }}
+                }}
+                body {{ font-family: Arial, sans-serif; font-size: 12px; }}
+                .header {{ text-align: center; margin-bottom: 20px; }}
+                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }}
+                .answer-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }}
+                .question {{ border: 1px solid #ccc; padding: 5px; text-align: center; }}
+                .bubble {{ display: inline-block; width: 20px; height: 20px; border: 2px solid #000; border-radius: 50%; margin: 0 5px; }}
+                .instructions {{ background: #f0f0f0; padding: 10px; margin-bottom: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="no-print">
+                <button onclick="window.print()">Print Template</button>
+                <p><strong>Instructions:</strong> Use your browser's print function to save as PDF</p>
+            </div>
+            
+            <div class="header">
+                <h1>CheckMate Answer Sheet Template</h1>
+                <h2>{type_display} - {question_count} Questions</h2>
+            </div>
+            
+            <div class="instructions">
+                <strong>Instructions:</strong>
+                <ul>
+                    <li>Fill in the bubbles completely with a dark pencil or pen</li>
+                    <li>Make sure only one answer is selected per question</li>
+                    <li>Erase completely if you need to change an answer</li>
+                </ul>
+            </div>
+            
+            <div class="info-grid">
+                <div>
+                    <strong>Name:</strong> ________________________________<br><br>
+                    <strong>Course:</strong> ______________________________<br><br>
+                    <strong>Date:</strong> ________________________________
+                </div>
+                <div>
+                    <strong>Student ID:</strong> __________________________<br><br>
+                    <strong>Section:</strong> _____________________________<br><br>
+                    <strong>Instructor:</strong> ___________________________
+                </div>
+            </div>
+            
+            <div class="answer-grid">
+        '''
+        
+        # Add questions
+        for i in range(1, question_count + 1):
+            html_content += f'''
+                <div class="question">
+                    <strong>{i}.</strong><br>
+                    {' '.join([f'<span class="bubble"></span>{choice}' for choice in choices])}
+                </div>
+            '''
+        
+        html_content += '''
+            </div>
+        </body>
+        </html>
+        '''
+        
+        response = HttpResponse(html_content, content_type='text/html')
+        response['Content-Disposition'] = f'attachment; filename="answer_sheet_template_{test_type}_{question_count}q.html"'
+        return response
+
 def get_answer_choices_for_type(test_type):
     """Helper function to get answer choices for test type"""
     if test_type == 'multiple_choice_4':

@@ -30,4 +30,5 @@ urlpatterns = [
     path('export-results/', views.export_results, name='export_results'),
     path('analytics/', views.analytics, name='analytics'),
     path('landingpage/', views.landingpage, name='landingpage'),
+    path('answer-keys/download-template/', views.download_template, name='download_template'),
 ]

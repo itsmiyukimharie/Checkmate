@@ -733,3 +733,33 @@ def get_answer_choices_for_type(test_type):
         return ['True', 'False']
     else:
         return ['A', 'B', 'C', 'D']
+
+@login_required
+def download_template(request):
+    """Download blank answer key template (PDF or CSV)"""
+    try:
+        file_type = request.GET.get('file_type', 'pdf')
+        test_type = request.GET.get('test_type', 'multiple_choice_4')
+        question_count = int(request.GET.get('question_count', 50))
+        
+        # Validate parameters
+        if file_type not in ['pdf', 'csv']:
+            return JsonResponse({'error': 'Invalid file type'}, status=400)
+        
+        if test_type not in ['multiple_choice_4', 'multiple_choice_5', 'true_false']:
+            return JsonResponse({'error': 'Invalid test type'}, status=400)
+        
+        if question_count < 1 or question_count > 200:
+            return JsonResponse({'error': 'Question count must be between 1 and 200'}, status=400)
+        
+        # Generate template
+        if file_type == 'csv':
+            return AnswerKeyService.generate_csv_template(test_type, question_count)
+        else:  # PDF
+            return AnswerKeyService.generate_pdf_template(test_type, question_count)
+            
+    except ValueError:
+        return JsonResponse({'error': 'Invalid question count'}, status=400)
+    except Exception as e:
+        logger.error(f"Template generation error: {str(e)}")
+        return JsonResponse({'error': 'Failed to generate template'}, status=500)
