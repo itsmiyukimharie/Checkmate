@@ -70,6 +70,39 @@
             </div>
             <div class="card-body">
                 <form>
+                    <!-- Filter Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="filterCourse" class="form-label">Course</label>
+                            <select class="form-select" id="filterCourse">
+                                <option value="">All Courses</option>
+                                <!-- This will be populated with actual courses from the database -->
+                                <option value="MATH101">MATH101 - Calculus I</option>
+                                <option value="SCI201">SCI201 - General Science</option>
+                                <option value="HIST150">HIST150 - World History</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filterAcademicYear" class="form-label">Academic Year</label>
+                            <select class="form-select" id="filterAcademicYear">
+                                <option value="">All Years</option>
+                                <option value="2023-2024">2023-2024</option>
+                                <option value="2022-2023">2022-2023</option>
+                                <option value="2021-2022">2021-2022</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filterSemester" class="form-label">Semester</label>
+                            <select class="form-select" id="filterSemester">
+                                <option value="">All Semesters</option>
+                                <option value="1st Semester">1st Semester</option>
+                                <option value="2nd Semester">2nd Semester</option>
+                                <option value="3rd Semester">3rd Semester</option>
+                                <option value="Summer">Summer</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
                         <label for="selectTest" class="form-label">Select Answer Key</label>
                         <select class="form-select" id="selectTest" required>
@@ -80,17 +113,6 @@
                             <option value="3">History Exam - Multiple Choice (40 questions)</option>
                         </select>
                         <div class="form-text">Select the test answer key to grade against</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="selectStudents" class="form-label">Select Students</label>
-                        <select class="form-select" id="selectStudents" multiple>
-                            <option value="all">All Students in Course</option>
-                            <option value="section1">Section A Students</option>
-                            <option value="section2">Section B Students</option>
-                            <!-- Individual students can be added here -->
-                        </select>
-                        <div class="form-text">Choose which students to include in this grading session</div>
                     </div>
                     
                     <div class="mb-3">
@@ -119,16 +141,17 @@
                         <div class="card border-primary">
                             <div class="card-header bg-primary text-white">
                                 <h6 class="mb-0">
-                                    <i class="fas fa-upload me-2"></i>Answer Key Upload
-                                    <span class="badge bg-light text-primary ms-2">Student Submissions</span>
+                                    <i class="fas fa-upload me-2"></i>Student Answer Sheets
+                                    <span class="badge bg-light text-primary ms-2">Batch Processing</span>
                                 </h6>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label for="studentAnswerSheets" class="form-label">Student Answer Sheets</label>
+                                    <label for="studentAnswerSheets" class="form-label">Upload Student Answer Sheets</label>
                                     <input type="file" class="form-control" id="studentAnswerSheets" multiple>
                                     <div class="form-text">
-                                        Upload multiple student answer sheets for batch processing. 
+                                        Upload multiple student answer sheets for automatic processing. 
+                                        Students will be automatically detected from the sheets.
                                         Supported formats: PDF, JPG, PNG, CSV based on selected file format above.
                                     </div>
                                 </div>
@@ -390,6 +413,93 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Filter change handlers
+    const filterCourse = document.getElementById('filterCourse');
+    const filterAcademicYear = document.getElementById('filterAcademicYear');
+    const filterSemester = document.getElementById('filterSemester');
+    const selectTest = document.getElementById('selectTest');
+    
+    // Function to filter answer keys based on selected filters
+    function filterAnswerKeys() {
+        const selectedCourse = filterCourse.value;
+        const selectedYear = filterAcademicYear.value;
+        const selectedSemester = filterSemester.value;
+        
+        // Clear current options (except the first "Choose an answer key..." option)
+        selectTest.innerHTML = '<option value="">Choose an answer key...</option>';
+        
+        // Sample data - in production, this would come from an AJAX call
+        const allAnswerKeys = [
+            {
+                id: 1,
+                name: 'Mathematics Test 1 - Multiple Choice (50 questions)',
+                course: 'MATH101',
+                academicYear: '2023-2024',
+                semester: '1st Semester'
+            },
+            {
+                id: 2,
+                name: 'Science Quiz 2 - True/False (30 questions)',
+                course: 'SCI201',
+                academicYear: '2023-2024',
+                semester: '1st Semester'
+            },
+            {
+                id: 3,
+                name: 'History Exam - Multiple Choice (40 questions)',
+                course: 'HIST150',
+                academicYear: '2022-2023',
+                semester: '2nd Semester'
+            },
+            {
+                id: 4,
+                name: 'Mathematics Test 2 - Multiple Choice (60 questions)',
+                course: 'MATH101',
+                academicYear: '2022-2023',
+                semester: '1st Semester'
+            },
+            {
+                id: 5,
+                name: 'Science Final Exam - Multiple Choice (80 questions)',
+                course: 'SCI201',
+                academicYear: '2023-2024',
+                semester: '2nd Semester'
+            }
+        ];
+        
+        // Filter based on selected criteria
+        const filteredKeys = allAnswerKeys.filter(key => {
+            return (!selectedCourse || key.course === selectedCourse) &&
+                   (!selectedYear || key.academicYear === selectedYear) &&
+                   (!selectedSemester || key.semester === selectedSemester);
+        });
+        
+        // Populate the select with filtered options
+        filteredKeys.forEach(key => {
+            const option = document.createElement('option');
+            option.value = key.id;
+            option.textContent = key.name;
+            selectTest.appendChild(option);
+        });
+        
+        // Show message if no results
+        if (filteredKeys.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No answer keys found for selected filters';
+            option.disabled = true;
+            selectTest.appendChild(option);
+        }
+    }
+    
+    // Add event listeners to filter dropdowns
+    filterCourse.addEventListener('change', filterAnswerKeys);
+    filterAcademicYear.addEventListener('change', filterAnswerKeys);
+    filterSemester.addEventListener('change', filterAnswerKeys);
+    
+    // Initialize with all answer keys
+    filterAnswerKeys();
+    
     // Tab switching for history filter
     const filterButtons = document.querySelectorAll('.btn-group .btn');
     filterButtons.forEach(button => {
@@ -449,7 +559,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Form validation
     const form = document.querySelector('form');
-    const selectTest = document.getElementById('selectTest');
     
     if (form) {
         form.addEventListener('submit', function(e) {
@@ -476,11 +585,19 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
             submitBtn.disabled = true;
             
+            // Get selected filters for context
+            const selectedCourse = filterCourse.options[filterCourse.selectedIndex].text;
+            const selectedYear = filterAcademicYear.value;
+            const selectedSemester = filterSemester.value;
+            
             // Simulate grading process
             setTimeout(() => {
                 let message = 'Grading session started successfully!';
                 if (studentFiles.length > 0) {
                     message += ` Processing ${studentFiles.length} uploaded files.`;
+                }
+                if (selectedCourse !== 'All Courses') {
+                    message += ` Course: ${selectedCourse.split(' - ')[0]}.`;
                 }
                 alert(message);
                 submitBtn.innerHTML = originalText;
@@ -489,6 +606,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reset form
                 this.reset();
                 document.getElementById('uploadedFilesPreview').classList.add('d-none');
+                
+                // Reset filters
+                filterCourse.selectedIndex = 0;
+                filterAcademicYear.selectedIndex = 0;
+                filterSemester.selectedIndex = 0;
+                filterAnswerKeys(); // Refresh answer keys list
             }, 2000);
         });
     }
@@ -568,4 +691,3 @@ function removeFile(index) {
 </script>
 
 {% endblock %}
-  
