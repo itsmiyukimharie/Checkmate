@@ -424,7 +424,7 @@ class AnswerKeyService:
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
             
-            # Fixed layout parameters - slightly bigger elements
+            # Fixed layout parameters - reduced margins for more space
             margin = 0.25 * inch
             content_width = width - 2 * margin
             
@@ -433,11 +433,11 @@ class AnswerKeyService:
             rows_per_column = 40
             questions_per_page = max_columns * rows_per_column  # 200 questions per page
             
-            # Calculate spacing - made slightly bigger
+            # Calculate spacing
             column_width = content_width / max_columns
-            row_height = 14  # Increased from 12 for better spacing
-            bubble_radius = 5  # Increased from 4 for bigger bubbles
-            bubble_spacing = 12  # Increased from 10 for better spacing
+            row_height = 14
+            bubble_radius = 5
+            bubble_spacing = 12
             
             # Helper function to draw centered text
             def draw_centered_text(canvas_obj, x, y, text, font_name="Helvetica", font_size=10):
@@ -449,76 +449,136 @@ class AnswerKeyService:
             page_num = 1
             
             while current_question <= question_count:
-                # Compact page header
+                # Header section - more compact spacing
                 header_y = height - 0.3 * inch
                 
+                # Main title with border
+                c.setLineWidth(2)
+                header_height = 55  # Reduced from 60
+                c.rect(margin, header_y - header_height, content_width, header_height, stroke=1, fill=0)
+                
                 # Title
-                draw_centered_text(c, width/2, header_y, "CheckMate Answer Sheet Template", "Helvetica-Bold", 13)
-                header_y -= 15
-                draw_centered_text(c, width/2, header_y, f"Test Type: {type_display}", "Helvetica", 10)
-                header_y -= 12
-                draw_centered_text(c, width/2, header_y, f"Number of Questions: {question_count}", "Helvetica", 10)
+                c.setFont("Helvetica-Bold", 16)
+                title_y = header_y - 15
+                draw_centered_text(c, width/2, title_y, "CheckMate Answer Sheet Template", "Helvetica-Bold", 16)
+                
+                # Test info - more compact
+                c.setFont("Helvetica-Bold", 10)
+                info_y = title_y - 18  # Reduced spacing
+                draw_centered_text(c, width/2, info_y, f"Test Type: {type_display}", "Helvetica-Bold", 10)
+                
+                info_y -= 10  # Reduced spacing
+                draw_centered_text(c, width/2, info_y, f"Questions: {question_count} | Date: _____________", "Helvetica", 9)
                 
                 if page_num > 1:
-                    header_y -= 10
-                    draw_centered_text(c, width/2, header_y, f"Page {page_num}", "Helvetica", 9)
+                    info_y -= 8  # Reduced spacing
+                    draw_centered_text(c, width/2, info_y, f"Page {page_num}", "Helvetica-Bold", 9)
                 
-                # Compact instructions (only on first page)
+                # Student Information Section - only on first page with reduced spacing
                 if page_num == 1:
-                    header_y -= 18
-                    c.setFont("Helvetica-Bold", 8)
-                    c.drawString(margin, header_y, "Instructions:")
-                    header_y -= 9
-                    c.setFont("Helvetica", 7)
-                    instructions = [
-                        "• Fill in the bubbles completely with a dark pencil or pen",
-                        "• Make sure only one answer is selected per question"
-                    ]
-                    for instruction in instructions:
-                        c.drawString(margin + 8, header_y, instruction)
-                        header_y -= 8
+                    student_info_y = header_y - header_height - 8  # Reduced from 15
                     
-                    # Compact student info
-                    header_y -= 12
-                    c.setFont("Helvetica-Bold", 7)
-                    info_fields = [
-                        ("Name:", margin, header_y),
-                        ("Student ID:", width/2, header_y),
-                        ("Course:", margin, header_y - 12),
-                        ("Date:", width/2, header_y - 12)
-                    ]
+                    # Student info box - smaller height
+                    info_box_height = 45  # Reduced from 50
+                    c.setLineWidth(2)
+                    c.rect(margin, student_info_y - info_box_height, content_width, info_box_height, stroke=1, fill=0)
                     
-                    for label, x, y in info_fields:
-                        c.drawString(x, y, label)
-                        line_start = x + c.stringWidth(label, "Helvetica-Bold", 7) + 3
-                        line_end = x + 150 if x == margin else width - margin - 5
-                        c.line(line_start, y - 2, line_end, y - 2)
-                
-                # Calculate grid start position
-                grid_start_y = height - 2.9 * inch
+                    # Background shading
+                    c.setFillGray(0.95)
+                    c.rect(margin + 1, student_info_y - info_box_height + 1, content_width - 2, info_box_height - 2, stroke=0, fill=1)
+                    c.setFillGray(0)
+                    
+                    # Student info title
+                    c.setFont("Helvetica-Bold", 12)
+                    c.drawString(margin + 5, student_info_y - 12, "STUDENT INFORMATION")
+                    
+                    # Student info fields - more compact
+                    c.setFont("Helvetica-Bold", 9)
+                    field_y = student_info_y - 22  # Adjusted
+                    
+                    # Row 1
+                    c.drawString(margin + 10, field_y, "Name:")
+                    c.line(margin + 45, field_y - 2, margin + content_width/2 - 10, field_y - 2)
+                    
+                    c.drawString(margin + content_width/2, field_y, "Student ID:")
+                    c.line(margin + content_width/2 + 60, field_y - 2, margin + content_width - 10, field_y - 2)
+                    
+                    # Row 2
+                    field_y -= 12  # Reduced spacing
+                    c.drawString(margin + 10, field_y, "Course:")
+                    c.line(margin + 50, field_y - 2, margin + content_width/2 - 10, field_y - 2)
+                    
+                    c.drawString(margin + content_width/2, field_y, "Section:")
+                    c.line(margin + content_width/2 + 45, field_y - 2, margin + content_width - 10, field_y - 2)
+                    
+                    # Instructions box - more compact
+                    instructions_y = student_info_y - info_box_height - 8  # Reduced from 15
+                    instructions_height = 30  # Reduced from 35
+                    
+                    c.setLineWidth(1)
+                    c.rect(margin, instructions_y - instructions_height, content_width, instructions_height, stroke=1, fill=0)
+                    
+                    # Instructions background
+                    c.setFillGray(0.98)
+                    c.rect(margin + 1, instructions_y - instructions_height + 1, content_width - 2, instructions_height - 2, stroke=0, fill=1)
+                    c.setFillGray(0)
+                    
+                    c.setFont("Helvetica-Bold", 10)
+                    c.drawString(margin + 5, instructions_y - 10, "INSTRUCTIONS:")
+                    
+                    c.setFont("Helvetica", 8)
+                    c.drawString(margin + 10, instructions_y - 20, "• Fill in the bubbles completely with a dark pencil or pen")
+                    c.drawString(margin + 10, instructions_y - 28, "• Make sure only one answer is selected per question • Erase completely if you need to change an answer")
+                    
+                    grid_start_y = instructions_y - instructions_height - 10  # Reduced from 20
+                else:
+                    # For subsequent pages - reduced spacing
+                    grid_start_y = header_y - header_height - 10  # Reduced from 20
                 
                 # Calculate columns needed for remaining questions
                 remaining_questions = question_count - current_question + 1
                 columns_needed = min(max_columns, (remaining_questions + rows_per_column - 1) // rows_per_column)
                 
-                # Draw column headers
-                header_row_y = grid_start_y + 18
-                c.setFont("Helvetica-Bold", 7)
+                # Draw main answer grid border
+                grid_height = rows_per_column * row_height + 25
+                c.setLineWidth(2)
+                c.rect(margin, grid_start_y - grid_height, content_width, grid_height, stroke=1, fill=0)
+                
+                # Column headers with background
+                header_row_y = grid_start_y - 5
+                header_cell_height = 20
                 
                 for col in range(columns_needed):
                     x_col_start = margin + col * column_width
                     
+                    # Header cell border
+                    c.setLineWidth(1)
+                    c.rect(x_col_start + 1, header_row_y - header_cell_height, column_width - 2, header_cell_height, stroke=1, fill=0)
+                    
+                    # Header background
+                    c.setFillGray(0.9)
+                    c.rect(x_col_start + 2, header_row_y - header_cell_height + 1, column_width - 4, header_cell_height - 2, stroke=0, fill=1)
+                    c.setFillGray(0)
+                    
                     # Draw "Q" header
-                    c.drawString(x_col_start + 6, header_row_y, "Q")
+                    c.setFont("Helvetica-Bold", 8)
+                    c.drawString(x_col_start + 8, header_row_y - 12, "Q")
                     
                     # Draw choice headers
-                    choice_x = x_col_start + 20
+                    choice_x = x_col_start + 22
                     for choice in choices:
-                        c.drawString(choice_x, header_row_y, choice)
+                        c.drawString(choice_x, header_row_y - 12, choice)
                         choice_x += bubble_spacing
                 
-                # Draw the answer grid - 40 rows per column
-                c.setFont("Helvetica", 7)  # Increased from 6 for better readability
+                # Draw column separators (vertical lines between columns)
+                c.setLineWidth(1)
+                for col in range(1, columns_needed):
+                    x_separator = margin + col * column_width
+                    # Draw line from header top to bottom of answer area
+                    c.line(x_separator, header_row_y, x_separator, grid_start_y - grid_height)
+                
+                # Draw the answer grid - 40 rows per column (no individual question borders)
+                c.setFont("Helvetica", 7)
                 
                 for col in range(columns_needed):
                     x_col_start = margin + col * column_width
@@ -529,18 +589,26 @@ class AnswerKeyService:
                         if question_num > question_count:
                             break
                         
-                        # Calculate row position
-                        row_y = grid_start_y - (row * row_height)
+                        # Calculate row position with 1px margin
+                        row_y = grid_start_y - header_cell_height - 5 - (row * row_height) - 1  # Added 1px margin
+                        
+                        # Alternating row background (light) with margin
+                        if row % 2 == 0:
+                            c.setFillGray(0.97)
+                            c.rect(x_col_start + 2, row_y - row_height + 3, column_width - 4, row_height - 1, stroke=0, fill=1)  # Reduced height by 1px for margin
+                            c.setFillGray(0)
                         
                         # Draw question number
-                        c.drawString(x_col_start + 3, row_y + 4, f"{question_num}.")
+                        c.setFont("Helvetica-Bold", 7)
+                        c.drawString(x_col_start + 5, row_y - 8, f"{question_num}.")
                         
                         # Draw bubbles for each choice
-                        choice_x = x_col_start + 20
+                        choice_x = x_col_start + 22
                         for choice in choices:
                             # Draw empty circle (bubble)
                             bubble_center_x = choice_x + bubble_radius
-                            bubble_center_y = row_y + 6
+                            bubble_center_y = row_y - 7
+                            c.setLineWidth(1)
                             c.circle(bubble_center_x, bubble_center_y, bubble_radius, stroke=1, fill=0)
                             choice_x += bubble_spacing
                 
@@ -548,11 +616,11 @@ class AnswerKeyService:
                 questions_on_this_page = min(questions_per_page, question_count - current_question + 1)
                 current_question += questions_on_this_page
                 
-                # Footer
-                footer_y = margin + 10
-                c.setFont("Helvetica", 6)
-                footer_text = f"Generated by CheckMate - Optimized for OMR Processing - Page {page_num}"
-                draw_centered_text(c, width/2, footer_y, footer_text, "Helvetica", 6)
+                # Footer positioned correctly at bottom
+                footer_y = 0.4 * inch  # Reduced from 0.5 inch for more space
+                c.setFont("Helvetica", 8)
+                footer_text = f"Generated by CheckMate - Optimized for OMR Processing"
+                draw_centered_text(c, width/2, footer_y, footer_text, "Helvetica", 8)
                 
                 # Start new page if more questions remain
                 if current_question <= question_count:

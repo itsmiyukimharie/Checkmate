@@ -30,11 +30,13 @@
             font-size: 10px;
         }
         
+        /* Header styling - matching PDF template */
         .header {
+            border: 2px solid #000;
+            padding: 8px;  /* Reduced from 10px */
+            margin-bottom: 8px;  /* Reduced from 15px */
             text-align: center;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 8px;
+            background: #fff;
         }
         
         .header h1 {
@@ -44,16 +46,22 @@
         }
         
         .header p {
-            margin: 2px 0;
+            margin: 5px 0;
             font-size: 10px;
         }
         
-        /* Student Information Section - Only for Answer Sheets */
+        /* Student Information Section - matching PDF template */
         .student-info {
-            margin: 15px 0 20px 0;
-            padding: 10px;
             border: 2px solid #000;
-            background: #f9f9f9;
+            padding: 8px;  /* Reduced from 10px */
+            margin-bottom: 8px;  /* Reduced from 15px */
+            background: #f8f9fa;
+            font-size: 9px;
+            font-weight: bold;
+        }
+        
+        .student-info h4 {
+            margin: 0 0 10px 0;
             font-size: 12px;
             font-weight: bold;
         }
@@ -75,77 +83,121 @@
         
         .student-info .field-line {
             border-bottom: 1px solid #000;
-            min-height: 20px;
+            min-height: 18px;
             margin-left: 5px;
             display: inline-block;
             width: 200px;
         }
         
-        .test-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            background: #f5f5f5;
-            padding: 5px;
+        /* Instructions styling - matching PDF template */
+        .instructions {
             border: 1px solid #000;
+            padding: 6px;  /* Reduced from 8px */
+            margin-bottom: 10px;  /* Reduced from 15px */
+            background: #f0f8ff;
             font-size: 8px;
         }
         
+        .instructions h5 {
+            margin: 0 0 5px 0;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        /* Answer grid styling - matching PDF template layout */
         .answer-grid {
+            border: 2px solid #000;
+            margin-bottom: 8px;  /* Reduced from 10px */
+        }
+        
+        .grid-header {
             display: grid;
-            gap: 4px;
-            margin-bottom: 10px;
-            grid-auto-flow: column;
+            background: #e9ecef;
+            border-bottom: 1px solid #000;
+            font-weight: bold;
+            font-size: 8px;
+            text-align: center;
+            padding: 5px 0;
         }
         
-        .grid-tf {
+        .grid-content {
+            display: grid;
+            gap: 0;
+        }
+        
+        /* Grid layouts for different test types */
+        .grid-tf .grid-header,
+        .grid-tf .grid-content {
             grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(15, minmax(25px, 1fr));
         }
         
-        .grid-mc5 {
+        .grid-mc5 .grid-header,
+        .grid-mc5 .grid-content {
             grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(20, minmax(25px, 1fr));
         }
         
-        .grid-mc4 {
+        .grid-mc4 .grid-header,
+        .grid-mc4 .grid-content {
             grid-template-columns: repeat(6, 1fr);
-            grid-template-rows: repeat(17, minmax(25px, 1fr));
+        }
+        
+        .header-cell {
+            border-right: 1px solid #000;
+            padding: 5px;
+            background: #e9ecef;
+            font-weight: bold;
+            font-size: 8px;
+            text-align: center;
+        }
+        
+        .header-cell:last-child {
+            border-right: none;
         }
         
         .answer-item {
-            border: 1px solid #000;
-            padding: 4px;
+            border-right: 0.5px solid #000;
+            border-bottom: 0.5px solid #000;
+            padding: 3px;
             background: #fff;
             display: flex;
             align-items: center;
-            gap: 6px;
-            min-height: 25px;
+            gap: 4px;
+            min-height: 14px;
             page-break-inside: avoid;
+            margin-bottom: 1px;  /* Added 1px margin between items */
+        }
+        
+        .answer-item:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .answer-item:last-child {
+            border-right: none;
+            margin-bottom: 0;  /* Remove margin for last item */
         }
         
         .question-number {
             font-weight: bold;
-            min-width: 15px;
-            font-size: 10px;
+            min-width: 12px;
+            font-size: 7px;
         }
         
         .bubbles {
             display: flex;
-            gap: 4px;
+            gap: 3px;
             align-items: center;
         }
         
         .bubble {
-            width: 16px;
-            height: 16px;
-            border: 2px solid #000;
+            width: 10px;
+            height: 10px;
+            border: 1px solid #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 6px;
             background: white;
             color: #000;
             -webkit-print-color-adjust: exact;
@@ -163,8 +215,8 @@
         .bubble.filled::after {
             content: '';
             position: absolute;
-            width: 12px;
-            height: 12px;
+            width: 8px;
+            height: 8px;
             background: #000;
             border-radius: 50%;
             -webkit-print-color-adjust: exact;
@@ -172,12 +224,15 @@
         }
         
         .print-footer {
-            margin-top: 10px;
+            position: fixed;
+            bottom: 0.4in;  /* Reduced from 0.5in to match PDF */
+            left: 0;
+            right: 0;
             text-align: center;
             color: #666;
-            font-size: 7px;
-            border-top: 1px solid #ccc;
-            padding-top: 3px;
+            font-size: 8px;
+            padding-top: 8px;
+            background: white;
         }
         
         .page-break {
@@ -192,21 +247,12 @@
         .print-type-indicator {
             background: {% if mode == 'answer_key' %}#d4edda{% else %}#fff3cd{% endif %};
             color: {% if mode == 'answer_key' %}#155724{% else %}#856404{% endif %};
-            padding: 5px 10px;
+            padding: 8px 15px;
             border-radius: 5px;
             font-size: 12px;
             font-weight: bold;
-            margin-bottom: 10px;
-            border: 1px solid {% if mode == 'answer_key' %}#c3e6cb{% else %}#ffeaa7{% endif %};
-        }
-        
-        .instructions {
-            margin: 10px 0;
-            padding: 8px;
-            background: #f0f8ff;
-            border: 1px solid #ccc;
-            font-size: 9px;
-            border-radius: 3px;
+            margin-bottom: 15px;
+            border: 2px solid {% if mode == 'answer_key' %}#c3e6cb{% else %}#ffeaa7{% endif %};
         }
     </style>
 </head>
@@ -230,8 +276,10 @@
         </button>
     </div>
     
+    <!-- Header - matching PDF template style -->
     <div class="header">
         <h1>{{ test_info.test_name }}</h1>
+        <p><strong>Test Type:</strong> {{ test_info.get_test_type_display }} | <strong>Questions:</strong> {{ test_info.question_count }} | <strong>Date:</strong> {{ test_info.created_at|date:"F d, Y" }}</p>
         {% if test_info.course %}
             <p><strong>Course:</strong> {{ test_info.course.course_code }} - {{ test_info.course.course_name }}</p>
             {% if test_info.course.academic_year or test_info.course.semester %}
@@ -242,18 +290,18 @@
                 </p>
             {% endif %}
         {% endif %}
-        <p><strong>Test Type:</strong> {{ test_info.get_test_type_display }} | <strong>Questions:</strong> {{ test_info.question_count }} | <strong>Date:</strong> {{ test_info.created_at|date:"F d, Y" }}</p>
     </div>
 
     {% if mode == 'answer_sheet' %}
-    <!-- Student Information Section - Only shown for answer sheets -->
+    <!-- Student Information Section - matching PDF template -->
     <div class="student-info">
+        <h4>STUDENT INFORMATION</h4>
         <div class="info-row">
             <div class="info-field">
                 <strong>Name:</strong> <span class="field-line"></span>
             </div>
             <div class="info-field">
-                <strong>Date:</strong> <span class="field-line"></span>
+                <strong>Student ID:</strong> <span class="field-line"></span>
             </div>
         </div>
         <div class="info-row">
@@ -266,35 +314,114 @@
         </div>
     </div>
     
-    <!-- Instructions for students -->
+    <!-- Instructions - matching PDF template -->
     <div class="instructions">
-        <strong>Instructions:</strong>
+        <h5>INSTRUCTIONS:</h5>
         • Fill in the bubbles completely with a dark pencil or pen
         • Make sure only one answer is selected per question
         • Erase completely if you need to change an answer
-        • Ensure your name and other information are clearly written above
     </div>
     {% endif %}
 
+    <!-- Answer Grid - matching PDF template layout -->
     <div class="answer-grid {% if test_info.test_type == 'true_false' %}grid-tf{% elif test_info.test_type == 'multiple_choice_5' %}grid-mc5{% else %}grid-mc4{% endif %}">
-        {% for answer_key in answer_keys %}
-            {% if forloop.counter0|divisibleby:60 and forloop.counter0 > 0 %}
-                </div>
-                <div class="page-break"></div>
-                <div class="answer-grid {% if test_info.test_type == 'true_false' %}grid-tf{% elif test_info.test_type == 'multiple_choice_5' %}grid-mc5{% else %}grid-mc4{% endif %}">
-            {% endif %}
-            
-            <div class="answer-item">
-                <div class="question-number">{{ answer_key.question_number }}.</div>
-                <div class="bubbles">
-                    {% for choice in answer_choices %}
-                    <div class="bubble{% if mode == 'answer_key' and choice == answer_key.answer %} filled{% endif %}">
-                        {% if choice == 'True' %}T{% elif choice == 'False' %}F{% else %}{{ choice }}{% endif %}
+        <!-- Grid Header -->
+        <div class="grid-header">
+            {% if test_info.test_type == 'true_false' %}
+                {% for i in "12345678" %}
+                    <div class="header-cell">
+                        <div>Q</div>
+                        <div style="display: flex; justify-content: center; gap: 3px; margin-top: 2px;">
+                            {% for choice in answer_choices %}
+                                <span style="font-size: 6px;">{% if choice == 'True' %}T{% elif choice == 'False' %}F{% else %}{{ choice }}{% endif %}</span>
+                            {% endfor %}
+                        </div>
                     </div>
-                    {% endfor %}
+                {% endfor %}
+            {% elif test_info.test_type == 'multiple_choice_5' %}
+                {% for i in "12345" %}
+                    <div class="header-cell">
+                        <div>Q</div>
+                        <div style="display: flex; justify-content: center; gap: 3px; margin-top: 2px;">
+                            {% for choice in answer_choices %}
+                                <span style="font-size: 6px;">{{ choice }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                {% for i in "123456" %}
+                    <div class="header-cell">
+                        <div>Q</div>
+                        <div style="display: flex; justify-content: center; gap: 3px; margin-top: 2px;">
+                            {% for choice in answer_choices %}
+                                <span style="font-size: 6px;">{{ choice }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        
+        <!-- Grid Content -->
+        <div class="grid-content">
+            {% for answer_key in answer_keys %}
+                {% if forloop.counter0|divisibleby:200 and forloop.counter0 > 0 %}
+                    </div>
+                    </div>
+                    <div class="page-break"></div>
+                    <div class="answer-grid {% if test_info.test_type == 'true_false' %}grid-tf{% elif test_info.test_type == 'multiple_choice_5' %}grid-mc5{% else %}grid-mc4{% endif %}">
+                        <div class="grid-header">
+                            {% if test_info.test_type == 'true_false' %}
+                                {% for i in "12345678" %}
+                                    <div class="header-cell">
+                                        <div>Q</div>
+                                        <div style="display: flex; justify-content: center; gap: 3px; margin-top: 2px;">
+                                            {% for choice in answer_choices %}
+                                                <span style="font-size: 6px;">{% if choice == 'True' %}T{% elif choice == 'False' %}F{% else %}{{ choice }}{% endif %}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% elif test_info.test_type == 'multiple_choice_5' %}
+                                {% for i in "12345" %}
+                                    <div class="header-cell">
+                                        <div>Q</div>
+                                        <div style="display: flex; justify-content: center; gap: 3px; margin-top: 2px;">
+                                            {% for choice in answer_choices %}
+                                                <span style="font-size: 6px;">{{ choice }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                {% for i in "123456" %}
+                                    <div class="header-cell">
+                                        <div>Q</div>
+                                        <div style="display: flex; justify-content: center; gap: 3px; margin-top: 2px;">
+                                            {% for choice in answer_choices %}
+                                                <span style="font-size: 6px;">{{ choice }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="grid-content">
+                {% endif %}
+                
+                <div class="answer-item">
+                    <div class="question-number">{{ answer_key.question_number }}.</div>
+                    <div class="bubbles">
+                        {% for choice in answer_choices %}
+                        <div class="bubble{% if mode == 'answer_key' and choice == answer_key.answer %} filled{% endif %}">
+                            {% if choice == 'True' %}T{% elif choice == 'False' %}F{% else %}{{ choice }}{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
-        {% endfor %}
+            {% endfor %}
+        </div>
     </div>
     
     <div class="print-footer">
