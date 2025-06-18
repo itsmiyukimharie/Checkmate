@@ -544,6 +544,53 @@ def get_grading_history(request):
         }, status=500)
 
 @login_required
+def download_template(request):
+    """Download blank answer key template (PDF or CSV)"""
+    try:
+        file_type = request.GET.get('file_type', 'pdf')
+        test_type = request.GET.get('test_type', 'multiple_choice_4')
+        question_count = int(request.GET.get('question_count', 50))
+        
+        # Validate parameters
+        if file_type not in ['pdf', 'csv']:
+            messages.error(request, 'Invalid file type requested.')
+            return redirect('main:answer_keys')
+        
+        if test_type not in ['multiple_choice_4', 'multiple_choice_5', 'true_false']:
+            messages.error(request, 'Invalid test type requested.')
+            return redirect('main:answer_keys')
+        
+        # Enforce 200 question maximum
+        if question_count < 1 or question_count > 200:
+            messages.error(request, 'Question count must be between 1 and 200.')
+            return redirect('main:answer_keys')
+        
+        # Log the template request
+        logger.info(f"Template request: {file_type} - {test_type} - {question_count} questions - User: {request.user.username}")
+        
+        # Generate template
+        if file_type == 'csv':
+            return AnswerKeyService.generate_csv_template(test_type, question_count)
+        else:  # PDF
+            try:
+                return AnswerKeyService.generate_pdf_template(test_type, question_count)
+            except Exception as e:
+                logger.error(f"PDF template generation failed: {str(e)}")
+                # Add user-friendly error message
+                messages.error(request, 
+                    f'PDF generation failed: {str(e)}. Please try the CSV template instead or contact support.')
+                return redirect('main:answer_keys')
+            
+    except ValueError as e:
+        logger.error(f"Invalid question count: {str(e)}")
+        messages.error(request, 'Invalid question count provided.')
+        return redirect('main:answer_keys')
+    except Exception as e:
+        logger.error(f"Template generation error: {str(e)}")
+        messages.error(request, f'Failed to generate template: {str(e)}. Please try again.')
+        return redirect('main:answer_keys')
+
+@login_required
 def upload_answer_key(request):
     """Upload and process answer key file (image, PDF, or CSV)"""
     if request.method == 'POST':
@@ -554,6 +601,14 @@ def upload_answer_key(request):
             question_count = int(request.POST.get('question_count', 50))
             course_id = request.POST.get('course')
             answer_key_file = request.FILES.get('answer_key_file')
+            
+            # Enforce 200 question maximum
+            if question_count < 1 or question_count > 200:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Question count must be between 1 and 200.',
+                    'errors': {'question_count': 'Invalid question count'}
+                })
             
             # Processing options
             processing_options = {
@@ -655,7 +710,7 @@ def upload_answer_key(request):
         except ValueError as e:
             return JsonResponse({
                 'success': False,
-                'message': 'Invalid data provided.',
+                'message': 'Invalid data provided. Please check your inputs.',
                 'errors': {'validation': str(e)}
             })
         except Exception as e:
@@ -778,6 +833,7 @@ def download_template(request):
             messages.error(request, 'Invalid test type requested.')
             return redirect('main:answer_keys')
         
+        # Enforce 200 question maximum
         if question_count < 1 or question_count > 200:
             messages.error(request, 'Question count must be between 1 and 200.')
             return redirect('main:answer_keys')
