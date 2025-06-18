@@ -246,6 +246,7 @@
                         <tr>
                             <th>Test Name</th>
                             <th>Course</th>
+                            <th>Academic Period</th>
                             <th>Type</th>
                             <th>Questions</th>
                             <th>Created Date</th>
@@ -267,15 +268,20 @@
                                 {% if test.course %}
                                     <span class="badge bg-primary">{{ test.course.course_code }}</span>
                                     <br><small class="text-muted">{{ test.course.course_name }}</small>
-                                    {% if test.course.academic_year or test.course.semester %}
-                                        <br><small class="text-muted">
-                                            {{ test.course.academic_year|default:"" }}
-                                            {% if test.course.academic_year and test.course.semester %} - {% endif %}
-                                            {{ test.course.semester|default:"" }}
-                                        </small>
-                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted">No course assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if test.course and test.course.academic_year %}
+                                    <small class="text-muted">{{ test.course.academic_year }}</small>
+                                {% endif %}
+                                {% if test.course and test.course.semester %}
+                                    {% if test.course.academic_year %}<br>{% endif %}
+                                    <small class="text-muted">{{ test.course.semester }}</small>
+                                {% endif %}
+                                {% if not test.course.academic_year and not test.course.semester %}
+                                    <small class="text-muted">-</small>
                                 {% endif %}
                             </td>
                             <td>
@@ -613,7 +619,7 @@ function handleUploadSubmission(form) {
         }
     })
     .then(response => response.json())
-    .then(data => {
+    .then data => {
         if (data.success) {
             if (data.review_required) {
                 // Redirect to review page
