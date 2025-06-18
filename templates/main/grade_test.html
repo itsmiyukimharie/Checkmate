@@ -49,6 +49,13 @@
     .btn-block {
         width: 100%;
     }
+
+    /* Grade distribution styling */
+    .grade-bar {
+        height: 20px;
+        margin-bottom: 5px;
+        border-radius: 10px;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -59,92 +66,101 @@
     <div class="col-md-8">
         <div class="card glassmorphism mb-4">
             <div class="card-header">
-                <h5 class="fw-bold"><i class="fas fa-upload"></i> Upload Answer Sheets</h5>
+                <h5 class="fw-bold"><i class="fas fa-check-circle"></i> Start Grading Session</h5>
             </div>
             <div class="card-body">
                 <form>
                     <div class="mb-3">
-                        <label for="selectTest" class="form-label">Select Test</label>
-                        <select class="form-select" id="selectTest">
-                            <option value="">Choose a test...</option>
-                            <option value="math1">Mathematics Test 1</option>
-                            <option value="science2">Science Quiz 2</option>
-                            <option value="history1">History Exam</option>
+                        <label for="selectTest" class="form-label">Select Answer Key</label>
+                        <select class="form-select" id="selectTest" required>
+                            <option value="">Choose an answer key...</option>
+                            <!-- This will be populated with actual answer keys from the database -->
+                            <option value="1">Mathematics Test 1 - Multiple Choice (50 questions)</option>
+                            <option value="2">Science Quiz 2 - True/False (30 questions)</option>
+                            <option value="3">History Exam - Multiple Choice (40 questions)</option>
                         </select>
+                        <div class="form-text">Select the test answer key to grade against</div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="answerSheets" class="form-label">Answer Sheets</label>
+                        <label for="selectStudents" class="form-label">Select Students</label>
+                        <select class="form-select" id="selectStudents" multiple>
+                            <option value="all">All Students in Course</option>
+                            <option value="section1">Section A Students</option>
+                            <option value="section2">Section B Students</option>
+                            <!-- Individual students can be added here -->
+                        </select>
+                        <div class="form-text">Choose which students to include in this grading session</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="fileFormat" class="form-label">File Format</label>
+                        <select class="form-select" id="fileFormat" required>
+                            <option value="pdf">PDF Files</option>
+                            <option value="csv">CSV Files</option>
+                            <option value="image">Image Files (JPG, PNG)</option>
+                        </select>
+                        <div class="form-text">Select the format of student answer sheets you'll be uploading</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Answer Key Upload <span class="badge bg-info">Override</span></label>
                         <input type="file" class="form-control" id="answerSheets" multiple accept=".pdf,.jpg,.png">
-                        <div class="form-text">Upload multiple answer sheets (PDF, JPG, PNG)</div>
+                        <div class="form-text">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> Optional: Upload answer sheet images to override manual answer entry. 
+                                Students' answers are typically entered manually or imported from existing data.
+                            </small>
+                        </div>
                     </div>
                     
+                    <!-- New Answer Key Upload Section -->
                     <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="autoProcess">
-                            <label class="form-check-label" for="autoProcess">
-                                Automatically process after upload
-                            </label>
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-upload me-2"></i>Answer Key Upload
+                                    <span class="badge bg-light text-primary ms-2">Student Submissions</span>
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="studentAnswerSheets" class="form-label">Student Answer Sheets</label>
+                                    <input type="file" class="form-control" id="studentAnswerSheets" multiple>
+                                    <div class="form-text">
+                                        Upload multiple student answer sheets for batch processing. 
+                                        Supported formats: PDF, JPG, PNG, CSV based on selected file format above.
+                                    </div>
+                                </div>
+                                
+                                <!-- File preview area -->
+                                <div class="d-none" id="uploadedFilesPreview">
+                                    <label class="form-label">Uploaded Files</label>
+                                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                                        <div id="filesList" class="list-group list-group-flush">
+                                            <!-- Files will be listed here -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Upload progress -->
+                                <div class="d-none" id="uploadProgress">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small">Upload Progress</span>
+                                        <span class="small" id="progressText">0%</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
                     <button type="submit" class="btn btn-primary rounded-pill">
-                        <i class="fas fa-upload"></i> Upload Answer Sheets
+                        <i class="fas fa-play"></i> Start Grading Session
                     </button>
                 </form>
-            </div>
-        </div>
-        
-        <div class="card glassmorphism mt-4">
-            <div class="card-header">
-                <h5 class="fw-bold">Processing Queue</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>File Name</th>
-                                <th>Test</th>
-                                <th>Status</th>
-                                <th>Progress</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>student_001.pdf</td>
-                                <td>Mathematics Test 1</td>
-                                <td><span class="badge bg-success">Completed</span></td>
-                                <td>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-success" style="width: 100%">100%</div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary rounded-pill">
-                                        <i class="fas fa-eye"></i> View
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>student_002.pdf</td>
-                                <td>Mathematics Test 1</td>
-                                <td><span class="badge bg-warning">Processing</span></td>
-                                <td>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-warning" style="width: 65%">65%</div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>
-                                        <i class="fas fa-clock"></i> Wait
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
     </div>
@@ -152,44 +168,404 @@
     <div class="col-md-4">
         <div class="card glassmorphism">
             <div class="card-header">
-                <h5 class="fw-bold">Grading Statistics</h5>
+                <h5 class="fw-bold"><i class="fas fa-chart-bar"></i> Grading Overview</h5>
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <h6 class="fw-bold">Total Processed</h6>
-                    <h3 class="text-primary fw-bold">156</h3>
+                    <h6 class="fw-bold">Total Tests Graded</h6>
+                    <h3 class="text-primary fw-bold">23</h3>
+                    <small class="text-muted">This semester</small>
                 </div>
                 <div class="mb-3">
-                    <h6 class="fw-bold">In Queue</h6>
-                    <h3 class="text-warning fw-bold">23</h3>
+                    <h6 class="fw-bold">Students Assessed</h6>
+                    <h3 class="text-info fw-bold">156</h3>
+                    <small class="text-muted">Across all courses</small>
                 </div>
                 <div class="mb-3">
-                    <h6 class="fw-bold">Failed</h6>
-                    <h3 class="text-danger fw-bold">2</h3>
-                </div>
-                <div class="mb-3">
-                    <h6 class="fw-bold">Average Score</h6>
+                    <h6 class="fw-bold">Overall Average</h6>
                     <h3 class="text-success fw-bold">78.5%</h3>
+                    <small class="text-muted">All graded tests</small>
+                </div>
+                <div class="mb-3">
+                    <h6 class="fw-bold">Last Grading Session</h6>
+                    <p class="text-muted mb-1">Mathematics Test 1</p>
+                    <small class="text-muted">2 hours ago</small>
                 </div>
             </div>
         </div>
         
         <div class="card glassmorphism mt-3">
             <div class="card-header">
-                <h5 class="fw-bold">Quick Actions</h5>
+                <h5 class="fw-bold"><i class="fas fa-chart-pie"></i> Grade Distribution</h5>
             </div>
             <div class="card-body">
-                <button class="btn btn-success btn-block mb-2 w-100 rounded-pill">
-                    <i class="fas fa-play"></i> Process All
-                </button>
-                <button class="btn btn-warning btn-block mb-2 w-100 rounded-pill">
-                    <i class="fas fa-pause"></i> Pause Processing
-                </button>
-                <button class="btn btn-info btn-block w-100 rounded-pill">
-                    <i class="fas fa-download"></i> Download Results
-                </button>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>A (90-100%)</span>
+                        <span class="fw-bold">25%</span>
+                    </div>
+                    <div class="progress grade-bar">
+                        <div class="progress-bar bg-success" style="width: 25%"></div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>B (80-89%)</span>
+                        <span class="fw-bold">35%</span>
+                    </div>
+                    <div class="progress grade-bar">
+                        <div class="progress-bar bg-primary" style="width: 35%"></div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>C (70-79%)</span>
+                        <span class="fw-bold">22%</span>
+                    </div>
+                    <div class="progress grade-bar">
+                        <div class="progress-bar bg-warning" style="width: 22%"></div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>D (60-69%)</span>
+                        <span class="fw-bold">12%</span>
+                    </div>
+                    <div class="progress grade-bar">
+                        <div class="progress-bar bg-danger" style="width: 12%"></div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>F (Below 60%)</span>
+                        <span class="fw-bold">6%</span>
+                    </div>
+                    <div class="progress grade-bar">
+                        <div class="progress-bar bg-dark" style="width: 6%"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Grading History - Full Width -->
+<div class="card glassmorphism mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold"><i class="fas fa-history"></i> Grading History</h5>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-primary active">All</button>
+            <button type="button" class="btn btn-sm btn-outline-primary">This Week</button>
+            <button type="button" class="btn btn-sm btn-outline-primary">This Month</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Course</th>
+                        <th>Students Graded</th>
+                        <th>Average Score</th>
+                        <th>Date Graded</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <strong>Mathematics Test 1</strong>
+                            <br><small class="text-muted">Multiple Choice - 50 questions</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">MATH101</span>
+                            <br><small class="text-muted">Calculus I</small>
+                        </td>
+                        <td>
+                            <span class="fw-bold">42</span> students
+                            <br><small class="text-muted">Section A & B</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-success fs-6">85.2%</span>
+                            <div class="progress mt-1" style="height: 5px;">
+                                <div class="progress-bar bg-success" style="width: 85.2%"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fw-bold">Dec 15, 2024</span>
+                            <br><small class="text-muted">3:45 PM</small>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>Science Quiz 2</strong>
+                            <br><small class="text-muted">True/False - 30 questions</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">SCI201</span>
+                            <br><small class="text-muted">General Science</small>
+                        </td>
+                        <td>
+                            <span class="fw-bold">38</span> students
+                            <br><small class="text-muted">Section A</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning fs-6">72.8%</span>
+                            <div class="progress mt-1" style="height: 5px;">
+                                <div class="progress-bar bg-warning" style="width: 72.8%"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fw-bold">Dec 14, 2024</span>
+                            <br><small class="text-muted">10:30 AM</small>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>History Exam</strong>
+                            <br><small class="text-muted">Multiple Choice - 40 questions</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">HIST150</span>
+                            <br><small class="text-muted">World History</small>
+                        </td>
+                        <td>
+                            <span class="fw-bold">29</span> students
+                            <br><small class="text-muted">Section C</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-danger fs-6">68.5%</span>
+                            <div class="progress mt-1" style="height: 5px;">
+                                <div class="progress-bar bg-danger" style="width: 68.5%"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fw-bold">Dec 13, 2024</span>
+                            <br><small class="text-muted">2:15 PM</small>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Empty state when no grading history -->
+        <div class="text-center py-5 d-none" id="emptyState">
+            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Grading History</h5>
+            <p class="text-muted">Start your first grading session to see results here.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching for history filter
+    const filterButtons = document.querySelectorAll('.btn-group .btn');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Here you would typically filter the table data
+            console.log('Filter by:', this.textContent);
+        });
+    });
+    
+    // File format change handler
+    const fileFormatSelect = document.getElementById('fileFormat');
+    const studentAnswerSheets = document.getElementById('studentAnswerSheets');
+    
+    if (fileFormatSelect && studentAnswerSheets) {
+        fileFormatSelect.addEventListener('change', function() {
+            const format = this.value;
+            let acceptTypes = '';
+            
+            switch(format) {
+                case 'pdf':
+                    acceptTypes = '.pdf';
+                    break;
+                case 'csv':
+                    acceptTypes = '.csv';
+                    break;
+                case 'image':
+                    acceptTypes = '.jpg,.jpeg,.png,.gif,.bmp';
+                    break;
+                default:
+                    acceptTypes = '.pdf,.csv,.jpg,.jpeg,.png';
+            }
+            
+            studentAnswerSheets.setAttribute('accept', acceptTypes);
+            
+            // Clear any existing files when format changes
+            studentAnswerSheets.value = '';
+            document.getElementById('uploadedFilesPreview').classList.add('d-none');
+        });
+    }
+    
+    // Student answer sheets upload handler
+    if (studentAnswerSheets) {
+        studentAnswerSheets.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                displayUploadedFiles(files);
+            } else {
+                document.getElementById('uploadedFilesPreview').classList.add('d-none');
+            }
+        });
+    }
+    
+    // Form validation
+    const form = document.querySelector('form');
+    const selectTest = document.getElementById('selectTest');
+    
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!selectTest.value) {
+                alert('Please select an answer key first.');
+                selectTest.focus();
+                return;
+            }
+            
+            const fileFormat = document.getElementById('fileFormat').value;
+            const studentFiles = document.getElementById('studentAnswerSheets').files;
+            
+            if (studentFiles.length === 0) {
+                if (!confirm('No student answer sheets uploaded. Continue with manual grading session?')) {
+                    return;
+                }
+            }
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
+            submitBtn.disabled = true;
+            
+            // Simulate grading process
+            setTimeout(() => {
+                let message = 'Grading session started successfully!';
+                if (studentFiles.length > 0) {
+                    message += ` Processing ${studentFiles.length} uploaded files.`;
+                }
+                alert(message);
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                
+                // Reset form
+                this.reset();
+                document.getElementById('uploadedFilesPreview').classList.add('d-none');
+            }, 2000);
+        });
+    }
+});
+
+function displayUploadedFiles(files) {
+    const previewContainer = document.getElementById('uploadedFilesPreview');
+    const filesList = document.getElementById('filesList');
+    
+    // Clear existing files
+    filesList.innerHTML = '';
+    
+    files.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+        
+        // File info
+        const fileInfo = document.createElement('div');
+        fileInfo.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas ${getFileIcon(file.type)} me-2 text-muted"></i>
+                <div>
+                    <div class="fw-bold">${file.name}</div>
+                    <small class="text-muted">${formatFileSize(file.size)} - ${file.type || 'Unknown type'}</small>
+                </div>
+            </div>
+        `;
+        
+        // Remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn btn-sm btn-outline-danger';
+        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        removeBtn.onclick = () => removeFile(index);
+        
+        fileItem.appendChild(fileInfo);
+        fileItem.appendChild(removeBtn);
+        filesList.appendChild(fileItem);
+    });
+    
+    previewContainer.classList.remove('d-none');
+}
+
+function getFileIcon(fileType) {
+    if (fileType.includes('pdf')) return 'fa-file-pdf text-danger';
+    if (fileType.includes('csv')) return 'fa-file-csv text-success';
+    if (fileType.includes('image')) return 'fa-file-image text-primary';
+    return 'fa-file text-muted';
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function removeFile(index) {
+    const fileInput = document.getElementById('studentAnswerSheets');
+    const dt = new DataTransfer();
+    const files = Array.from(fileInput.files);
+    
+    files.forEach((file, i) => {
+        if (i !== index) {
+            dt.items.add(file);
+        }
+    });
+    
+    fileInput.files = dt.files;
+    
+    if (fileInput.files.length === 0) {
+        document.getElementById('uploadedFilesPreview').classList.add('d-none');
+    } else {
+        displayUploadedFiles(Array.from(fileInput.files));
+    }
+}
+</script>
+
 {% endblock %}
+  
