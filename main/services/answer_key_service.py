@@ -101,7 +101,13 @@ class AnswerKeyService:
         import csv
         from django.http import HttpResponse
         
-        filename_suffix = "_answer_key" if show_answers else "_blank_sheet"
+        if show_answers:
+            filename_suffix = "_answer_key"
+            sheet_type = "Answer Key"
+        else:
+            filename_suffix = "_answer_sheet"
+            sheet_type = "Answer Sheet"
+        
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="{test_info.test_name}{filename_suffix}.csv"'
         
@@ -109,7 +115,7 @@ class AnswerKeyService:
         
         # Header with course information
         writer.writerow(['Test Name', test_info.test_name])
-        writer.writerow(['Type', 'Answer Key' if show_answers else 'Blank Answer Sheet'])
+        writer.writerow(['Type', sheet_type])
         if test_info.course:
             writer.writerow(['Course Code', test_info.course.course_code])
             writer.writerow(['Course Name', test_info.course.course_name])
@@ -122,17 +128,31 @@ class AnswerKeyService:
         writer.writerow(['Created Date', test_info.created_at.strftime('%Y-%m-%d')])
         writer.writerow([])  # Empty row
         
-        # Answer key header
+        if not show_answers:
+            # Add student information section for answer sheets
+            writer.writerow(['STUDENT INFORMATION'])
+            writer.writerow(['Name:', ''])
+            writer.writerow(['Date:', ''])
+            writer.writerow(['Course:', ''])
+            writer.writerow(['Section:', ''])
+            writer.writerow([])  # Empty row
+            writer.writerow(['INSTRUCTIONS'])
+            writer.writerow(['Fill in your answers in the Student Answer column'])
+            writer.writerow(['Use only the valid answer choices for this test type'])
+            writer.writerow(['Valid choices:', ', '.join(test_info.get_answer_choices())])
+            writer.writerow([])  # Empty row
+        
+        # Answer section header
         if show_answers:
-            writer.writerow(['Question Number', 'Answer'])
+            writer.writerow(['Question Number', 'Correct Answer'])
             # Answer key data
             for answer in answer_keys:
                 writer.writerow([answer.question_number, answer.answer])
         else:
-            writer.writerow(['Question Number', 'Student Answer'])
-            # Blank sheet data
+            writer.writerow(['Question Number', 'Student Answer', 'Notes'])
+            # Blank sheet data for student completion
             for answer in answer_keys:
-                writer.writerow([answer.question_number, ''])  # Empty answer column
+                writer.writerow([answer.question_number, '', ''])  # Empty answer and notes columns
         
         return response
     

@@ -302,12 +302,47 @@
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
                                     {% endif %}
-                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill me-1" onclick="printAnswerKey({{ test.id }}, true)">
-                                        <i class="fas fa-print"></i> Print
-                                    </button>
-                                    <a href="{% url 'main:download_answer_key' test.id %}?show_answers=1" class="btn btn-sm btn-outline-success rounded-pill me-1">
-                                        <i class="fas fa-download"></i> Download
-                                    </a>
+                                    
+                                    <!-- Print/Download Dropdown -->
+                                    <div class="dropdown me-1">
+                                        <button class="btn btn-sm btn-outline-info dropdown-toggle rounded-pill" type="button" id="printDownload{{ test.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-print"></i> Print/Download
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="printDownload{{ test.id }}">
+                                            <li>
+                                                <h6 class="dropdown-header">
+                                                    <i class="fas fa-print me-2"></i>Print Options
+                                                </h6>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="javascript:void(0)" onclick="printAnswerKey({{ test.id }}, 'answer_key')">
+                                                    <i class="fas fa-key me-2 text-primary"></i>Print Answer Key
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="javascript:void(0)" onclick="printAnswerKey({{ test.id }}, 'answer_sheet')">
+                                                    <i class="fas fa-file-alt me-2 text-success"></i>Print Answer Sheet
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <h6 class="dropdown-header">
+                                                    <i class="fas fa-download me-2"></i>Download Options
+                                                </h6>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'main:download_answer_key' test.id %}?format=answer_key">
+                                                    <i class="fas fa-file-csv me-2 text-primary"></i>Download Answer Key (CSV)
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'main:download_answer_key' test.id %}?format=answer_sheet">
+                                                    <i class="fas fa-file-csv me-2 text-success"></i>Download Answer Sheet (CSV)
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    
                                     {% if test.status == 'draft' %}
                                         <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" 
                                                 onclick="confirmDelete('{{ test.test_name|escapejs }}', '{% url 'main:delete_test' test.id %}')">
@@ -406,9 +441,9 @@ function confirmDelete(testName, deleteUrl) {
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 
-function printAnswerKey(testId, showAnswers = true) {
-    // Open print page with or without answers
-    const url = '/answer-keys/print/' + testId + '/' + (showAnswers ? '?show_answers=1' : '?show_answers=0');
+function printAnswerKey(testId, mode) {
+    // Open print page with specified mode
+    const url = '/answer-keys/print/' + testId + '/?mode=' + mode;
     window.open(url, '_blank');
 }
 

@@ -14,7 +14,6 @@
                 margin: 3mm;
                 size: A4;
             }
-            /* Ensure filled bubbles print as black */
             .bubble.filled {
                 background: #000 !important;
                 color: white !important;
@@ -33,20 +32,53 @@
         
         .header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             border-bottom: 2px solid #000;
-            padding-bottom: 5px;
+            padding-bottom: 8px;
         }
         
         .header h1 {
             margin: 0;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
         }
         
         .header p {
             margin: 2px 0;
             font-size: 10px;
+        }
+        
+        /* Student Information Section - Only for Answer Sheets */
+        .student-info {
+            margin: 15px 0 20px 0;
+            padding: 10px;
+            border: 2px solid #000;
+            background: #f9f9f9;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .student-info .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .student-info .info-field {
+            flex: 1;
+            margin-right: 20px;
+        }
+        
+        .student-info .info-field:last-child {
+            margin-right: 0;
+        }
+        
+        .student-info .field-line {
+            border-bottom: 1px solid #000;
+            min-height: 20px;
+            margin-left: 5px;
+            display: inline-block;
+            width: 200px;
         }
         
         .test-info {
@@ -116,7 +148,6 @@
             font-size: 8px;
             background: white;
             color: #000;
-            /* Ensure colors print correctly */
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -124,14 +155,11 @@
         .bubble.filled {
             background: #000 !important;
             color: white !important;
-            /* Force print color accuracy */
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            /* Additional fallback for stubborn browsers */
             box-shadow: inset 0 0 0 10px #000 !important;
         }
         
-        /* Alternative approach using pseudo-element for maximum compatibility */
         .bubble.filled::after {
             content: '';
             position: absolute;
@@ -162,73 +190,40 @@
         }
         
         .print-type-indicator {
-            background: {% if show_answers %}#d4edda{% else %}#fff3cd{% endif %};
-            color: {% if show_answers %}#155724{% else %}#856404{% endif %};
+            background: {% if mode == 'answer_key' %}#d4edda{% else %}#fff3cd{% endif %};
+            color: {% if mode == 'answer_key' %}#155724{% else %}#856404{% endif %};
             padding: 5px 10px;
             border-radius: 5px;
             font-size: 12px;
             font-weight: bold;
             margin-bottom: 10px;
-            border: 1px solid {% if show_answers %}#c3e6cb{% else %}#ffeaa7{% endif %};
+            border: 1px solid {% if mode == 'answer_key' %}#c3e6cb{% else %}#ffeaa7{% endif %};
         }
         
-        .test-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .course-info {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .test-details {
-            font-size: 12px;
-            color: #888;
-        }
-        
-        .answer-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .answer-item {
-            border: 1px solid #12161c;
-            padding: 6px;
-            text-align: center;
-            background-color: #f9f9f9;
-        }
-        
-        .question-number {
-            font-weight: bold;
-            margin-bottom: 3px;
-        }
-        
-        .answer {
-            font-size: 10px;
-            font-weight: bold;
-            color: #2c3e50;
+        .instructions {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f0f8ff;
+            border: 1px solid #ccc;
+            font-size: 9px;
+            border-radius: 3px;
         }
     </style>
 </head>
 <body>
     <div class="actions no-print">
         <div class="print-type-indicator">
-            {% if show_answers %}
-                <i class="fas fa-eye me-2"></i>Answer Key Mode - Answers are visible
+            {% if mode == 'answer_key' %}
+                <i class="fas fa-key me-2"></i>Answer Key Mode - Correct answers are shown
             {% else %}
-                <i class="fas fa-eye-slash me-2"></i>Blank Sheet Mode - No answers shown
+                <i class="fas fa-file-alt me-2"></i>Answer Sheet Mode - For student use
             {% endif %}
         </div>
         <button onclick="window.print()" class="btn btn-primary me-2">
-            <i class="fas fa-print"></i> Print {% if show_answers %}Answer Key{% else %}Blank Sheet{% endif %}
+            <i class="fas fa-print"></i> Print {% if mode == 'answer_key' %}Answer Key{% else %}Answer Sheet{% endif %}
         </button>
-        <button onclick="toggleAnswers()" class="btn btn-warning me-2">
-            <i class="fas fa-exchange-alt"></i> Switch to {% if show_answers %}Blank Sheet{% else %}Answer Key{% endif %}
+        <button onclick="toggleMode()" class="btn btn-warning me-2">
+            <i class="fas fa-exchange-alt"></i> Switch to {% if mode == 'answer_key' %}Answer Sheet{% else %}Answer Key{% endif %}
         </button>
         <button onclick="window.close()" class="btn btn-secondary">
             <i class="fas fa-times"></i> Close
@@ -236,37 +231,50 @@
     </div>
     
     <div class="header">
-        <div class="test-title">
-            {{ test_info.test_name }}
-            {% if not show_answers %}
-                <span style="font-size: 12px; color: #666; font-weight: normal;"> - Student Answer Sheet</span>
-            {% else %}
-                <span style="font-size: 12px; color: #666; font-weight: normal;"> - Answer Key</span>
-            {% endif %}
-        </div>
+        <h1>{{ test_info.test_name }}</h1>
         {% if test_info.course %}
-            <div class="course-info">
-                <strong>Course:</strong> {{ test_info.course.course_code }} - {{ test_info.course.course_name }}
-                {% if test_info.course.academic_year or test_info.course.semester %}
-                    <br>
+            <p><strong>Course:</strong> {{ test_info.course.course_code }} - {{ test_info.course.course_name }}</p>
+            {% if test_info.course.academic_year or test_info.course.semester %}
+                <p>
                     {% if test_info.course.academic_year %}Academic Year: {{ test_info.course.academic_year }}{% endif %}
                     {% if test_info.course.academic_year and test_info.course.semester %} | {% endif %}
                     {% if test_info.course.semester %}Semester: {{ test_info.course.semester }}{% endif %}
-                {% endif %}
-            </div>
+                </p>
+            {% endif %}
         {% endif %}
-        <div class="test-details">
-            <strong>Test Type:</strong> {{ test_info.get_test_type_display }} | 
-            <strong>Questions:</strong> {{ test_info.question_count }} | 
-            <strong>Date:</strong> {{ test_info.created_at|date:"F d, Y" }}
-        </div>
-        {% if not show_answers %}
-            <div style="margin-top: 10px; font-size: 10px; color: #666;">
-                <strong>Instructions:</strong> Fill in the bubble completely for your chosen answer. Use a dark pencil or pen.
-                <br><strong>Name:</strong> _________________ <strong>Student ID:</strong> _________________ <strong>Section:</strong> _________________
-            </div>
-        {% endif %}
+        <p><strong>Test Type:</strong> {{ test_info.get_test_type_display }} | <strong>Questions:</strong> {{ test_info.question_count }} | <strong>Date:</strong> {{ test_info.created_at|date:"F d, Y" }}</p>
     </div>
+
+    {% if mode == 'answer_sheet' %}
+    <!-- Student Information Section - Only shown for answer sheets -->
+    <div class="student-info">
+        <div class="info-row">
+            <div class="info-field">
+                <strong>Name:</strong> <span class="field-line"></span>
+            </div>
+            <div class="info-field">
+                <strong>Date:</strong> <span class="field-line"></span>
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-field">
+                <strong>Course:</strong> <span class="field-line"></span>
+            </div>
+            <div class="info-field">
+                <strong>Section:</strong> <span class="field-line"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Instructions for students -->
+    <div class="instructions">
+        <strong>Instructions:</strong>
+        • Fill in the bubbles completely with a dark pencil or pen
+        • Make sure only one answer is selected per question
+        • Erase completely if you need to change an answer
+        • Ensure your name and other information are clearly written above
+    </div>
+    {% endif %}
 
     <div class="answer-grid {% if test_info.test_type == 'true_false' %}grid-tf{% elif test_info.test_type == 'multiple_choice_5' %}grid-mc5{% else %}grid-mc4{% endif %}">
         {% for answer_key in answer_keys %}
@@ -280,7 +288,7 @@
                 <div class="question-number">{{ answer_key.question_number }}.</div>
                 <div class="bubbles">
                     {% for choice in answer_choices %}
-                    <div class="bubble{% if show_answers and choice == answer_key.answer %} filled{% endif %}">
+                    <div class="bubble{% if mode == 'answer_key' and choice == answer_key.answer %} filled{% endif %}">
                         {% if choice == 'True' %}T{% elif choice == 'False' %}F{% else %}{{ choice }}{% endif %}
                     </div>
                     {% endfor %}
@@ -291,15 +299,16 @@
     
     <div class="print-footer">
         <p><strong>CheckMate Scanner</strong> | Generated: {{ "now"|date:"M d, Y g:i A" }} | 
-        {% if show_answers %}Answer Key for Instructor Use{% else %}Student Answer Sheet - Optimized for OMR Processing{% endif %}</p>
+        {% if mode == 'answer_key' %}Answer Key for Instructor Use{% else %}Student Answer Sheet - Optimized for OMR Processing{% endif %}</p>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function toggleAnswers() {
+        function toggleMode() {
             const currentUrl = new URL(window.location);
-            const showAnswers = currentUrl.searchParams.get('show_answers') === '1';
-            currentUrl.searchParams.set('show_answers', showAnswers ? '0' : '1');
+            const currentMode = currentUrl.searchParams.get('mode') || 'answer_key';
+            const newMode = currentMode === 'answer_key' ? 'answer_sheet' : 'answer_key';
+            currentUrl.searchParams.set('mode', newMode);
             window.location.href = currentUrl.toString();
         }
         

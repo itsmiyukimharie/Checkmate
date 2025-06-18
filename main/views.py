@@ -112,10 +112,14 @@ def delete_test(request, test_id):
 
 @login_required
 def download_answer_key(request, test_id):
-    """Download answer key as CSV file"""
+    """Download answer key or answer sheet as CSV file"""
     try:
         test_info, answer_keys = AnswerKeyService.get_test_with_answers(test_id, request.user)
-        show_answers = request.GET.get('show_answers', '1') == '1'
+        
+        # Get format from URL parameter (answer_key or answer_sheet)
+        format_type = request.GET.get('format', 'answer_key')
+        show_answers = format_type == 'answer_key'
+        
         return AnswerKeyService.generate_csv_response(test_info, answer_keys, show_answers)
     except Exception as e:
         messages.error(request, 'Test not found.')
@@ -133,19 +137,21 @@ def print_answer_key_data(request, test_id):
 
 @login_required
 def print_answer_key(request, test_id):
-    """Print answer key in a simple HTML format"""
+    """Print answer key or answer sheet in a simple HTML format"""
     try:
         test_info, answer_keys = AnswerKeyService.get_test_with_answers(test_id, request.user)
         
-        # Check if we should show answers (default: True for backward compatibility)
-        show_answers = request.GET.get('show_answers', '1') == '1'
+        # Get mode from URL parameter (answer_key or answer_sheet)
+        mode = request.GET.get('mode', 'answer_key')
+        if mode not in ['answer_key', 'answer_sheet']:
+            mode = 'answer_key'
         
         context = {
             'test_info': test_info,
             'answer_keys': answer_keys,
             'answer_choices': test_info.get_answer_choices(),
-            'show_answers': show_answers,
-            'page_title': f'Print {"Answer Key" if show_answers else "Blank Sheet"} - {test_info.test_name}'
+            'mode': mode,
+            'page_title': f'Print {"Answer Key" if mode == "answer_key" else "Answer Sheet"} - {test_info.test_name}'
         }
         return render(request, 'main/answer_keys_print.html', context)
     except Exception as e:
