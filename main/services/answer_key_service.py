@@ -726,12 +726,17 @@ For immediate use, please use the CSV template download option.
             from reportlab.lib.pagesizes import letter, A4
             from reportlab.lib.units import inch
             
-            # Create response
+            # Clean test name for filename (remove special characters)
+            import re
+            clean_test_name = re.sub(r'[^\w\s-]', '', test_info.test_name)
+            clean_test_name = re.sub(r'[-\s]+', '_', clean_test_name)
+            
+            # Create response with concatenated filename
             if mode == 'answer_key':
-                filename = f"answer_key_{test_info.test_name.replace(' ', '_')}.pdf"
+                filename = f"{clean_test_name}_answer_key.pdf"
                 content_disposition = f'attachment; filename="{filename}"'
             else:
-                filename = f"answer_sheet_{test_info.test_name.replace(' ', '_')}.pdf"
+                filename = f"{clean_test_name}_answer_sheet.pdf"
                 content_disposition = f'attachment; filename="{filename}"'
             
             response = HttpResponse(content_type='application/pdf')
@@ -894,10 +899,10 @@ For immediate use, please use the CSV template download option.
                     c.drawString(margin + 10, instructions_y - 20, "• Fill in the bubbles completely with a dark pencil or pen")
                     c.drawString(margin + 10, instructions_y - 28, "• Make sure only one answer is selected per question • Erase completely if you need to change an answer")
                     
-                    grid_start_y = instructions_y - instructions_height - 10
+                    grid_start_y = instructions_y - instructions_height - 10  # Reduced from 20
                 else:
                     # For answer keys or subsequent pages
-                    grid_start_y = header_y - header_height - 10
+                    grid_start_y = header_y - header_height - 10  # Reduced from 20
                 
                 # Calculate columns needed for remaining questions
                 remaining_questions = test_info.question_count - current_question + 1
