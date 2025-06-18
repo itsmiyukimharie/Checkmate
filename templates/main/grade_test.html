@@ -69,55 +69,53 @@
                 <h5 class="fw-bold"><i class="fas fa-check-circle"></i> Start Grading Session</h5>
             </div>
             <div class="card-body">
-                <form>
+                <form id="gradingForm" method="post" action="{% url 'main:start_grading_session' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
                     <!-- Filter Section -->
                     <div class="row mb-4">
                         <div class="col-md-4">
                             <label for="filterCourse" class="form-label">Course</label>
                             <select class="form-select" id="filterCourse">
                                 <option value="">All Courses</option>
-                                <!-- This will be populated with actual courses from the database -->
-                                <option value="MATH101">MATH101 - Calculus I</option>
-                                <option value="SCI201">SCI201 - General Science</option>
-                                <option value="HIST150">HIST150 - World History</option>
+                                {% for course in filter_options.courses %}
+                                    <option value="{{ course.course_code }}" data-id="{{ course.id }}">
+                                        {{ course.course_code }} - {{ course.course_name }}
+                                    </option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-4">
                             <label for="filterAcademicYear" class="form-label">Academic Year</label>
                             <select class="form-select" id="filterAcademicYear">
                                 <option value="">All Years</option>
-                                <option value="2023-2024">2023-2024</option>
-                                <option value="2022-2023">2022-2023</option>
-                                <option value="2021-2022">2021-2022</option>
+                                {% for year in filter_options.academic_years %}
+                                    <option value="{{ year }}">{{ year }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-4">
                             <label for="filterSemester" class="form-label">Semester</label>
                             <select class="form-select" id="filterSemester">
                                 <option value="">All Semesters</option>
-                                <option value="1st Semester">1st Semester</option>
-                                <option value="2nd Semester">2nd Semester</option>
-                                <option value="3rd Semester">3rd Semester</option>
-                                <option value="Summer">Summer</option>
+                                {% for semester in filter_options.semesters %}
+                                    <option value="{{ semester }}">{{ semester }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="selectTest" class="form-label">Select Answer Key</label>
-                        <select class="form-select" id="selectTest" required>
+                        <select class="form-select" id="selectTest" name="answer_key_id" required>
                             <option value="">Choose an answer key...</option>
-                            <!-- This will be populated with actual answer keys from the database -->
-                            <option value="1">Mathematics Test 1 - Multiple Choice (50 questions)</option>
-                            <option value="2">Science Quiz 2 - True/False (30 questions)</option>
-                            <option value="3">History Exam - Multiple Choice (40 questions)</option>
+                            <!-- This will be populated dynamically based on filters -->
                         </select>
                         <div class="form-text">Select the test answer key to grade against</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="fileFormat" class="form-label">File Format</label>
-                        <select class="form-select" id="fileFormat" required>
+                        <select class="form-select" id="fileFormat" name="file_format" required>
                             <option value="pdf">PDF Files</option>
                             <option value="csv">CSV Files</option>
                             <option value="image">Image Files (JPG, PNG)</option>
@@ -136,7 +134,7 @@
                         </div>
                     </div>
                     
-                    <!-- New Answer Key Upload Section -->
+                    <!-- Student Answer Sheets Upload Section -->
                     <div class="mb-3">
                         <div class="card border-primary">
                             <div class="card-header bg-primary text-white">
@@ -148,7 +146,7 @@
                             <div class="card-body">
                                 <div class="mb-3">
                                     <label for="studentAnswerSheets" class="form-label">Upload Student Answer Sheets</label>
-                                    <input type="file" class="form-control" id="studentAnswerSheets" multiple>
+                                    <input type="file" class="form-control" id="studentAnswerSheets" name="student_answer_sheets" multiple>
                                     <div class="form-text">
                                         Upload multiple student answer sheets for automatic processing. 
                                         Students will be automatically detected from the sheets.
@@ -196,23 +194,28 @@
             <div class="card-body">
                 <div class="mb-3">
                     <h6 class="fw-bold">Total Tests Graded</h6>
-                    <h3 class="text-primary fw-bold">23</h3>
+                    <h3 class="text-primary fw-bold">{{ overview_stats.total_tests_graded }}</h3>
                     <small class="text-muted">This semester</small>
                 </div>
                 <div class="mb-3">
                     <h6 class="fw-bold">Students Assessed</h6>
-                    <h3 class="text-info fw-bold">156</h3>
+                    <h3 class="text-info fw-bold">{{ overview_stats.total_students_assessed }}</h3>
                     <small class="text-muted">Across all courses</small>
                 </div>
                 <div class="mb-3">
                     <h6 class="fw-bold">Overall Average</h6>
-                    <h3 class="text-success fw-bold">78.5%</h3>
+                    <h3 class="text-success fw-bold">{{ overview_stats.overall_average }}%</h3>
                     <small class="text-muted">All graded tests</small>
                 </div>
                 <div class="mb-3">
                     <h6 class="fw-bold">Last Grading Session</h6>
-                    <p class="text-muted mb-1">Mathematics Test 1</p>
-                    <small class="text-muted">2 hours ago</small>
+                    {% if overview_stats.latest_grading_session.test_name %}
+                        <p class="text-muted mb-1">{{ overview_stats.latest_grading_session.test_name }}</p>
+                        <small class="text-muted">{{ overview_stats.latest_grading_session.date|timesince }} ago</small>
+                    {% else %}
+                        <p class="text-muted mb-1">No sessions yet</p>
+                        <small class="text-muted">Start your first grading session</small>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -222,51 +225,17 @@
                 <h5 class="fw-bold"><i class="fas fa-chart-pie"></i> Grade Distribution</h5>
             </div>
             <div class="card-body">
+                {% for grade, percentage in grade_distribution.items %}
                 <div class="mb-2">
                     <div class="d-flex justify-content-between">
-                        <span>A (90-100%)</span>
-                        <span class="fw-bold">25%</span>
+                        <span>{{ grade }} {% if grade == 'A' %}(90-100%){% elif grade == 'B' %}(80-89%){% elif grade == 'C' %}(70-79%){% elif grade == 'D' %}(60-69%){% else %}(Below 60%){% endif %}</span>
+                        <span class="fw-bold">{{ percentage }}%</span>
                     </div>
                     <div class="progress grade-bar">
-                        <div class="progress-bar bg-success" style="width: 25%"></div>
+                        <div class="progress-bar {% if grade == 'A' %}bg-success{% elif grade == 'B' %}bg-primary{% elif grade == 'C' %}bg-warning{% elif grade == 'D' %}bg-danger{% else %}bg-dark{% endif %}" style="width: {{ percentage }}%"></div>
                     </div>
                 </div>
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span>B (80-89%)</span>
-                        <span class="fw-bold">35%</span>
-                    </div>
-                    <div class="progress grade-bar">
-                        <div class="progress-bar bg-primary" style="width: 35%"></div>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span>C (70-79%)</span>
-                        <span class="fw-bold">22%</span>
-                    </div>
-                    <div class="progress grade-bar">
-                        <div class="progress-bar bg-warning" style="width: 22%"></div>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span>D (60-69%)</span>
-                        <span class="fw-bold">12%</span>
-                    </div>
-                    <div class="progress grade-bar">
-                        <div class="progress-bar bg-danger" style="width: 12%"></div>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span>F (Below 60%)</span>
-                        <span class="fw-bold">6%</span>
-                    </div>
-                    <div class="progress grade-bar">
-                        <div class="progress-bar bg-dark" style="width: 6%"></div>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -277,14 +246,14 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="fw-bold"><i class="fas fa-history"></i> Grading History</h5>
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-sm btn-outline-primary active">All</button>
-            <button type="button" class="btn btn-sm btn-outline-primary">This Week</button>
-            <button type="button" class="btn btn-sm btn-outline-primary">This Month</button>
+            <button type="button" class="btn btn-sm btn-outline-primary {% if time_filter == 'all' %}active{% endif %}" data-filter="all">All</button>
+            <button type="button" class="btn btn-sm btn-outline-primary {% if time_filter == 'week' %}active{% endif %}" data-filter="week">This Week</button>
+            <button type="button" class="btn btn-sm btn-outline-primary {% if time_filter == 'month' %}active{% endif %}" data-filter="month">This Month</button>
         </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped">
+            <table class="table table-striped" id="gradingHistoryTable">
                 <thead>
                     <tr>
                         <th>Test Name</th>
@@ -296,28 +265,50 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% for session in grading_history %}
                     <tr>
                         <td>
-                            <strong>Mathematics Test 1</strong>
-                            <br><small class="text-muted">Multiple Choice - 50 questions</small>
+                            <strong>{{ session.test_info.test_name }}</strong>
+                            <br><small class="text-muted">{{ session.test_info.get_test_type_display }} - {{ session.test_info.question_count }} questions</small>
                         </td>
                         <td>
-                            <span class="badge bg-primary">MATH101</span>
-                            <br><small class="text-muted">Calculus I</small>
+                            {% if session.test_info.course %}
+                                <span class="badge bg-primary">{{ session.test_info.course.course_code }}</span>
+                                <br><small class="text-muted">{{ session.test_info.course.course_name }}</small>
+                            {% else %}
+                                <span class="text-muted">No course</span>
+                            {% endif %}
                         </td>
                         <td>
-                            <span class="fw-bold">42</span> students
-                            <br><small class="text-muted">Section A & B</small>
+                            <span class="fw-bold">{{ session.student_count }}</span> students
+                            <br><small class="text-muted">{{ session.sections }}</small>
                         </td>
                         <td>
-                            <span class="badge bg-success fs-6">85.2%</span>
-                            <div class="progress mt-1" style="height: 5px;">
-                                <div class="progress-bar bg-success" style="width: 85.2%"></div>
-                            </div>
+                            {% if session.average_score >= 90 %}
+                                <span class="badge bg-success fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-success" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% elif session.average_score >= 75 %}
+                                <span class="badge bg-primary fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-primary" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% elif session.average_score >= 60 %}
+                                <span class="badge bg-warning fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-warning" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% else %}
+                                <span class="badge bg-danger fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-danger" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% endif %}
                         </td>
                         <td>
-                            <span class="fw-bold">Dec 15, 2024</span>
-                            <br><small class="text-muted">3:45 PM</small>
+                            <span class="fw-bold">{{ session.graded_date|date:"M d, Y" }}</span>
+                            <br><small class="text-muted">{{ session.graded_date|date:"g:i A" }}</small>
                         </td>
                         <td>
                             <div class="btn-group" role="group">
@@ -330,80 +321,21 @@
                             </div>
                         </td>
                     </tr>
+                    {% empty %}
                     <tr>
-                        <td>
-                            <strong>Science Quiz 2</strong>
-                            <br><small class="text-muted">True/False - 30 questions</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-primary">SCI201</span>
-                            <br><small class="text-muted">General Science</small>
-                        </td>
-                        <td>
-                            <span class="fw-bold">38</span> students
-                            <br><small class="text-muted">Section A</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-warning fs-6">72.8%</span>
-                            <div class="progress mt-1" style="height: 5px;">
-                                <div class="progress-bar bg-warning" style="width: 72.8%"></div>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="fw-bold">Dec 14, 2024</span>
-                            <br><small class="text-muted">10:30 AM</small>
-                        </td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            </div>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
+                            <div class="text-muted">No grading history found</div>
+                            <small class="text-muted">Start your first grading session to see results here</small>
                         </td>
                     </tr>
-                    <tr>
-                        <td>
-                            <strong>History Exam</strong>
-                            <br><small class="text-muted">Multiple Choice - 40 questions</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-primary">HIST150</span>
-                            <br><small class="text-muted">World History</small>
-                        </td>
-                        <td>
-                            <span class="fw-bold">29</span> students
-                            <br><small class="text-muted">Section C</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-danger fs-6">68.5%</span>
-                            <div class="progress mt-1" style="height: 5px;">
-                                <div class="progress-bar bg-danger" style="width: 68.5%"></div>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="fw-bold">Dec 13, 2024</span>
-                            <br><small class="text-muted">2:15 PM</small>
-                        </td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
         
         <!-- Empty state when no grading history -->
-        <div class="text-center py-5 d-none" id="emptyState">
+        <div class="text-center py-5 {% if grading_history %}d-none{% endif %}" id="emptyState">
             <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No Grading History</h5>
             <p class="text-muted">Start your first grading session to see results here.</p>
@@ -425,71 +357,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedYear = filterAcademicYear.value;
         const selectedSemester = filterSemester.value;
         
-        // Clear current options (except the first "Choose an answer key..." option)
-        selectTest.innerHTML = '<option value="">Choose an answer key...</option>';
+        // Clear current options
+        selectTest.innerHTML = '<option value="">Loading answer keys...</option>';
         
-        // Sample data - in production, this would come from an AJAX call
-        const allAnswerKeys = [
-            {
-                id: 1,
-                name: 'Mathematics Test 1 - Multiple Choice (50 questions)',
-                course: 'MATH101',
-                academicYear: '2023-2024',
-                semester: '1st Semester'
-            },
-            {
-                id: 2,
-                name: 'Science Quiz 2 - True/False (30 questions)',
-                course: 'SCI201',
-                academicYear: '2023-2024',
-                semester: '1st Semester'
-            },
-            {
-                id: 3,
-                name: 'History Exam - Multiple Choice (40 questions)',
-                course: 'HIST150',
-                academicYear: '2022-2023',
-                semester: '2nd Semester'
-            },
-            {
-                id: 4,
-                name: 'Mathematics Test 2 - Multiple Choice (60 questions)',
-                course: 'MATH101',
-                academicYear: '2022-2023',
-                semester: '1st Semester'
-            },
-            {
-                id: 5,
-                name: 'Science Final Exam - Multiple Choice (80 questions)',
-                course: 'SCI201',
-                academicYear: '2023-2024',
-                semester: '2nd Semester'
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (selectedCourse) params.append('course', selectedCourse);
+        if (selectedYear) params.append('academic_year', selectedYear);
+        if (selectedSemester) params.append('semester', selectedSemester);
+        
+        // Fetch filtered answer keys
+        fetch(`{% url 'main:get_filtered_answer_keys' %}?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
             }
-        ];
-        
-        // Filter based on selected criteria
-        const filteredKeys = allAnswerKeys.filter(key => {
-            return (!selectedCourse || key.course === selectedCourse) &&
-                   (!selectedYear || key.academicYear === selectedYear) &&
-                   (!selectedSemester || key.semester === selectedSemester);
+        })
+        .then(response => response.json())
+        .then(data => {
+            selectTest.innerHTML = '<option value="">Choose an answer key...</option>';
+            
+            if (data.success && data.answer_keys.length > 0) {
+                data.answer_keys.forEach(answerKey => {
+                    const option = document.createElement('option');
+                    option.value = answerKey.id;
+                    option.textContent = answerKey.name;
+                    selectTest.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No answer keys found for selected filters';
+                option.disabled = true;
+                selectTest.appendChild(option);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching answer keys:', error);
+            selectTest.innerHTML = '<option value="">Error loading answer keys</option>';
         });
-        
-        // Populate the select with filtered options
-        filteredKeys.forEach(key => {
-            const option = document.createElement('option');
-            option.value = key.id;
-            option.textContent = key.name;
-            selectTest.appendChild(option);
-        });
-        
-        // Show message if no results
-        if (filteredKeys.length === 0) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'No answer keys found for selected filters';
-            option.disabled = true;
-            selectTest.appendChild(option);
-        }
     }
     
     // Add event listeners to filter dropdowns
@@ -500,17 +407,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize with all answer keys
     filterAnswerKeys();
     
-    // Tab switching for history filter
-    const filterButtons = document.querySelectorAll('.btn-group .btn');
-    filterButtons.forEach(button => {
+    // History filter buttons
+    const historyFilterButtons = document.querySelectorAll('.btn-group .btn[data-filter]');
+    historyFilterButtons.forEach(button => {
         button.addEventListener('click', function() {
+            const filter = this.getAttribute('data-filter');
+            
             // Remove active class from all buttons
-            filterButtons.forEach(btn => btn.classList.remove('active'));
+            historyFilterButtons.forEach(btn => btn.classList.remove('active'));
             // Add active class to clicked button
             this.classList.add('active');
             
-            // Here you would typically filter the table data
-            console.log('Filter by:', this.textContent);
+            // Fetch filtered history
+            fetch(`{% url 'main:get_grading_history' %}?time_filter=${filter}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateHistoryTable(data.grading_history);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching grading history:', error);
+            });
         });
     });
     
@@ -557,15 +481,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Form validation
-    const form = document.querySelector('form');
-    
+    // Form submission
+    const form = document.getElementById('gradingForm');
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             
             if (!selectTest.value) {
-                alert('Please select an answer key first.');
+                showToast('Please select an answer key first.', 'warning');
                 selectTest.focus();
                 return;
             }
@@ -585,37 +508,112 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
             submitBtn.disabled = true;
             
-            // Get selected filters for context
-            const selectedCourse = filterCourse.options[filterCourse.selectedIndex].text;
-            const selectedYear = filterAcademicYear.value;
-            const selectedSemester = filterSemester.value;
+            // Submit form via AJAX
+            const formData = new FormData(form);
             
-            // Simulate grading process
-            setTimeout(() => {
-                let message = 'Grading session started successfully!';
-                if (studentFiles.length > 0) {
-                    message += ` Processing ${studentFiles.length} uploaded files.`;
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
-                if (selectedCourse !== 'All Courses') {
-                    message += ` Course: ${selectedCourse.split(' - ')[0]}.`;
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    
+                    // Reset form after short delay
+                    setTimeout(() => {
+                        form.reset();
+                        document.getElementById('uploadedFilesPreview').classList.add('d-none');
+                        
+                        // Reset filters
+                        filterCourse.selectedIndex = 0;
+                        filterAcademicYear.selectedIndex = 0;
+                        filterSemester.selectedIndex = 0;
+                        filterAnswerKeys(); // Refresh answer keys list
+                        
+                        // Refresh grading history
+                        location.reload();
+                    }, 2000);
+                } else {
+                    showToast(data.error || 'Failed to start grading session', 'error');
                 }
-                alert(message);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('An error occurred while starting the grading session', 'error');
+            })
+            .finally(() => {
+                // Reset button
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
-                
-                // Reset form
-                this.reset();
-                document.getElementById('uploadedFilesPreview').classList.add('d-none');
-                
-                // Reset filters
-                filterCourse.selectedIndex = 0;
-                filterAcademicYear.selectedIndex = 0;
-                filterSemester.selectedIndex = 0;
-                filterAnswerKeys(); // Refresh answer keys list
-            }, 2000);
+            });
         });
     }
 });
+
+// Helper functions
+function updateHistoryTable(historyData) {
+    const tbody = document.querySelector('#gradingHistoryTable tbody');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (historyData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
+                    <div class="text-muted">No grading history found for this period</div>
+                    <small class="text-muted">Try selecting a different time filter</small>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = historyData.map(session => {
+        const scoreClass = session.average_score >= 90 ? 'success' : 
+                          session.average_score >= 75 ? 'primary' :
+                          session.average_score >= 60 ? 'warning' : 'danger';
+        
+        return `
+            <tr>
+                <td>
+                    <strong>${session.test_name}</strong>
+                    <br><small class="text-muted">${session.test_type} - ${session.question_count} questions</small>
+                </td>
+                <td>
+                    ${session.course_code ? `<span class="badge bg-primary">${session.course_code}</span><br><small class="text-muted">${session.course_name}</small>` : '<span class="text-muted">No course</span>'}
+                </td>
+                <td>
+                    <span class="fw-bold">${session.student_count}</span> students
+                    <br><small class="text-muted">${session.sections}</small>
+                </td>
+                <td>
+                    <span class="badge bg-${scoreClass} fs-6">${session.average_score}%</span>
+                    <div class="progress mt-1" style="height: 5px;">
+                        <div class="progress-bar bg-${scoreClass}" style="width: ${session.average_score}%"></div>
+                    </div>
+                </td>
+                <td>
+                    <span class="fw-bold">${new Date(session.graded_date).toLocaleDateString()}</span>
+                    <br><small class="text-muted">${new Date(session.graded_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
+                </td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
 
 function displayUploadedFiles(files) {
     const previewContainer = document.getElementById('uploadedFilesPreview');
@@ -687,6 +685,48 @@ function removeFile(index) {
     } else {
         displayUploadedFiles(Array.from(fileInput.files));
     }
+}
+
+function showToast(message, type = 'info') {
+    // Create toast notification
+    const toastId = 'toast-' + Date.now();
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = 'toast align-items-center text-white bg-' + type + ' border-0 position-fixed';
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px;';
+    toast.setAttribute('role', 'alert');
+    
+    const iconMap = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'warning': 'fa-exclamation-triangle',
+        'info': 'fa-info-circle'
+    };
+    
+    toast.innerHTML = 
+        '<div class="d-flex">' +
+            '<div class="toast-body d-flex align-items-center">' +
+                '<i class="fas ' + (iconMap[type] || iconMap.info) + ' me-2 fa-lg"></i>' +
+                '<span>' + message + '</span>' +
+            '</div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+        '</div>';
+    
+    document.body.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast, {
+        animation: true,
+        autohide: true,
+        delay: 5000
+    });
+    
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    });
 }
 </script>
 

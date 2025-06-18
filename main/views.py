@@ -338,189 +338,210 @@ def delete_course(request, course_id):
 @login_required
 def grade_test(request):
     """Grade Test - Upload answer sheets and process grading"""
-    context = {'page_title': 'Grade Test', 'current_page': 'grade_test'}
+    from .services.grade_test_service import GradeTestService
+    
+    # Get filter options for dropdowns
+    filter_options = GradeTestService.get_filter_options(request.user)
+    
+    # Get overview statistics
+    overview_stats = GradeTestService.get_grading_overview_stats(request.user)
+    
+    # Get grade distribution
+    grade_distribution = GradeTestService.get_grade_distribution(request.user)
+    
+    # Get grading history (default to all time)
+    time_filter = request.GET.get('time_filter', 'all')
+    grading_history = GradeTestService.get_grading_history(request.user, time_filter)
+    
+    context = {
+        'page_title': 'Grade Test',
+        'current_page': 'grade_test',
+        'filter_options': filter_options,
+        'overview_stats': overview_stats,
+        'grade_distribution': grade_distribution,
+        'grading_history': grading_history,
+        'time_filter': time_filter
+    }
     return render(request, 'main/grade_test.html', context)
 
 @login_required
-def export_results(request):
-    """Export Results - Download results as CSV/PDF"""
-    context = {'page_title': 'Export Results', 'current_page': 'export_results'}
-    return render(request, 'main/export_results.html', context)
-
-@login_required
-def analytics(request):
-    """Performance Analytics - View common mistakes and trends"""
-    context = {'page_title': 'Performance Analytics', 'current_page': 'analytics'}
-    return render(request, 'main/analytics.html', context)
-
-@login_required
-def student_management(request):
-    """Student Management - View and manage students"""
-    # Handle filter form
-    filter_form = StudentFilterForm(request.GET or None)
-    filters = None
+def get_filtered_answer_keys(request):
+    """AJAX endpoint to get filtered answer keys"""
+    from .services.grade_test_service import GradeTestService
     
-    if filter_form.is_valid():
+    try:
         filters = {
-            'search': filter_form.cleaned_data.get('search'),
-            'section': filter_form.cleaned_data.get('section'),
-            'sort_by': filter_form.cleaned_data.get('sort_by', 'last_name')
+            'course': request.GET.get('course'),
+            'academic_year': request.GET.get('academic_year'),
+            'semester': request.GET.get('semester')
         }
-    
-    user_students = StudentService.get_user_students(request.user, filters)
-    student_stats = StudentService.get_student_stats(request.user, filters)
-    unique_sections = StudentService.get_unique_sections(request.user)
-    
-    # Pagination
-    paginator = Paginator(user_students, 10)  # Show 10 students per page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    context = {
-        'page_title': 'Students',
-        'current_page': 'student_management',
-        'user_students': page_obj,
-        'student_stats': student_stats,
-        'student_form': StudentForm(user=request.user),
-        'filter_form': filter_form,
-        'unique_sections': unique_sections,
-        'has_filters': any(filters.values()) if filters else False
-    }
-    return render(request, 'main/student_management.html', context)
-
-@login_required
-def add_student(request):
-    """Add a new student"""
-    if request.method == 'POST':
-        form = StudentForm(request.POST, user=request.user)
-        if form.is_valid():
-            try:
-                # Check if at least one course is selected
-                courses = form.cleaned_data.get('courses', [])
-                if not courses:
-                    return JsonResponse({
-                        'success': False,
-                        'errors': {'courses': ['Please select at least one course for the student.']}
-                    })
-                
-                student = StudentService.create_student(request.user, form.cleaned_data)
-                
-                # Get assigned courses count for success message
-                course_count = len(courses)
-                if course_count == 1:
-                    course_msg = f" and assigned to {course_count} course"
-                else:
-                    course_msg = f" and assigned to {course_count} courses"
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': f'Student "{student.first_name} {student.last_name}" has been added successfully{course_msg}!'
-                })
-                
-            except ValidationError as e:
-                return JsonResponse({
-                    'success': False,
-                    'errors': {'__all__': [str(e)]}
-                })
-            except Exception as e:
-                return JsonResponse({
-                    'success': False,
-                    'errors': {'__all__': [f'An unexpected error occurred: {str(e)}']}
-                })
-        else:
-            # Format form errors for JSON response
-            errors = {}
-            for field, field_errors in form.errors.items():
-                errors[field] = [error for error in field_errors]
-            
-            return JsonResponse({
-                'success': False,
-                'errors': errors
+        
+        # Remove empty filters
+        filters = {k: v for k, v in filters.items() if v}
+        
+        answer_keys = GradeTestService.get_filtered_answer_keys(request.user, filters)
+        
+        # Convert to JSON-serializable format
+        answer_keys_data = []
+        for answer_key in answer_keys:
+            answer_keys_data.append({
+                'id': answer_key.id,
+                'name': f"{answer_key.test_name} - {answer_key.get_test_type_display()} ({answer_key.question_count} questions)",
+                'test_name': answer_key.test_name,
+                'test_type': answer_key.get_test_type_display(),
+                'question_count': answer_key.question_count,
+                'course_code': answer_key.course.course_code if answer_key.course else '',
+                'course_name': answer_key.course.course_name if answer_key.course else '',
+                'academic_year': answer_key.course.academic_year if answer_key.course else '',
+                'semester': answer_key.course.semester if answer_key.course else '',
+                'created_date': answer_key.created_at.strftime('%Y-%m-%d')
             })
-    
-    return redirect('main:student_management')
-
-@login_required
-def edit_student(request, student_id):
-    """Edit an existing student"""
-    if request.method == 'POST':
-        form = StudentForm(request.POST, user=request.user, student_id=student_id)
-        if form.is_valid():
-            try:
-                # Check if at least one course is selected
-                courses = form.cleaned_data.get('courses', [])
-                if not courses:
-                    return JsonResponse({
-                        'success': False,
-                        'errors': {'courses': ['Please select at least one course for the student.']}
-                    })
-                
-                student = StudentService.update_student(student_id, request.user, form.cleaned_data)
-                
-                # Get assigned courses count for success message
-                course_count = len(courses)
-                if course_count == 1:
-                    course_msg = f" and assigned to {course_count} course"
-                else:
-                    course_msg = f" and assigned to {course_count} courses"
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': f'Student "{student.first_name} {student.last_name}" has been updated successfully{course_msg}!'
-                })
-                
-            except ValidationError as e:
-                return JsonResponse({
-                    'success': False,
-                    'errors': {'__all__': [str(e)]}
-                })
-            except Exception as e:
-                return JsonResponse({
-                    'success': False,
-                    'errors': {'__all__': [f'An unexpected error occurred: {str(e)}']}
-                })
-        else:
-            # Format form errors for JSON response
-            errors = {}
-            for field, field_errors in form.errors.items():
-                errors[field] = [error for error in field_errors]
-            
-            return JsonResponse({
-                'success': False,
-                'errors': errors
-            })
-    
-    return redirect('main:student_management')
-
-@login_required
-def delete_student(request, student_id):
-    """Delete a student"""
-    try:
-        student_name = StudentService.delete_student(student_id, request.user)
-        messages.success(request, f'Student "{student_name}" has been deleted successfully!')
+        
+        return JsonResponse({
+            'success': True,
+            'answer_keys': answer_keys_data
+        })
+        
     except Exception as e:
-        messages.error(request, f'Error deleting student: {str(e)}')
-    
-    return redirect('main:student_management')
+        logger.error(f"Error getting filtered answer keys: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to get answer keys'
+        }, status=500)
 
 @login_required
-def get_student_courses(request, student_id):
-    """Get courses assigned to a student (AJAX endpoint)"""
+def get_course_students(request):
+    """AJAX endpoint to get students for a specific course"""
+    from .services.grade_test_service import GradeTestService
+    
     try:
-        student, courses = StudentService.get_student_with_courses(student_id, request.user)
-        course_data = [
-            {
-                'id': course.id,
-                'course_code': course.course_code,
-                'course_name': course.course_name,
-                'academic_year': course.academic_year or '',
-                'semester': course.semester or ''
+        course_id = request.GET.get('course_id')
+        if not course_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Course ID is required'
+            }, status=400)
+        
+        students = GradeTestService.get_students_for_course(course_id, request.user)
+        
+        # Convert to JSON-serializable format
+        students_data = []
+        for student in students:
+            students_data.append({
+                'id': student.id,
+                'student_id': student.student_id,
+                'name': f"{student.last_name}, {student.first_name}",
+                'full_name': f"{student.first_name} {student.last_name}",
+                'section': student.section or 'Not specified',
+                'email': student.email or ''
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'students': students_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting course students: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to get students'
+        }, status=500)
+
+@login_required
+def start_grading_session(request):
+    """Start a new grading session"""
+    from .services.grade_test_service import GradeTestService
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            session_data = {
+                'answer_key_id': request.POST.get('answer_key_id'),
+                'file_format': request.POST.get('file_format'),
+                'uploaded_files': request.FILES.getlist('student_answer_sheets'),
             }
-            for course in courses
-        ]
-        return JsonResponse({'courses': course_data})
+            
+            # Validate data
+            validation_errors = GradeTestService.validate_grading_session_data(session_data)
+            if validation_errors:
+                return JsonResponse({
+                    'success': False,
+                    'errors': validation_errors
+                })
+            
+            # Create grading session
+            result = GradeTestService.create_grading_session(request.user, session_data)
+            
+            if result['success']:
+                # Store session data for processing
+                request.session['grading_session'] = {
+                    'session_id': result['session_id'],
+                    'answer_key_id': session_data['answer_key_id'],
+                    'file_format': session_data['file_format'],
+                    'student_count': len(result['students']),
+                    'uploaded_files_count': len(result['processed_files'])
+                }
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Grading session started successfully! Processing {len(result["processed_files"])} files.',
+                    'session_id': result['session_id'],
+                    'redirect_url': f'/grade-test/session/{result["session_id"]}/'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': result['error']
+                })
+                
+        except Exception as e:
+            logger.error(f"Error starting grading session: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to start grading session'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Invalid request method'
+    }, status=405)
+
+@login_required
+def get_grading_history(request):
+    """AJAX endpoint to get grading history with time filter"""
+    from .services.grade_test_service import GradeTestService
+    
+    try:
+        time_filter = request.GET.get('time_filter', 'all')
+        grading_history = GradeTestService.get_grading_history(request.user, time_filter)
+        
+        # Convert to JSON-serializable format
+        history_data = []
+        for session in grading_history:
+            history_data.append({
+                'test_name': session['test_info'].test_name,
+                'test_type': session['test_info'].get_test_type_display(),
+                'question_count': session['test_info'].question_count,
+                'course_code': session['test_info'].course.course_code if session['test_info'].course else '',
+                'course_name': session['test_info'].course.course_name if session['test_info'].course else '',
+                'student_count': session['student_count'],
+                'average_score': session['average_score'],
+                'graded_date': session['graded_date'].strftime('%Y-%m-%d %H:%M'),
+                'sections': session['sections']
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'grading_history': history_data
+        })
+        
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=404)
+        logger.error(f"Error getting grading history: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to get grading history'
+        }, status=500)
 
 @login_required
 def upload_answer_key(request):
@@ -769,3 +790,184 @@ def download_template(request):
     except Exception as e:
         logger.error(f"Template generation error: {str(e)}")
         return JsonResponse({'error': 'Failed to generate template'}, status=500)
+
+@login_required
+def student_management(request):
+    """Student Management - View and manage students"""
+    # Handle filter form
+    filter_form = StudentFilterForm(request.GET or None)
+    filters = None
+    
+    if filter_form.is_valid():
+        filters = {
+            'search': filter_form.cleaned_data.get('search'),
+            'section': filter_form.cleaned_data.get('section'),
+            'sort_by': filter_form.cleaned_data.get('sort_by', 'last_name')
+        }
+    
+    user_students = StudentService.get_user_students(request.user, filters)
+    student_stats = StudentService.get_student_stats(request.user, filters)
+    unique_sections = StudentService.get_unique_sections(request.user)
+    
+    # Pagination
+    paginator = Paginator(user_students, 10)  # Show 10 students per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_title': 'Students',
+        'current_page': 'student_management',
+        'user_students': page_obj,
+        'student_stats': student_stats,
+        'student_form': StudentForm(user=request.user),
+        'filter_form': filter_form,
+        'unique_sections': unique_sections,
+        'has_filters': any(filters.values()) if filters else False
+    }
+    return render(request, 'main/student_management.html', context)
+
+@login_required
+def add_student(request):
+    """Add a new student"""
+    if request.method == 'POST':
+        form = StudentForm(request.POST, user=request.user)
+        if form.is_valid():
+            try:
+                # Check if at least one course is selected
+                courses = form.cleaned_data.get('courses', [])
+                if not courses:
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'courses': ['Please select at least one course for the student.']}
+                    })
+                
+                student = StudentService.create_student(request.user, form.cleaned_data)
+                
+                # Get assigned courses count for success message
+                course_count = len(courses)
+                if course_count == 1:
+                    course_msg = f" and assigned to {course_count} course"
+                else:
+                    course_msg = f" and assigned to {course_count} courses"
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Student "{student.first_name} {student.last_name}" has been added successfully{course_msg}!'
+                })
+                
+            except ValidationError as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [str(e)]}
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [f'An unexpected error occurred: {str(e)}']}
+                })
+        else:
+            # Format form errors for JSON response
+            errors = {}
+            for field, field_errors in form.errors.items():
+                errors[field] = [error for error in field_errors]
+            
+            return JsonResponse({
+                'success': False,
+                'errors': errors
+            })
+    
+    return redirect('main:student_management')
+
+@login_required
+def edit_student(request, student_id):
+    """Edit an existing student"""
+    if request.method == 'POST':
+        form = StudentForm(request.POST, user=request.user, student_id=student_id)
+        if form.is_valid():
+            try:
+                # Check if at least one course is selected
+                courses = form.cleaned_data.get('courses', [])
+                if not courses:
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'courses': ['Please select at least one course for the student.']}
+                    })
+                
+                student = StudentService.update_student(student_id, request.user, form.cleaned_data)
+                
+                # Get assigned courses count for success message
+                course_count = len(courses)
+                if course_count == 1:
+                    course_msg = f" and assigned to {course_count} course"
+                else:
+                    course_msg = f" and assigned to {course_count} courses"
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Student "{student.first_name} {student.last_name}" has been updated successfully{course_msg}!'
+                })
+                
+            except ValidationError as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [str(e)]}
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'__all__': [f'An unexpected error occurred: {str(e)}']}
+                })
+        else:
+            # Format form errors for JSON response
+            errors = {}
+            for field, field_errors in form.errors.items():
+                errors[field] = [error for error in field_errors]
+            
+            return JsonResponse({
+                'success': False,
+                'errors': errors
+            })
+    
+    return redirect('main:student_management')
+
+@login_required
+def delete_student(request, student_id):
+    """Delete a student"""
+    try:
+        student_name = StudentService.delete_student(student_id, request.user)
+        messages.success(request, f'Student "{student_name}" has been deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting student: {str(e)}')
+    
+    return redirect('main:student_management')
+
+@login_required
+def get_student_courses(request, student_id):
+    """Get courses assigned to a student (AJAX endpoint)"""
+    try:
+        student, courses = StudentService.get_student_with_courses(student_id, request.user)
+        course_data = [
+            {
+                'id': course.id,
+                'course_code': course.course_code,
+                'course_name': course.course_name,
+                'academic_year': course.academic_year or '',
+                'semester': course.semester or ''
+            }
+            for course in courses
+        ]
+        return JsonResponse({'courses': course_data})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=404)
+
+@login_required
+def export_results(request):
+    """Export Results - Download results as CSV/PDF"""
+    context = {'page_title': 'Export Results', 'current_page': 'export_results'}
+    return render(request, 'main/export_results.html', context)
+
+@login_required
+def analytics(request):
+    """Performance Analytics - View common mistakes and trends"""
+    context = {'page_title': 'Performance Analytics', 'current_page': 'analytics'}
+    return render(request, 'main/analytics.html', context)

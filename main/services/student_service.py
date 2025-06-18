@@ -237,3 +237,14 @@ class StudentService:
             return True
         except (Courses.DoesNotExist, AssignedCourse.DoesNotExist):
             raise ValidationError("Assignment not found.")
+    
+    @staticmethod
+    def delete_student(student_id, user):
+        """Delete a student"""
+        try:
+            student = Students.objects.get(id=student_id, user=user)
+            student_name = f"{student.first_name} {student.last_name}"
+            student.delete()
+            return student_name
+        except Students.DoesNotExist:
+            raise ValidationError("Student not found or you don't have permission to delete it.")
