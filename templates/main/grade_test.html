@@ -146,20 +146,56 @@
                             <div class="card-body">
                                 <div class="mb-3">
                                     <label for="studentAnswerSheets" class="form-label">Upload Student Answer Sheets</label>
-                                    <input type="file" class="form-control" id="studentAnswerSheets" name="student_answer_sheets" multiple>
+                                    <input type="file" class="form-control" id="studentAnswerSheets" name="student_answer_sheets" multiple accept=".pdf">
                                     <div class="form-text">
                                         Upload multiple student answer sheets for automatic processing. 
                                         Students will be automatically detected from the sheets.
-                                        Supported formats: PDF, JPG, PNG, CSV based on selected file format above.
+                                        <br><strong>Selected format:</strong> <span id="currentFormatText">PDF Files</span>
                                     </div>
                                 </div>
                                 
                                 <!-- File preview area -->
                                 <div class="d-none" id="uploadedFilesPreview">
-                                    <label class="form-label">Uploaded Files</label>
-                                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                                        <div id="filesList" class="list-group list-group-flush">
-                                            <!-- Files will be listed here -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label mb-0">Uploaded Files</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary" id="fileCountBadge">0 files</span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleFileView">
+                                                <i class="fas fa-list"></i> Show Details
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" id="clearAllFiles">
+                                                <i class="fas fa-trash"></i> Clear All
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Compact Summary View -->
+                                    <div id="filesSummary" class="border rounded p-3 bg-light">
+                                        <div class="row text-center">
+                                            <div class="col-4">
+                                                <div class="fw-bold text-primary" id="totalFiles">0</div>
+                                                <small class="text-muted">Total Files</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="fw-bold text-success" id="totalSize">0 MB</div>
+                                                <small class="text-muted">Total Size</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="fw-bold text-info" id="avgSize">0 KB</div>
+                                                <small class="text-muted">Avg. Size</small>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 text-center">
+                                            <small class="text-muted">File formats: <span id="formatBreakdown"></span></small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Detailed Files List (Hidden by default) -->
+                                    <div class="d-none mt-3" id="filesDetailedView">
+                                        <div class="border rounded" style="max-height: 300px; overflow-y: auto;">
+                                            <div id="filesList" class="list-group list-group-flush">
+                                                <!-- Files will be listed here -->
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -173,6 +209,13 @@
                                     <div class="progress">
                                         <div class="progress-bar" id="progressBar" style="width: 0%"></div>
                                     </div>
+                                </div>
+                                
+                                <!-- File Format Warning -->
+                                <div class="alert alert-warning d-none" id="formatWarning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Format Mismatch:</strong> Some files don't match the selected format. 
+                                    Please ensure all files are in the correct format or change the file format selection.
                                 </div>
                             </div>
                         </div>
@@ -441,42 +484,153 @@ document.addEventListener('DOMContentLoaded', function() {
     // File format change handler
     const fileFormatSelect = document.getElementById('fileFormat');
     const studentAnswerSheets = document.getElementById('studentAnswerSheets');
+    const currentFormatText = document.getElementById('currentFormatText');
     
     if (fileFormatSelect && studentAnswerSheets) {
         fileFormatSelect.addEventListener('change', function() {
             const format = this.value;
             let acceptTypes = '';
+            let formatText = '';
             
             switch(format) {
                 case 'pdf':
                     acceptTypes = '.pdf';
+                    formatText = 'PDF Files';
                     break;
                 case 'csv':
                     acceptTypes = '.csv';
+                    formatText = 'CSV Files';
                     break;
                 case 'image':
                     acceptTypes = '.jpg,.jpeg,.png,.gif,.bmp';
+                    formatText = 'Image Files (JPG, PNG, etc.)';
                     break;
                 default:
                     acceptTypes = '.pdf,.csv,.jpg,.jpeg,.png';
+                    formatText = 'All Supported Files';
             }
             
             studentAnswerSheets.setAttribute('accept', acceptTypes);
+            currentFormatText.textContent = formatText;
             
-            // Clear any existing files when format changes
+            // Always clear files when format changes (whether initialized or not)
+            const hadFiles = studentAnswerSheets.files.length > 0;
             studentAnswerSheets.value = '';
             document.getElementById('uploadedFilesPreview').classList.add('d-none');
+            hideFormatWarning();
+            
+            // Show notification if this is a user-initiated change AND files were cleared
+            if (this.dataset.initialized === 'true' && hadFiles) {
+                showToast(`File format changed to: ${formatText}. Previous files have been cleared.`, 'warning');
+            } else if (this.dataset.initialized === 'true') {
+                showToast(`File format changed to: ${formatText}.`, 'info');
+            }
         });
+        
+        // Initialize with default format (without triggering change event)
+        const defaultFormat = fileFormatSelect.value || 'pdf';
+        let acceptTypes = '';
+        let formatText = '';
+        
+        switch(defaultFormat) {
+            case 'pdf':
+                acceptTypes = '.pdf';
+                formatText = 'PDF Files';
+                break;
+            case 'csv':
+                acceptTypes = '.csv';
+                formatText = 'CSV Files';
+                break;
+            case 'image':
+                acceptTypes = '.jpg,.jpeg,.png,.gif,.bmp';
+                formatText = 'Image Files (JPG, PNG, etc.)';
+                break;
+            default:
+                acceptTypes = '.pdf,.csv,.jpg,.jpeg,.png';
+                formatText = 'All Supported Files';
+        }
+        
+        // Set initial values without triggering notifications
+        studentAnswerSheets.setAttribute('accept', acceptTypes);
+        currentFormatText.textContent = formatText;
+        
+        // Mark as initialized so subsequent changes will show notifications
+        fileFormatSelect.dataset.initialized = 'true';
     }
     
-    // Student answer sheets upload handler
+    // Student answer sheets upload handler with immediate validation
     if (studentAnswerSheets) {
         studentAnswerSheets.addEventListener('change', function(e) {
             const files = Array.from(e.target.files);
-            if (files.length > 0) {
-                displayUploadedFiles(files);
-            } else {
+            
+            if (files.length === 0) {
                 document.getElementById('uploadedFilesPreview').classList.add('d-none');
+                hideFormatWarning();
+                return;
+            }
+            
+            // Immediate validation of file formats
+            const validationResult = validateFileFormats(files, fileFormatSelect.value);
+            
+            if (!validationResult.valid) {
+                // Show format warning immediately
+                showFormatWarning(validationResult.invalidFiles);
+                
+                // Silently remove invalid files and keep only valid ones
+                const invalidCount = validationResult.invalidFiles.length;
+                const validCount = validationResult.validFiles.length;
+                
+                if (validCount > 0) {
+                    // Keep only valid files
+                    updateFileInput(validationResult.validFiles);
+                    displayUploadedFiles(validationResult.validFiles);
+                    
+                    showToast(`Kept ${validCount} valid file${validCount !== 1 ? 's' : ''}, removed ${invalidCount} invalid file${invalidCount !== 1 ? 's' : ''}.`, 'warning');
+                } else {
+                    // No valid files, clear everything
+                    this.value = '';
+                    document.getElementById('uploadedFilesPreview').classList.add('d-none');
+                    showToast(`All ${invalidCount} file${invalidCount !== 1 ? 's were' : ' was'} removed due to format mismatch.`, 'error');
+                }
+            } else {
+                // All files are valid
+                hideFormatWarning();
+                displayUploadedFiles(files);
+                
+                // Show success message for large uploads
+                if (files.length > 10) {
+                    showToast(`Successfully loaded ${files.length} files`, 'success');
+                }
+            }
+        });
+    }
+    
+    // Toggle detailed file view
+    const toggleFileView = document.getElementById('toggleFileView');
+    const filesDetailedView = document.getElementById('filesDetailedView');
+    
+    if (toggleFileView) {
+        toggleFileView.addEventListener('click', function() {
+            const isHidden = filesDetailedView.classList.contains('d-none');
+            if (isHidden) {
+                filesDetailedView.classList.remove('d-none');
+                this.innerHTML = '<i class="fas fa-compress"></i> Hide Details';
+            } else {
+                filesDetailedView.classList.add('d-none');
+                this.innerHTML = '<i class="fas fa-list"></i> Show Details';
+            }
+        });
+    }
+    
+    // Clear all files
+    const clearAllFiles = document.getElementById('clearAllFiles');
+    if (clearAllFiles) {
+        clearAllFiles.addEventListener('click', function() {
+            if (confirm('Are you sure you want to remove all uploaded files?')) {
+                studentAnswerSheets.value = '';
+                document.getElementById('uploadedFilesPreview').classList.add('d-none');
+                hideFormatWarning();
+                showToast('All files removed', 'info');
             }
         });
     }
@@ -615,34 +769,128 @@ function updateHistoryTable(historyData) {
     }).join('');
 }
 
+function validateFileFormats(files, selectedFormat) {
+    const validFiles = [];
+    const invalidFiles = [];
+    
+    files.forEach(file => {
+        const fileName = file.name.toLowerCase();
+        const fileType = file.type.toLowerCase();
+        let isValid = false;
+        
+        switch(selectedFormat) {
+            case 'pdf':
+                isValid = fileType === 'application/pdf' || fileName.endsWith('.pdf');
+                break;
+            case 'csv':
+                isValid = fileType === 'text/csv' || fileType === 'application/csv' || fileName.endsWith('.csv');
+                break;
+            case 'image':
+                isValid = fileType.startsWith('image/') || 
+                         fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || 
+                         fileName.endsWith('.png') || fileName.endsWith('.gif') || 
+                         fileName.endsWith('.bmp');
+                break;
+        }
+        
+        if (isValid) {
+            validFiles.push(file);
+        } else {
+            invalidFiles.push(file);
+        }
+    });
+    
+    return {
+        valid: invalidFiles.length === 0,
+        validFiles: validFiles,
+        invalidFiles: invalidFiles
+    };
+}
+
+function showFormatWarning(invalidFiles) {
+    const warning = document.getElementById('formatWarning');
+    warning.classList.remove('d-none');
+    
+    const fileNames = invalidFiles.map(f => f.name);
+    const displayNames = fileNames.length > 3 
+        ? fileNames.slice(0, 3).join(', ') + ` and ${fileNames.length - 3} more`
+        : fileNames.join(', ');
+    
+    warning.innerHTML = `
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Format Mismatch:</strong> The following files don't match the selected format: 
+        <br><code>${displayNames}</code>
+        <br><small class="text-muted mt-1">Please select the correct file format or choose different files.</small>
+    `;
+}
+
+function hideFormatWarning() {
+    document.getElementById('formatWarning').classList.add('d-none');
+}
+
+function updateFileInput(validFiles) {
+    const dt = new DataTransfer();
+    validFiles.forEach(file => dt.items.add(file));
+    document.getElementById('studentAnswerSheets').files = dt.files;
+}
+
 function displayUploadedFiles(files) {
     const previewContainer = document.getElementById('uploadedFilesPreview');
     const filesList = document.getElementById('filesList');
+    const fileCountBadge = document.getElementById('fileCountBadge');
+    const totalFiles = document.getElementById('totalFiles');
+    const totalSize = document.getElementById('totalSize');
+    const avgSize = document.getElementById('avgSize');
+    const formatBreakdown = document.getElementById('formatBreakdown');
     
     // Clear existing files
     filesList.innerHTML = '';
     
+    // Calculate statistics
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+    const avgKB = files.length > 0 ? ((totalBytes / files.length) / 1024).toFixed(1) : 0;
+    
+    // Format breakdown
+    const formats = {};
+    files.forEach(file => {
+        const ext = file.name.split('.').pop().toUpperCase();
+        formats[ext] = (formats[ext] || 0) + 1;
+    });
+    
+    const formatText = Object.entries(formats)
+        .map(([ext, count]) => `${ext} (${count})`)
+        .join(', ');
+    
+    // Update summary
+    fileCountBadge.textContent = `${files.length} file${files.length !== 1 ? 's' : ''}`;
+    totalFiles.textContent = files.length;
+    totalSize.textContent = totalMB + ' MB';
+    avgSize.textContent = avgKB + ' KB';
+    formatBreakdown.textContent = formatText;
+    
+    // Populate detailed list (but keep it hidden by default)
     files.forEach((file, index) => {
         const fileItem = document.createElement('div');
         fileItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
         
-        // File info
+        // File info (more compact)
         const fileInfo = document.createElement('div');
+        fileInfo.className = 'd-flex align-items-center flex-grow-1 min-width-0';
         fileInfo.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="fas ${getFileIcon(file.type)} me-2 text-muted"></i>
-                <div>
-                    <div class="fw-bold">${file.name}</div>
-                    <small class="text-muted">${formatFileSize(file.size)} - ${file.type || 'Unknown type'}</small>
-                </div>
+            <i class="fas ${getFileIcon(file.type)} me-2 text-muted flex-shrink-0"></i>
+            <div class="min-width-0 flex-grow-1">
+                <div class="fw-bold text-truncate" style="max-width: 300px;" title="${file.name}">${file.name}</div>
+                <small class="text-muted">${formatFileSize(file.size)}</small>
             </div>
         `;
         
         // Remove button
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'btn btn-sm btn-outline-danger';
+        removeBtn.className = 'btn btn-sm btn-outline-danger flex-shrink-0 ms-2';
         removeBtn.innerHTML = '<i class="fas fa-times"></i>';
         removeBtn.onclick = () => removeFile(index);
+        removeBtn.title = 'Remove file';
         
         fileItem.appendChild(fileInfo);
         fileItem.appendChild(removeBtn);
@@ -682,6 +930,7 @@ function removeFile(index) {
     
     if (fileInput.files.length === 0) {
         document.getElementById('uploadedFilesPreview').classList.add('d-none');
+        hideFormatWarning();
     } else {
         displayUploadedFiles(Array.from(fileInput.files));
     }
@@ -731,3 +980,4 @@ function showToast(message, type = 'info') {
 </script>
 
 {% endblock %}
+      

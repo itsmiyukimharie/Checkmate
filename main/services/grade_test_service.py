@@ -244,7 +244,41 @@ class GradeTestService:
         if data.get('file_format') not in valid_formats:
             errors['file_format'] = 'Invalid file format selected'
         
+        # Validate uploaded files match format
+        uploaded_files = data.get('uploaded_files', [])
+        if uploaded_files:
+            file_format = data.get('file_format')
+            invalid_files = []
+            
+            for uploaded_file in uploaded_files:
+                if not GradeTestService._validate_file_format(uploaded_file, file_format):
+                    invalid_files.append(uploaded_file.name)
+            
+            if invalid_files:
+                errors['uploaded_files'] = f'The following files do not match the selected format ({file_format}): {", ".join(invalid_files[:5])}{"..." if len(invalid_files) > 5 else ""}'
+        
         return errors
+    
+    @staticmethod
+    def _validate_file_format(uploaded_file, expected_format):
+        """Validate if an uploaded file matches the expected format"""
+        file_name = uploaded_file.name.lower()
+        content_type = getattr(uploaded_file, 'content_type', '').lower()
+        
+        if expected_format == 'pdf':
+            return (content_type == 'application/pdf' or 
+                   file_name.endswith('.pdf'))
+        
+        elif expected_format == 'csv':
+            return (content_type == 'text/csv' or 
+                   content_type == 'application/csv' or
+                   file_name.endswith('.csv'))
+        
+        elif expected_format == 'image':
+            return (content_type.startswith('image/') or 
+                   file_name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')))
+        
+        return False
     
     @staticmethod
     def create_grading_session(user, session_data):
