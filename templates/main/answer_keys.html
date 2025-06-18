@@ -136,12 +136,32 @@
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
                                     {% endif %}
-                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill me-1" onclick="printAnswerKey({{ test.id }})">
-                                        <i class="fas fa-print"></i> Print
-                                    </button>
-                                    <a href="{% url 'main:download_answer_key' test.id %}" class="btn btn-sm btn-outline-success rounded-pill me-1">
-                                        <i class="fas fa-download"></i> Download
-                                    </a>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-pill me-1 dropdown-toggle" data-bs-toggle="dropdown">
+                                            <i class="fas fa-print"></i> Print
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="printAnswerKey({{ test.id }}, true)">
+                                                <i class="fas fa-eye me-2"></i>Print with Answers (Answer Key)
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="printAnswerKey({{ test.id }}, false)">
+                                                <i class="fas fa-eye-slash me-2"></i>Print without Answers (Blank Sheet)
+                                            </a></li>
+                                        </ul>
+                                    </div>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill me-1 dropdown-toggle" data-bs-toggle="dropdown">
+                                            <i class="fas fa-download"></i> Download
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="{% url 'main:download_answer_key' test.id %}?show_answers=1">
+                                                <i class="fas fa-file-csv me-2"></i>Download Answer Key (CSV)
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="{% url 'main:download_answer_key' test.id %}?show_answers=0">
+                                                <i class="fas fa-file-csv me-2"></i>Download Blank Sheet (CSV)
+                                            </a></li>
+                                        </ul>
+                                    </div>
                                     {% if test.status == 'draft' %}
                                         <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" 
                                                 onclick="confirmDelete('{{ test.test_name|escapejs }}', '{% url 'main:delete_test' test.id %}')">
@@ -196,9 +216,10 @@ function confirmDelete(testName, deleteUrl) {
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 
-function printAnswerKey(testId) {
-    // Simple redirect to print data endpoint that returns HTML
-    window.open('/answer-keys/print/' + testId + '/', '_blank');
+function printAnswerKey(testId, showAnswers = true) {
+    // Open print page with or without answers
+    const url = '/answer-keys/print/' + testId + '/' + (showAnswers ? '?show_answers=1' : '?show_answers=0');
+    window.open(url, '_blank');
 }
 
 // Add form validation for course selection

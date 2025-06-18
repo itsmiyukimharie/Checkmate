@@ -95,18 +95,20 @@ class AnswerKeyService:
     
     # Export Methods
     @staticmethod
-    def generate_csv_response(test_info, answer_keys):
+    def generate_csv_response(test_info, answer_keys, show_answers=True):
         """Generate CSV response for download"""
         import csv
         from django.http import HttpResponse
         
+        filename_suffix = "_answer_key" if show_answers else "_blank_sheet"
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{test_info.test_name}_answer_key.csv"'
+        response['Content-Disposition'] = f'attachment; filename="{test_info.test_name}{filename_suffix}.csv"'
         
         writer = csv.writer(response)
         
         # Header with course information
         writer.writerow(['Test Name', test_info.test_name])
+        writer.writerow(['Type', 'Answer Key' if show_answers else 'Blank Answer Sheet'])
         if test_info.course:
             writer.writerow(['Course Code', test_info.course.course_code])
             writer.writerow(['Course Name', test_info.course.course_name])
@@ -120,11 +122,16 @@ class AnswerKeyService:
         writer.writerow([])  # Empty row
         
         # Answer key header
-        writer.writerow(['Question Number', 'Answer'])
-        
-        # Answer key data
-        for answer in answer_keys:
-            writer.writerow([answer.question_number, answer.answer])
+        if show_answers:
+            writer.writerow(['Question Number', 'Answer'])
+            # Answer key data
+            for answer in answer_keys:
+                writer.writerow([answer.question_number, answer.answer])
+        else:
+            writer.writerow(['Question Number', 'Student Answer'])
+            # Blank sheet data
+            for answer in answer_keys:
+                writer.writerow([answer.question_number, ''])  # Empty answer column
         
         return response
     

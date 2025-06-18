@@ -108,7 +108,8 @@ def download_answer_key(request, test_id):
     """Download answer key as CSV file"""
     try:
         test_info, answer_keys = AnswerKeyService.get_test_with_answers(test_id, request.user)
-        return AnswerKeyService.generate_csv_response(test_info, answer_keys)
+        show_answers = request.GET.get('show_answers', '1') == '1'
+        return AnswerKeyService.generate_csv_response(test_info, answer_keys, show_answers)
     except:
         messages.error(request, 'Test not found.')
         return redirect('main:answer_keys')
@@ -128,11 +129,16 @@ def print_answer_key(request, test_id):
     """Print answer key in a simple HTML format"""
     try:
         test_info, answer_keys = AnswerKeyService.get_test_with_answers(test_id, request.user)
+        
+        # Check if we should show answers (default: True for backward compatibility)
+        show_answers = request.GET.get('show_answers', '1') == '1'
+        
         context = {
             'test_info': test_info,
             'answer_keys': answer_keys,
             'answer_choices': test_info.get_answer_choices(),
-            'page_title': f'Print Answer Key - {test_info.test_name}'
+            'show_answers': show_answers,
+            'page_title': f'Print {"Answer Key" if show_answers else "Blank Sheet"} - {test_info.test_name}'
         }
         return render(request, 'main/answer_keys_print.html', context)
     except:
