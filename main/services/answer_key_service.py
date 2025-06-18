@@ -296,7 +296,7 @@ class AnswerKeyService:
                 test_name=test_data['test_name'],
                 test_type=test_data['test_type'],
                 question_count=test_data['question_count'],
-                status='active'  # Mark as active since it's processed
+                status='draft'  # Mark as active since it's processed
             )
             
             # Create answer keys
