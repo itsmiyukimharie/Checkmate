@@ -387,41 +387,26 @@ class AnswerKeyService:
     @staticmethod
     def generate_pdf_template(test_type, question_count):
         """Generate a blank PDF template for manual answer sheet creation"""
-        from django.http import HttpResponse
-        from django.template.loader import render_to_string
         import io
+        import logging
+        from django.http import HttpResponse
+        
+        logger = logging.getLogger(__name__)
         
         try:
             # Try to use ReportLab for PDF generation
             from reportlab.pdfgen import canvas
             from reportlab.lib.pagesizes import letter, A4
             from reportlab.lib.units import inch
-            from reportlab.lib.styles import getSampleStyleSheet
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-            from reportlab.lib import colors
             
             # Create response
             response = HttpResponse(content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="answer_sheet_template_{test_type}_{question_count}q.pdf"'
             
-            # Create PDF
+            # Create PDF buffer
             buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
             
-            # Get styles
-            styles = getSampleStyleSheet()
-            title_style = styles['Title']
-            heading_style = styles['Heading2']
-            normal_style = styles['Normal']
-            
-            # Content list
-            content = []
-            
-            # Title
-            content.append(Paragraph("CheckMate Answer Sheet Template", title_style))
-            content.append(Spacer(1, 0.2*inch))
-            
-            # Test information
+            # Get test type info
             if test_type == 'multiple_choice_4':
                 type_display = 'Multiple Choice (A, B, C, D)'
                 choices = ['A', 'B', 'C', 'D']
@@ -435,186 +420,227 @@ class AnswerKeyService:
                 type_display = 'Multiple Choice (A, B, C, D)'
                 choices = ['A', 'B', 'C', 'D']
             
-            content.append(Paragraph(f"<b>Test Type:</b> {type_display}", normal_style))
-            content.append(Paragraph(f"<b>Number of Questions:</b> {question_count}", normal_style))
-            content.append(Spacer(1, 0.2*inch))
+            # Create canvas
+            c = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
             
-            # Instructions
-            content.append(Paragraph("Instructions:", heading_style))
-            content.append(Paragraph("• Fill in the bubbles completely with a dark pencil or pen", normal_style))
-            content.append(Paragraph("• Make sure only one answer is selected per question", normal_style))
-            content.append(Paragraph("• Erase completely if you need to change an answer", normal_style))
-            content.append(Spacer(1, 0.3*inch))
+            # Fixed layout parameters - maximized for 30 rows per column
+            margin = 0.3 * inch  # Reduced margin for more space
+            content_width = width - 2 * margin
             
-            # Student information section
-            student_info = [
-                ["Name: ________________________", "Student ID: ________________________"],
-                ["Course: ______________________", "Section: ___________________________"],
-                ["Date: ________________________", "Instructor: _________________________"]
-            ]
+            # Fixed grid: exactly 5 columns, 30 rows per column
+            max_columns = 5
+            rows_per_column = 30  # Increased from 20 to 30
+            questions_per_page = max_columns * rows_per_column  # 150 questions per page
             
-            student_table = Table(student_info, colWidths=[3*inch, 3*inch])
-            student_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ]))
-            content.append(student_table)
-            content.append(Spacer(1, 0.3*inch))
+            # Calculate spacing - optimized for 30 rows
+            column_width = content_width / max_columns
+            row_height = 15  # Reduced from 18 to fit 30 rows
+            bubble_radius = 4.5  # Slightly smaller bubbles
+            bubble_spacing = 12  # Tighter spacing between bubbles
             
-            # Answer grid
-            content.append(Paragraph("Answer Sheet:", heading_style))
+            # Helper function to draw centered text
+            def draw_centered_text(canvas_obj, x, y, text, font_name="Helvetica", font_size=10):
+                canvas_obj.setFont(font_name, font_size)
+                text_width = canvas_obj.stringWidth(text, font_name, font_size)
+                canvas_obj.drawString(x - text_width/2, y, text)
             
-            # Create answer grid - organize in columns
-            questions_per_page = min(question_count, 60)  # Limit per page
-            cols = 3 if len(choices) <= 4 else 2  # Adjust columns based on choices
-            rows_per_col = (questions_per_page + cols - 1) // cols
+            current_question = 1
+            page_num = 1
             
-            # Build answer grid data
-            grid_data = []
-            for row in range(rows_per_col + 1):  # +1 for header
-                row_data = []
-                for col in range(cols):
-                    if row == 0:  # Header row
-                        row_data.append("Q")
-                        for choice in choices:
-                            row_data.append(choice)
-                    else:
-                        q_num = (col * rows_per_col) + row
-                        if q_num <= question_count:
-                            row_data.append(f"{q_num:2d}.")
-                            for _ in choices:
-                                row_data.append("○")  # Empty bubble
-                        else:
-                            # Fill with empty cells
-                            for _ in range(len(choices) + 1):
-                                row_data.append("")
+            while current_question <= question_count:
+                # Compact page header
+                header_y = height - 0.4 * inch
                 
-                grid_data.append(row_data)
+                # Title
+                draw_centered_text(c, width/2, header_y, "CheckMate Answer Sheet Template", "Helvetica-Bold", 14)
+                header_y -= 16
+                draw_centered_text(c, width/2, header_y, f"Test Type: {type_display}", "Helvetica", 10)
+                header_y -= 12
+                draw_centered_text(c, width/2, header_y, f"Number of Questions: {question_count}", "Helvetica", 10)
+                
+                if page_num > 1:
+                    header_y -= 12
+                    draw_centered_text(c, width/2, header_y, f"Page {page_num}", "Helvetica", 9)
+                
+                # Compact instructions (only on first page)
+                if page_num == 1:
+                    header_y -= 20
+                    c.setFont("Helvetica-Bold", 9)
+                    c.drawString(margin, header_y, "Instructions:")
+                    header_y -= 10
+                    c.setFont("Helvetica", 7)
+                    instructions = [
+                        "• Fill in the bubbles completely with a dark pencil or pen",
+                        "• Make sure only one answer is selected per question"
+                    ]
+                    for instruction in instructions:
+                        c.drawString(margin + 10, header_y, instruction)
+                        header_y -= 8
+                    
+                    # Compact student info
+                    header_y -= 12
+                    c.setFont("Helvetica-Bold", 7)
+                    info_fields = [
+                        ("Name:", margin, header_y),
+                        ("Student ID:", width/2, header_y),
+                        ("Course:", margin, header_y - 12),
+                        ("Date:", width/2, header_y - 12)
+                    ]
+                    
+                    for label, x, y in info_fields:
+                        c.drawString(x, y, label)
+                        line_start = x + c.stringWidth(label, "Helvetica-Bold", 7) + 3
+                        line_end = x + 160 if x == margin else width - margin - 5
+                        c.line(line_start, y - 2, line_end, y - 2)
+                
+                # Calculate grid start position - optimized for 30 rows
+                grid_start_y = height - 3.8 * inch  # Moved up to accommodate more rows
+                
+                # Calculate columns needed for remaining questions
+                remaining_questions = question_count - current_question + 1
+                columns_needed = min(max_columns, (remaining_questions + rows_per_column - 1) // rows_per_column)
+                
+                # Draw column headers
+                header_row_y = grid_start_y + 20
+                c.setFont("Helvetica-Bold", 7)
+                
+                for col in range(columns_needed):
+                    x_col_start = margin + col * column_width
+                    
+                    # Draw "Q" header
+                    c.drawString(x_col_start + 6, header_row_y, "Q")
+                    
+                    # Draw choice headers (A B C D)
+                    choice_x = x_col_start + 20
+                    for choice in choices:
+                        c.drawString(choice_x + 1, header_row_y, choice)
+                        choice_x += bubble_spacing
+                
+                # Draw the answer grid - 30 rows per column
+                c.setFont("Helvetica", 7)
+                
+                for col in range(columns_needed):
+                    x_col_start = margin + col * column_width
+                    
+                    for row in range(rows_per_column):
+                        question_num = current_question + col * rows_per_column + row
+                        
+                        if question_num > question_count:
+                            break
+                        
+                        # Calculate row position
+                        row_y = grid_start_y - (row * row_height)
+                        
+                        # Draw question number
+                        c.drawString(x_col_start + 3, row_y + 4, f"{question_num}.")
+                        
+                        # Draw bubbles for each choice
+                        choice_x = x_col_start + 20
+                        for choice in choices:
+                            # Draw empty circle (bubble)
+                            bubble_center_x = choice_x + bubble_radius
+                            bubble_center_y = row_y + 6
+                            c.circle(bubble_center_x, bubble_center_y, bubble_radius, stroke=1, fill=0)
+                            choice_x += bubble_spacing
+                
+                # Update current question for next page
+                questions_on_this_page = min(questions_per_page, question_count - current_question + 1)
+                current_question += questions_on_this_page
+                
+                # Footer
+                footer_y = margin + 10
+                c.setFont("Helvetica", 6)
+                footer_text = f"Generated by CheckMate - Optimized for OMR Processing - Page {page_num}"
+                draw_centered_text(c, width/2, footer_y, footer_text, "Helvetica", 6)
+                
+                # Start new page if more questions remain
+                if current_question <= question_count:
+                    c.showPage()
+                    page_num += 1
             
-            # Calculate column widths
-            q_width = 0.3*inch
-            choice_width = 0.25*inch
-            col_widths = []
-            for col in range(cols):
-                col_widths.extend([q_width] + [choice_width] * len(choices))
+            # Save the PDF
+            c.save()
             
-            answer_table = Table(grid_data, colWidths=col_widths)
-            answer_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),  # Header background
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightblue]),
-            ]))
-            
-            content.append(answer_table)
-            
-            # Build PDF
-            doc.build(content)
-            buffer.seek(0)
-            response.write(buffer.getvalue())
+            # Get PDF data
+            pdf_data = buffer.getvalue()
             buffer.close()
             
+            # Write to response
+            response.write(pdf_data)
             return response
             
-        except ImportError:
-            # Fallback: Return HTML that can be printed as PDF
-            return AnswerKeyService._generate_html_template(test_type, question_count)
+        except ImportError as e:
+            logger.warning(f"ReportLab not available: {str(e)}")
+            return AnswerKeyService._create_reportlab_install_response(test_type, question_count)
+            
+        except Exception as e:
+            logger.error(f"PDF generation error: {str(e)}")
+            return AnswerKeyService._create_pdf_error_response(test_type, question_count, str(e))
     
     @staticmethod
-    def _generate_html_template(test_type, question_count):
-        """Fallback HTML template when ReportLab is not available"""
+    def _create_reportlab_install_response(test_type, question_count):
+        """Create a response indicating ReportLab needs to be installed"""
         from django.http import HttpResponse
         
-        # Get choices
-        if test_type == 'multiple_choice_4':
-            choices = ['A', 'B', 'C', 'D']
-            type_display = 'Multiple Choice (A-D)'
-        elif test_type == 'multiple_choice_5':
-            choices = ['A', 'B', 'C', 'D', 'E']
-            type_display = 'Multiple Choice (A-E)'
-        elif test_type == 'true_false':
-            choices = ['T', 'F']
-            type_display = 'True/False'
-        else:
-            choices = ['A', 'B', 'C', 'D']
-            type_display = 'Multiple Choice (A-D)'
+        response = HttpResponse(content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="INSTALL_REPORTLAB_FOR_PDF.txt"'
         
-        html_content = f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Answer Sheet Template - {type_display}</title>
-            <style>
-                @media print {{
-                    body {{ margin: 10mm; }}
-                    .no-print {{ display: none; }}
-                }}
-                body {{ font-family: Arial, sans-serif; font-size: 12px; }}
-                .header {{ text-align: center; margin-bottom: 20px; }}
-                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }}
-                .answer-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }}
-                .question {{ border: 1px solid #ccc; padding: 5px; text-align: center; }}
-                .bubble {{ display: inline-block; width: 20px; height: 20px; border: 2px solid #000; border-radius: 50%; margin: 0 5px; }}
-                .instructions {{ background: #f0f0f0; padding: 10px; margin-bottom: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="no-print">
-                <button onclick="window.print()">Print Template</button>
-                <p><strong>Instructions:</strong> Use your browser's print function to save as PDF</p>
-            </div>
-            
-            <div class="header">
-                <h1>CheckMate Answer Sheet Template</h1>
-                <h2>{type_display} - {question_count} Questions</h2>
-            </div>
-            
-            <div class="instructions">
-                <strong>Instructions:</strong>
-                <ul>
-                    <li>Fill in the bubbles completely with a dark pencil or pen</li>
-                    <li>Make sure only one answer is selected per question</li>
-                    <li>Erase completely if you need to change an answer</li>
-                </ul>
-            </div>
-            
-            <div class="info-grid">
-                <div>
-                    <strong>Name:</strong> ________________________________<br><br>
-                    <strong>Course:</strong> ______________________________<br><br>
-                    <strong>Date:</strong> ________________________________
-                </div>
-                <div>
-                    <strong>Student ID:</strong> __________________________<br><br>
-                    <strong>Section:</strong> _____________________________<br><br>
-                    <strong>Instructor:</strong> ___________________________
-                </div>
-            </div>
-            
-            <div class="answer-grid">
-        '''
+        content = f"""
+CheckMate PDF Template Generation
+
+ERROR: ReportLab library is not installed.
+
+To enable PDF template generation, please install ReportLab:
+
+1. Open your terminal/command prompt
+2. Navigate to your project directory
+3. Run: pip install reportlab
+
+After installation, refresh this page and try downloading the PDF template again.
+
+ALTERNATIVE: You can use the CSV template option which doesn't require additional libraries.
+
+Template Request Details:
+- Test Type: {test_type}
+- Question Count: {question_count}
+- Requested Format: PDF
+
+For support, please contact your system administrator.
+"""
         
-        # Add questions
-        for i in range(1, question_count + 1):
-            html_content += f'''
-                <div class="question">
-                    <strong>{i}.</strong><br>
-                    {' '.join([f'<span class="bubble"></span>{choice}' for choice in choices])}
-                </div>
-            '''
+        response.write(content)
+        return response
+    
+    @staticmethod
+    def _create_pdf_error_response(test_type, question_count, error_message):
+        """Create a response for PDF generation errors"""
+        from django.http import HttpResponse
         
-        html_content += '''
-            </div>
-        </body>
-        </html>
-        '''
+        response = HttpResponse(content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="PDF_GENERATION_ERROR.txt"'
         
-        response = HttpResponse(html_content, content_type='text/html')
-        response['Content-Disposition'] = f'attachment; filename="answer_sheet_template_{test_type}_{question_count}q.html"'
+        content = f"""
+CheckMate PDF Template Generation Error
+
+An error occurred while generating the PDF template.
+
+Error Details: {error_message}
+
+Template Request Details:
+- Test Type: {test_type}
+- Question Count: {question_count}
+- Requested Format: PDF
+
+ALTERNATIVE SOLUTIONS:
+1. Try the CSV template option instead
+2. Reduce the number of questions if it's very large
+3. Contact your system administrator
+
+For immediate use, please use the CSV template download option.
+"""
+        
+        response.write(content)
         return response
 
 def get_answer_choices_for_type(test_type):

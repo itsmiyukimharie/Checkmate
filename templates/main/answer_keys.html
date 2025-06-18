@@ -448,9 +448,63 @@ function confirmDelete(testName, deleteUrl) {
 }
 
 function printAnswerKey(testId, mode) {
-    // Open print page with specified mode
-    const url = '/answer-keys/print/' + testId + '/?mode=' + mode;
-    window.open(url, '_blank');
+    // Fix the URL construction - remove extra slash
+    const url = '{% url "main:print_answer_key" 0 %}'.replace('0', testId) + '?mode=' + mode;
+    window.open(url, '_blank', 'width=800,height=600');
+}
+
+function downloadTemplate(fileType, testType, questionCount) {
+    // Show loading toast
+    showToast('Generating template...', 'info');
+    
+    // Create download URL using Django URL template
+    const baseUrl = '{% url "main:download_template" %}';
+    const url = baseUrl + 
+                '?file_type=' + encodeURIComponent(fileType) + 
+                '&test_type=' + encodeURIComponent(testType) + 
+                '&question_count=' + encodeURIComponent(questionCount);
+    
+    // Create temporary link for download
+    const link = document.createElement('a');
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Show success message after a short delay
+    setTimeout(() => {
+        showToast(`${fileType.toUpperCase()} template download initiated!`, 'success');
+    }, 500);
+}
+
+function showCustomTemplateModal() {
+    new bootstrap.Modal(document.getElementById('customTemplateModal')).show();
+}
+
+function downloadCustomTemplate() {
+    const testType = document.getElementById('customTestType').value;
+    const questionCount = document.getElementById('customQuestionCount').value;
+    const fileType = document.getElementById('customFileType').value;
+    
+    if (!testType || !questionCount || !fileType) {
+        showToast('Please fill in all fields', 'warning');
+        return;
+    }
+    
+    if (questionCount < 1 || questionCount > 200) {
+        showToast('Question count must be between 1 and 200', 'warning');
+        return;
+    }
+    
+    // Hide modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('customTemplateModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    // Download template
+    downloadTemplate(fileType, testType, parseInt(questionCount));
 }
 
 // Add form validation for course selection
@@ -619,7 +673,7 @@ function handleUploadSubmission(form) {
         }
     })
     .then(response => response.json())
-    .then data => {
+    .then(data => {
         if (data.success) {
             if (data.review_required) {
                 // Redirect to review page
@@ -690,56 +744,6 @@ function showToast(message, type = 'info') {
             toast.remove();
         }
     });
-}
-
-function downloadTemplate(fileType, testType, questionCount) {
-    // Show loading toast
-    showToast('Generating template...', 'info');
-    
-    // Create download URL
-    const url = '{% url "main:download_template" %}' + 
-                '?file_type=' + fileType + 
-                '&test_type=' + testType + 
-                '&question_count=' + questionCount;
-    
-    // Create temporary link for download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = '';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Show success message
-    setTimeout(() => {
-        showToast(`${fileType.toUpperCase()} template downloaded successfully!`, 'success');
-    }, 500);
-}
-
-function showCustomTemplateModal() {
-    new bootstrap.Modal(document.getElementById('customTemplateModal')).show();
-}
-
-function downloadCustomTemplate() {
-    const testType = document.getElementById('customTestType').value;
-    const questionCount = document.getElementById('customQuestionCount').value;
-    const fileType = document.getElementById('customFileType').value;
-    
-    if (!testType || !questionCount || !fileType) {
-        showToast('Please fill in all fields', 'warning');
-        return;
-    }
-    
-    if (questionCount < 1 || questionCount > 200) {
-        showToast('Question count must be between 1 and 200', 'warning');
-        return;
-    }
-    
-    // Hide modal
-    bootstrap.Modal.getInstance(document.getElementById('customTemplateModal')).hide();
-    
-    // Download template
-    downloadTemplate(fileType, testType, parseInt(questionCount));
 }
 </script>
 

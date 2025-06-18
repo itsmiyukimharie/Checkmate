@@ -771,25 +771,41 @@ def download_template(request):
         
         # Validate parameters
         if file_type not in ['pdf', 'csv']:
-            return JsonResponse({'error': 'Invalid file type'}, status=400)
+            messages.error(request, 'Invalid file type requested.')
+            return redirect('main:answer_keys')
         
         if test_type not in ['multiple_choice_4', 'multiple_choice_5', 'true_false']:
-            return JsonResponse({'error': 'Invalid test type'}, status=400)
+            messages.error(request, 'Invalid test type requested.')
+            return redirect('main:answer_keys')
         
         if question_count < 1 or question_count > 200:
-            return JsonResponse({'error': 'Question count must be between 1 and 200'}, status=400)
+            messages.error(request, 'Question count must be between 1 and 200.')
+            return redirect('main:answer_keys')
+        
+        # Log the template request
+        logger.info(f"Template request: {file_type} - {test_type} - {question_count} questions - User: {request.user.username}")
         
         # Generate template
         if file_type == 'csv':
             return AnswerKeyService.generate_csv_template(test_type, question_count)
         else:  # PDF
-            return AnswerKeyService.generate_pdf_template(test_type, question_count)
+            try:
+                return AnswerKeyService.generate_pdf_template(test_type, question_count)
+            except Exception as e:
+                logger.error(f"PDF template generation failed: {str(e)}")
+                # Add user-friendly error message
+                messages.error(request, 
+                    f'PDF generation failed: {str(e)}. Please try the CSV template instead or contact support.')
+                return redirect('main:answer_keys')
             
-    except ValueError:
-        return JsonResponse({'error': 'Invalid question count'}, status=400)
+    except ValueError as e:
+        logger.error(f"Invalid question count: {str(e)}")
+        messages.error(request, 'Invalid question count provided.')
+        return redirect('main:answer_keys')
     except Exception as e:
         logger.error(f"Template generation error: {str(e)}")
-        return JsonResponse({'error': 'Failed to generate template'}, status=500)
+        messages.error(request, f'Failed to generate template: {str(e)}. Please try again.')
+        return redirect('main:answer_keys')
 
 @login_required
 def student_management(request):
