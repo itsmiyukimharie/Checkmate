@@ -137,7 +137,7 @@ def print_answer_key_data(request, test_id):
 
 @login_required
 def print_answer_key(request, test_id):
-    """Print answer key or answer sheet in a simple HTML format"""
+    """Generate and download PDF for answer key or answer sheet"""
     try:
         test_info, answer_keys = AnswerKeyService.get_test_with_answers(test_id, request.user)
         
@@ -146,17 +146,64 @@ def print_answer_key(request, test_id):
         if mode not in ['answer_key', 'answer_sheet']:
             mode = 'answer_key'
         
-        context = {
-            'test_info': test_info,
-            'answer_keys': answer_keys,
-            'answer_choices': test_info.get_answer_choices(),
-            'mode': mode,
-            'page_title': f'Print {"Answer Key" if mode == "answer_key" else "Answer Sheet"} - {test_info.test_name}'
-        }
-        return render(request, 'main/answer_keys_print.html', context)
+        # Try to generate PDF first
+        pdf_response = AnswerKeyService.generate_answer_key_pdf(test_info, answer_keys, mode)
+        
+        if pdf_response:
+            return pdf_response
+        else:
+            # If PDF generation fails, return error message
+            from django.http import HttpResponse
+            response = HttpResponse(content_type='text/plain')
+            response['Content-Disposition'] = f'attachment; filename="PDF_ERROR.txt"'
+            
+            error_content = f"""
+PDF Generation Error
+
+Unfortunately, the PDF could not be generated for this answer key.
+
+Error Details:
+- Test: {test_info.test_name}
+- Mode: {mode}
+- Questions: {test_info.question_count}
+
+This usually happens when:
+1. ReportLab library is not properly installed
+2. There's insufficient memory for large tests
+3. Invalid test data
+
+Please try:
+1. Using the CSV download option instead
+2. Contacting your system administrator
+3. Reducing the number of questions if the test is very large
+
+Alternative: Use the CSV download option from the dropdown menu.
+"""
+            response.write(error_content)
+            return response
+            
     except Exception as e:
-        messages.error(request, 'Test not found.')
-        return redirect('main:answer_keys')
+        # Return error as downloadable text file
+        from django.http import HttpResponse
+        response = HttpResponse(content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="DOWNLOAD_ERROR.txt"'
+        
+        error_content = f"""
+Download Error
+
+An error occurred while trying to generate your answer key.
+
+Error: {str(e)}
+
+Please try again or contact support if the problem persists.
+
+Alternative options:
+- Use the CSV download from the dropdown menu
+- Try refreshing the page and attempting again
+- Contact your system administrator
+"""
+        response.write(error_content)
+        return response
 
 # Authentication Views - Now modularized
 def login(request):

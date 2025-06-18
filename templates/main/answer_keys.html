@@ -449,9 +449,24 @@ function confirmDelete(testName, deleteUrl) {
 }
 
 function printAnswerKey(testId, mode) {
-    // Fix the URL construction - remove extra slash
+    // Create download URL - this will now directly download PDF
     const url = '{% url "main:print_answer_key" 0 %}'.replace('0', testId) + '?mode=' + mode;
-    window.open(url, '_blank', 'width=800,height=600');
+    
+    // Show loading message
+    showToast(`Generating ${mode === 'answer_key' ? 'Answer Key' : 'Answer Sheet'} PDF...`, 'info');
+    
+    // Create temporary link for download
+    const link = document.createElement('a');
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Show success message after a short delay
+    setTimeout(() => {
+        showToast(`${mode === 'answer_key' ? 'Answer Key' : 'Answer Sheet'} PDF download initiated!`, 'success');
+    }, 500);
 }
 
 function downloadTemplate(fileType, testType, questionCount) {

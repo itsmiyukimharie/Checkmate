@@ -711,6 +711,323 @@ For immediate use, please use the CSV template download option.
         response.write(content)
         return response
 
+    @staticmethod
+    def generate_answer_key_pdf(test_info, answer_keys, mode='answer_key'):
+        """Generate PDF for answer key or answer sheet with actual test data"""
+        import io
+        import logging
+        from django.http import HttpResponse
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Try to use ReportLab for PDF generation
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.lib.units import inch
+            
+            # Create response
+            if mode == 'answer_key':
+                filename = f"answer_key_{test_info.test_name.replace(' ', '_')}.pdf"
+                content_disposition = f'attachment; filename="{filename}"'
+            else:
+                filename = f"answer_sheet_{test_info.test_name.replace(' ', '_')}.pdf"
+                content_disposition = f'attachment; filename="{filename}"'
+            
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = content_disposition
+            
+            # Create PDF buffer
+            buffer = io.BytesIO()
+            
+            # Get test type info
+            if test_info.test_type == 'multiple_choice_4':
+                type_display = 'Multiple Choice (A, B, C, D)'
+                choices = ['A', 'B', 'C', 'D']
+            elif test_info.test_type == 'multiple_choice_5':
+                type_display = 'Multiple Choice (A, B, C, D, E)'
+                choices = ['A', 'B', 'C', 'D', 'E']
+            elif test_info.test_type == 'true_false':
+                type_display = 'True or False'
+                choices = ['T', 'F']
+            else:
+                type_display = 'Multiple Choice (A, B, C, D)'
+                choices = ['A', 'B', 'C', 'D']
+            
+            # Create canvas
+            c = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
+            
+            # Fixed layout parameters
+            margin = 0.25 * inch
+            content_width = width - 2 * margin
+            
+            # Grid configuration based on test type
+            if test_info.test_type == 'true_false':
+                max_columns = 8
+                rows_per_column = 25  # 200 questions per page
+            elif test_info.test_type == 'multiple_choice_5':
+                max_columns = 5
+                rows_per_column = 40  # 200 questions per page
+            else:  # multiple_choice_4
+                max_columns = 6
+                rows_per_column = 33  # ~200 questions per page
+            
+            questions_per_page = max_columns * rows_per_column
+            
+            # Calculate spacing
+            column_width = content_width / max_columns
+            row_height = 14
+            bubble_radius = 5
+            bubble_spacing = 12
+            
+            # Helper function to draw centered text
+            def draw_centered_text(canvas_obj, x, y, text, font_name="Helvetica", font_size=10):
+                canvas_obj.setFont(font_name, font_size)
+                text_width = canvas_obj.stringWidth(text, font_name, font_size)
+                canvas_obj.drawString(x - text_width/2, y, text)
+            
+            # Create a mapping of answers for quick lookup
+            answer_map = {}
+            for answer_key in answer_keys:
+                answer_map[answer_key.question_number] = answer_key.answer
+            
+            current_question = 1
+            page_num = 1
+            
+            while current_question <= test_info.question_count:
+                # Header section
+                header_y = height - 0.3 * inch
+                
+                # Main title with border
+                c.setLineWidth(2)
+                header_height = 55
+                c.rect(margin, header_y - header_height, content_width, header_height, stroke=1, fill=0)
+                
+                # Title
+                c.setFont("Helvetica-Bold", 16)
+                title_y = header_y - 15
+                if mode == 'answer_key':
+                    draw_centered_text(c, width/2, title_y, f"{test_info.test_name} - Answer Key", "Helvetica-Bold", 16)
+                else:
+                    draw_centered_text(c, width/2, title_y, f"{test_info.test_name} - Answer Sheet", "Helvetica-Bold", 16)
+                
+                # Test info
+                c.setFont("Helvetica-Bold", 10)
+                info_y = title_y - 18
+                draw_centered_text(c, width/2, info_y, f"Test Type: {type_display}", "Helvetica-Bold", 10)
+                
+                info_y -= 10
+                date_str = test_info.created_at.strftime("%B %d, %Y")
+                draw_centered_text(c, width/2, info_y, f"Questions: {test_info.question_count} | Date: {date_str}", "Helvetica", 9)
+                
+                # Course info
+                if test_info.course:
+                    info_y -= 10
+                    course_info = f"Course: {test_info.course.course_code} - {test_info.course.course_name}"
+                    if test_info.course.academic_year or test_info.course.semester:
+                        course_details = []
+                        if test_info.course.academic_year:
+                            course_details.append(f"AY: {test_info.course.academic_year}")
+                        if test_info.course.semester:
+                            course_details.append(f"Sem: {test_info.course.semester}")
+                        course_info += f" | {' | '.join(course_details)}"
+                    draw_centered_text(c, width/2, info_y, course_info, "Helvetica", 8)
+                
+                if page_num > 1:
+                    info_y -= 8
+                    draw_centered_text(c, width/2, info_y, f"Page {page_num}", "Helvetica-Bold", 9)
+                
+                # Student Information Section - only for answer sheets on first page
+                if mode == 'answer_sheet' and page_num == 1:
+                    student_info_y = header_y - header_height - 8
+                    
+                    # Student info box
+                    info_box_height = 45
+                    c.setLineWidth(2)
+                    c.rect(margin, student_info_y - info_box_height, content_width, info_box_height, stroke=1, fill=0)
+                    
+                    # Background shading
+                    c.setFillGray(0.95)
+                    c.rect(margin + 1, student_info_y - info_box_height + 1, content_width - 2, info_box_height - 2, stroke=0, fill=1)
+                    c.setFillGray(0)
+                    
+                    # Student info title
+                    c.setFont("Helvetica-Bold", 12)
+                    c.drawString(margin + 5, student_info_y - 12, "STUDENT INFORMATION")
+                    
+                    # Student info fields
+                    c.setFont("Helvetica-Bold", 9)
+                    field_y = student_info_y - 22
+                    
+                    # Row 1
+                    c.drawString(margin + 10, field_y, "Name:")
+                    c.line(margin + 45, field_y - 2, margin + content_width/2 - 10, field_y - 2)
+                    
+                    c.drawString(margin + content_width/2, field_y, "Student ID:")
+                    c.line(margin + content_width/2 + 60, field_y - 2, margin + content_width - 10, field_y - 2)
+                    
+                    # Row 2
+                    field_y -= 12  # Reduced spacing
+                    c.drawString(margin + 10, field_y, "Course:")
+                    c.line(margin + 50, field_y - 2, margin + content_width/2 - 10, field_y - 2)
+                    
+                    c.drawString(margin + content_width/2, field_y, "Section:")
+                    c.line(margin + content_width/2 + 45, field_y - 2, margin + content_width - 10, field_y - 2)
+                    
+                    # Instructions box
+                    instructions_y = student_info_y - info_box_height - 8
+                    instructions_height = 30
+                    
+                    c.setLineWidth(1)
+                    c.rect(margin, instructions_y - instructions_height, content_width, instructions_height, stroke=1, fill=0)
+                    
+                    # Instructions background
+                    c.setFillGray(0.98)
+                    c.rect(margin + 1, instructions_y - instructions_height + 1, content_width - 2, instructions_height - 2, stroke=0, fill=1)
+                    c.setFillGray(0)
+                    
+                    c.setFont("Helvetica-Bold", 10)
+                    c.drawString(margin + 5, instructions_y - 10, "INSTRUCTIONS:")
+                    
+                    c.setFont("Helvetica", 8)
+                    c.drawString(margin + 10, instructions_y - 20, "• Fill in the bubbles completely with a dark pencil or pen")
+                    c.drawString(margin + 10, instructions_y - 28, "• Make sure only one answer is selected per question • Erase completely if you need to change an answer")
+                    
+                    grid_start_y = instructions_y - instructions_height - 10
+                else:
+                    # For answer keys or subsequent pages
+                    grid_start_y = header_y - header_height - 10
+                
+                # Calculate columns needed for remaining questions
+                remaining_questions = test_info.question_count - current_question + 1
+                columns_needed = min(max_columns, (remaining_questions + rows_per_column - 1) // rows_per_column)
+                
+                # Draw main answer grid border
+                grid_height = rows_per_column * row_height + 25
+                c.setLineWidth(2)
+                c.rect(margin, grid_start_y - grid_height, content_width, grid_height, stroke=1, fill=0)
+                
+                # Column headers with background
+                header_row_y = grid_start_y - 5
+                header_cell_height = 20
+                
+                for col in range(columns_needed):
+                    x_col_start = margin + col * column_width
+                    
+                    # Header cell border
+                    c.setLineWidth(1)
+                    c.rect(x_col_start + 1, header_row_y - header_cell_height, column_width - 2, header_cell_height, stroke=1, fill=0)
+                    
+                    # Header background
+                    c.setFillGray(0.9)
+                    c.rect(x_col_start + 2, header_row_y - header_cell_height + 1, column_width - 4, header_cell_height - 2, stroke=0, fill=1)
+                    c.setFillGray(0)
+                    
+                    # Draw "Q" header
+                    c.setFont("Helvetica-Bold", 8)
+                    c.drawString(x_col_start + 8, header_row_y - 12, "Q")
+                    
+                    # Draw choice headers
+                    choice_x = x_col_start + 22
+                    for choice in choices:
+                        display_choice = choice
+                        if choice == 'True':
+                            display_choice = 'T'
+                        elif choice == 'False':
+                            display_choice = 'F'
+                        c.drawString(choice_x, header_row_y - 12, display_choice)
+                        choice_x += bubble_spacing
+                
+                # Draw column separators
+                c.setLineWidth(1)
+                for col in range(1, columns_needed):
+                    x_separator = margin + col * column_width
+                    c.line(x_separator, header_row_y, x_separator, grid_start_y - grid_height)
+                
+                # Draw the answer grid
+                c.setFont("Helvetica", 7)
+                
+                for col in range(columns_needed):
+                    x_col_start = margin + col * column_width
+                    
+                    for row in range(rows_per_column):
+                        question_num = current_question + col * rows_per_column + row
+                        
+                        if question_num > test_info.question_count:
+                            break
+                        
+                        # Calculate row position with 1px margin
+                        row_y = grid_start_y - header_cell_height - 5 - (row * row_height) - 1
+                        
+                        # Alternating row background (light) with margin
+                        if row % 2 == 0:
+                            c.setFillGray(0.97)
+                            c.rect(x_col_start + 2, row_y - row_height + 3, column_width - 4, row_height - 1, stroke=0, fill=1)
+                            c.setFillGray(0)
+                        
+                        # Draw question number
+                        c.setFont("Helvetica-Bold", 7)
+                        c.drawString(x_col_start + 5, row_y - 8, f"{question_num}.")
+                        
+                        # Draw bubbles for each choice
+                        choice_x = x_col_start + 22
+                        correct_answer = answer_map.get(question_num)
+                        
+                        for choice in choices:
+                            # Draw bubble circle
+                            bubble_center_x = choice_x + bubble_radius
+                            bubble_center_y = row_y - 7
+                            c.setLineWidth(1)
+                            
+                            # Fill bubble if this is the correct answer and we're in answer key mode
+                            if mode == 'answer_key' and correct_answer == choice:
+                                # Fill the bubble for answer key
+                                c.setFillGray(0)  # Black fill
+                                c.circle(bubble_center_x, bubble_center_y, bubble_radius, stroke=1, fill=1)
+                                c.setFillGray(0)  # Reset fill color
+                            else:
+                                # Empty bubble for answer sheet or non-correct answers
+                                c.circle(bubble_center_x, bubble_center_y, bubble_radius, stroke=1, fill=0)
+                            
+                            choice_x += bubble_spacing
+                
+                # Update current question for next page
+                questions_on_this_page = min(questions_per_page, test_info.question_count - current_question + 1)
+                current_question += questions_on_this_page
+                
+                # Footer positioned correctly at bottom
+                footer_y = 0.4 * inch  # Reduced from 0.5 inch for more space
+                c.setFont("Helvetica", 8)
+                footer_text = f"Generated by CheckMate - Optimized for OMR Processing"
+                draw_centered_text(c, width/2, footer_y, footer_text, "Helvetica", 8)
+                
+                # Start new page if more questions remain
+                if current_question <= test_info.question_count:
+                    c.showPage()
+                    page_num += 1
+            
+            # Save the PDF
+            c.save()
+            
+            # Get PDF data
+            pdf_data = buffer.getvalue()
+            buffer.close()
+            
+            # Write to response
+            response.write(pdf_data)
+            return response
+            
+        except ImportError as e:
+            logger.warning(f"ReportLab not available: {str(e)}")
+            # Fallback to HTML print
+            return None
+            
+        except Exception as e:
+            logger.error(f"PDF generation error: {str(e)}")
+            # Fallback to HTML print
+            return None
+
 def get_answer_choices_for_type(test_type):
     """Helper function to get answer choices for test type"""
     if test_type == 'multiple_choice_4':

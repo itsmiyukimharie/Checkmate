@@ -258,6 +258,17 @@
 </head>
 <body>
     <div class="actions no-print">
+        {% if pdf_unavailable %}
+        <div class="alert alert-warning mb-3">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>PDF Generation Unavailable:</strong> ReportLab library is not installed. 
+            You can print this page directly or ask your administrator to install ReportLab for PDF downloads.
+            <br><small class="mt-1 d-block">
+                <code>pip install reportlab</code> in your Django environment to enable PDF generation.
+            </small>
+        </div>
+        {% endif %}
+        
         <div class="print-type-indicator">
             {% if mode == 'answer_key' %}
                 <i class="fas fa-key me-2"></i>Answer Key Mode - Correct answers are shown
