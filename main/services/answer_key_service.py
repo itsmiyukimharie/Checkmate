@@ -2,6 +2,7 @@ import csv
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from ..models import TestInformation, TestAnswerKey
+from .image_processing_service import ImageProcessingService
 
 class AnswerKeyService:
     """Service class for answer key operations"""
@@ -218,3 +219,106 @@ class AnswerKeyService:
                 for answer in answer_keys
             ]
         }
+    
+    @staticmethod
+    def process_uploaded_image(image_file, test_type, question_count, auto_detect_format=True, enhance_image=True):
+        """Process uploaded answer key image and extract answers"""
+        try:
+            # Try bubble detection first (matches our printed format)
+            result = ImageProcessingService.process_answer_key_image(
+                image_file, test_type, question_count, enhance_image
+            )
+            
+            if result['success']:
+                # Calculate average confidence
+                confidence_scores = result.get('confidence_scores', {})
+                avg_confidence = sum(confidence_scores.values()) / len(confidence_scores) if confidence_scores else 0.5
+                
+                processing_metadata = result.get('metadata', {})
+                processing_metadata.update({
+                    'avg_confidence': avg_confidence * 100,  # Convert to percentage
+                    'total_questions_detected': len(result['answers']),
+                    'questions_with_high_confidence': len([c for c in confidence_scores.values() if c > 0.8])
+                })
+                
+                return {
+                    'success': True,
+                    'answers': result['answers'],
+                    'confidence_scores': {k: v * 100 for k, v in confidence_scores.items()},  # Convert to percentage
+                    'metadata': processing_metadata,
+                    'message': f'Successfully extracted {len(result["answers"])} answers from image'
+                }
+            else:
+                # Fallback to OCR if bubble detection fails
+                if auto_detect_format:
+                    # Reset file pointer
+                    image_file.seek(0)
+                    ocr_result = ImageProcessingService.process_with_ocr_fallback(
+                        image_file, test_type, question_count
+                    )
+                    
+                    if ocr_result['success']:
+                        return {
+                            'success': True,
+                            'answers': ocr_result['answers'],
+                            'confidence_scores': ocr_result['confidence_scores'],
+                            'metadata': ocr_result['metadata'],
+                            'message': 'Extracted answers using OCR (fallback method)'
+                        }
+                
+                return {
+                    'success': False,
+                    'message': 'Could not process the image. Please ensure it\'s a clear answer sheet.',
+                    'errors': {'processing': result.get('error', 'Unknown error')}
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error processing image: {str(e)}',
+                'errors': {'processing': str(e)}
+            }
+    
+    @staticmethod
+    def create_test_from_upload(user, test_data):
+        """Create test and answer keys from uploaded data"""
+        from ..models import TestInformation, TestAnswerKey, Courses
+        
+        try:
+            # Get course
+            course = Courses.objects.get(id=test_data['course_id'], user=user)
+            
+            # Create test information
+            test_info = TestInformation.objects.create(
+                user=user,
+                course=course,
+                name=test_data['test_name'],
+                test_name=test_data['test_name'],
+                test_type=test_data['test_type'],
+                question_count=test_data['question_count'],
+                status='active'  # Mark as active since it's processed
+            )
+            
+            # Create answer keys
+            for question_num, answer in test_data['extracted_answers'].items():
+                TestAnswerKey.objects.create(
+                    test_information=test_info,
+                    question_number=question_num,
+                    answer=answer
+                )
+            
+            return test_info
+            
+        except Exception as e:
+            raise Exception(f"Error creating test from upload: {str(e)}")
+
+def get_answer_choices_for_type(test_type):
+    """Helper function to get answer choices for test type"""
+    if test_type == 'multiple_choice_4':
+        return ['A', 'B', 'C', 'D']
+    elif test_type == 'multiple_choice_5':
+        return ['A', 'B', 'C', 'D', 'E']
+    elif test_type == 'true_false':
+        return ['True', 'False']
+    else:
+        return ['A', 'B', 'C', 'D']

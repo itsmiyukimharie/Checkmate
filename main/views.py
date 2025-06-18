@@ -3,15 +3,20 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+import logging
 
 from .services.answer_key_service import AnswerKeyService
 from .services.auth_service import AuthService
 from .services.course_service import CourseService
 from .services.student_service import StudentService
+from .services.file_processing_service import FileProcessingService
 from .utils.form_helpers import FormHelper
 from .utils.session_helpers import SessionHelper
 from .utils.auth_helpers import AuthFormHelper
 from .forms import CreateAnswerKeyForm, CourseForm, CourseFilterForm, StudentForm, StudentFilterForm
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def dashboard(request):
@@ -28,16 +33,18 @@ def answer_keys(request):
     """Answer Keys Management - Upload or create answer keys"""
     user_tests = AnswerKeyService.get_user_tests(request.user)
     
-    if request.method == 'POST' and 'create_form' in request.POST:
-        create_form = CreateAnswerKeyForm(request.POST, user=request.user)
-        if create_form.is_valid():
-            test_data = AnswerKeyService.create_temp_test_data(create_form.cleaned_data)
-            SessionHelper.store_temp_test_data(request, test_data)
-            
-            messages.success(request, f'Test "{test_data["test_name"]}" setup complete. Please enter answers to save.')
-            return redirect('main:enter_answers', test_id=0)
-        else:
-            messages.error(request, 'Please correct the errors in the create form.')
+    if request.method == 'POST':
+        if 'create_form' in request.POST:
+            # Handle manual creation
+            create_form = CreateAnswerKeyForm(request.POST, user=request.user)
+            if create_form.is_valid():
+                test_data = AnswerKeyService.create_temp_test_data(create_form.cleaned_data)
+                SessionHelper.store_temp_test_data(request, test_data)
+                
+                messages.success(request, f'Test "{test_data["test_name"]}" setup complete. Please enter answers to save.')
+                return redirect('main:enter_answers', test_id=0)
+            else:
+                messages.error(request, 'Please correct the errors in the create form.')
     
     context = {
         'page_title': 'Manage Answer Keys',
@@ -98,7 +105,7 @@ def delete_test(request, test_id):
     try:
         test_name = AnswerKeyService.delete_test(test_id, request.user)
         messages.success(request, f'Test "{test_name}" has been deleted successfully!')
-    except:
+    except Exception as e:
         messages.error(request, 'Test not found.')
     
     return redirect('main:answer_keys')
@@ -110,7 +117,7 @@ def download_answer_key(request, test_id):
         test_info, answer_keys = AnswerKeyService.get_test_with_answers(test_id, request.user)
         show_answers = request.GET.get('show_answers', '1') == '1'
         return AnswerKeyService.generate_csv_response(test_info, answer_keys, show_answers)
-    except:
+    except Exception as e:
         messages.error(request, 'Test not found.')
         return redirect('main:answer_keys')
 
@@ -121,7 +128,7 @@ def print_answer_key_data(request, test_id):
         test_info, answer_keys = AnswerKeyService.get_test_with_answers(test_id, request.user)
         data = AnswerKeyService.generate_print_data(test_info, answer_keys)
         return JsonResponse(data)
-    except:
+    except Exception as e:
         return JsonResponse({'error': 'Test not found'}, status=404)
 
 @login_required
@@ -141,7 +148,7 @@ def print_answer_key(request, test_id):
             'page_title': f'Print {"Answer Key" if show_answers else "Blank Sheet"} - {test_info.test_name}'
         }
         return render(request, 'main/answer_keys_print.html', context)
-    except:
+    except Exception as e:
         messages.error(request, 'Test not found.')
         return redirect('main:answer_keys')
 
@@ -225,7 +232,6 @@ def course_management(request):
     unique_years = CourseService.get_unique_academic_years(request.user)
     
     # Pagination
-    from django.core.paginator import Paginator
     paginator = Paginator(user_courses, 10)  # Show 10 courses per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -360,7 +366,6 @@ def student_management(request):
     unique_sections = StudentService.get_unique_sections(request.user)
     
     # Pagination
-    from django.core.paginator import Paginator
     paginator = Paginator(user_students, 10)  # Show 10 students per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -510,3 +515,221 @@ def get_student_courses(request, student_id):
         return JsonResponse({'courses': course_data})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=404)
+
+@login_required
+def upload_answer_key(request):
+    """Upload and process answer key file (image, PDF, or CSV)"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            test_name = request.POST.get('test_name', '').strip()
+            test_type = request.POST.get('test_type', 'multiple_choice_4')
+            question_count = int(request.POST.get('question_count', 50))
+            course_id = request.POST.get('course')
+            answer_key_file = request.FILES.get('answer_key_file')
+            
+            # Processing options
+            processing_options = {
+                'auto_detect_format': request.POST.get('auto_detect_format') == 'on',
+                'enhance_image': request.POST.get('enhance_image') == 'on',
+                'validate_csv_format': request.POST.get('validate_csv_format') == 'on',
+            }
+            review_before_save = request.POST.get('review_before_save') == 'on'
+            
+            # Validate required fields
+            if not all([test_name, course_id, answer_key_file]):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Please fill in all required fields and upload a file.',
+                    'errors': {'required_fields': 'Missing required data'}
+                })
+            
+            # Get course
+            try:
+                from .models import Courses
+                course = Courses.objects.get(id=course_id, user=request.user)
+            except Courses.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid course selected.',
+                    'errors': {'course': 'Course not found'}
+                })
+            
+            # Process the uploaded file
+            processing_result = FileProcessingService.process_uploaded_file(
+                uploaded_file=answer_key_file,
+                test_type=test_type,
+                question_count=question_count,
+                processing_options=processing_options
+            )
+            
+            if not processing_result['success']:
+                return JsonResponse({
+                    'success': False,
+                    'message': processing_result.get('message', 'Failed to process file'),
+                    'errors': processing_result.get('errors', {})
+                })
+            
+            # Analyze detection quality
+            confidence_scores = processing_result.get('confidence_scores', {})
+            if confidence_scores:
+                avg_confidence = sum(confidence_scores.values()) / len(confidence_scores)
+                low_confidence_count = len([c for c in confidence_scores.values() if c < 0.6])
+                
+                # Force review if many low confidence detections
+                if avg_confidence < 0.5 or low_confidence_count > question_count * 0.3:
+                    review_before_save = True
+            
+            # Create test data
+            test_data = {
+                'course_id': course.id,
+                'test_name': test_name,
+                'test_type': test_type,
+                'question_count': question_count,
+                'extracted_answers': processing_result['answers'],
+                'confidence_scores': processing_result.get('confidence_scores', {}),
+                'processing_metadata': processing_result.get('metadata', {})
+            }
+            
+            # Add detection quality info
+            if confidence_scores:
+                test_data['processing_metadata'].update({
+                    'avg_confidence': avg_confidence * 100,
+                    'low_confidence_count': low_confidence_count,
+                    'detection_quality': 'High' if avg_confidence > 0.8 else 'Medium' if avg_confidence > 0.5 else 'Low'
+                })
+            
+            if review_before_save:
+                # Store data for review
+                SessionHelper.store_temp_test_data(request, test_data)
+                
+                quality_message = ""
+                if confidence_scores:
+                    if avg_confidence < 0.5:
+                        quality_message = " Some answers have low confidence - please review carefully."
+                    elif low_confidence_count > 0:
+                        quality_message = f" {low_confidence_count} answers need verification."
+                
+                return JsonResponse({
+                    'success': True,
+                    'review_required': True,
+                    'review_url': f"/answer-keys/review-upload/",
+                    'message': f'Image processed successfully.{quality_message} Please review the detected answers.'
+                })
+            else:
+                # Save directly
+                test_info = AnswerKeyService.create_test_from_upload(request.user, test_data)
+                return JsonResponse({
+                    'success': True,
+                    'review_required': False,
+                    'message': f'Answer key for "{test_name}" has been created successfully from uploaded file!'
+                })
+                
+        except ValueError as e:
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid data provided.',
+                'errors': {'validation': str(e)}
+            })
+        except Exception as e:
+            logger.error(f"Upload processing error: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': 'An error occurred while processing the file.',
+                'errors': {'processing': str(e)}
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method.'
+    })
+
+@login_required
+def review_upload(request):
+    """Review extracted answers before saving"""
+    temp_test_data = SessionHelper.get_temp_test_data(request)
+    if not temp_test_data or 'extracted_answers' not in temp_test_data:
+        messages.error(request, 'No upload data found. Please upload an answer key first.')
+        return redirect('main:answer_keys')
+    
+    if request.method == 'POST':
+        if 'save_answers' in request.POST:
+            # Save the reviewed answers
+            try:
+                # Update answers with any manual corrections
+                corrected_answers = {}
+                for i in range(1, temp_test_data['question_count'] + 1):
+                    answer = request.POST.get(f'question_{i}')
+                    if answer:
+                        corrected_answers[i] = answer
+                
+                temp_test_data['extracted_answers'] = corrected_answers
+                test_info = AnswerKeyService.create_test_from_upload(request.user, temp_test_data)
+                
+                SessionHelper.clear_temp_test_data(request)
+                messages.success(request, f'Answer key for "{test_info.test_name}" has been saved successfully!')
+                return redirect('main:answer_keys')
+                
+            except Exception as e:
+                messages.error(request, f'Error saving answer key: {str(e)}')
+    
+    # Prepare context for review template
+    from .models import Courses
+    try:
+        course = Courses.objects.get(id=temp_test_data['course_id'])
+    except Courses.DoesNotExist:
+        messages.error(request, 'Course not found.')
+        return redirect('main:answer_keys')
+    
+    # Get answer choices for the test type
+    answer_choices = get_answer_choices_for_type(temp_test_data['test_type'])
+    
+    # Normalize extracted answers to use integer keys
+    extracted_answers = temp_test_data.get('extracted_answers', {})
+    normalized_answers = {}
+    for key, value in extracted_answers.items():
+        try:
+            # Convert string keys to integers
+            int_key = int(key)
+            normalized_answers[int_key] = value
+        except (ValueError, TypeError):
+            # Keep non-numeric keys as-is
+            normalized_answers[key] = value
+    
+    # Normalize confidence scores to use integer keys
+    confidence_scores = temp_test_data.get('confidence_scores', {})
+    normalized_confidence = {}
+    for key, value in confidence_scores.items():
+        try:
+            # Convert string keys to integers
+            int_key = int(key)
+            normalized_confidence[int_key] = value
+        except (ValueError, TypeError):
+            # Keep non-numeric keys as-is
+            normalized_confidence[key] = value
+    
+    # Update the temp_test_data with normalized keys
+    temp_test_data['extracted_answers'] = normalized_answers
+    temp_test_data['confidence_scores'] = normalized_confidence
+    
+    context = {
+        'page_title': f'Review Extracted Answers - {temp_test_data["test_name"]}',
+        'current_page': 'answer_keys',
+        'test_data': temp_test_data,
+        'course': course,
+        'answer_choices': answer_choices,
+        'confidence_scores': normalized_confidence,
+        'processing_metadata': temp_test_data.get('processing_metadata', {})
+    }
+    return render(request, 'main/answer_keys_review.html', context)
+
+def get_answer_choices_for_type(test_type):
+    """Helper function to get answer choices for test type"""
+    if test_type == 'multiple_choice_4':
+        return ['A', 'B', 'C', 'D']
+    elif test_type == 'multiple_choice_5':
+        return ['A', 'B', 'C', 'D', 'E']
+    elif test_type == 'true_false':
+        return ['True', 'False']
+    else:
+        return ['A', 'B', 'C', 'D']

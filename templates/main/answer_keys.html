@@ -25,43 +25,161 @@
         <div class="card shadow-sm rounded-lg border-0">
             <div class="card-header bg-transparent border-0">
                 <h5><i class="fas fa-plus"></i> Create Answer Key</h5>
+                <!-- Navigation tabs -->
+                <ul class="nav nav-tabs card-header-tabs mt-3" id="createMethodTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-create" type="button" role="tab">
+                            <i class="fas fa-keyboard me-2"></i>Manual Entry
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-create" type="button" role="tab">
+                            <i class="fas fa-upload me-2"></i>Upload Image
+                        </button>
+                    </li>
+                </ul>
             </div>
             <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}                    
-                    <div class="mb-3">
-                        <label for="{{ create_form.test_name.id_for_label }}" class="form-label">Test Name</label>
-                        {{ create_form.test_name }}
-                        {% if create_form.test_name.errors %}
-                            <div class="text-danger">{{ create_form.test_name.errors.0 }}</div>
-                        {% endif %}
-                    </div>                 
-                    <div class="mb-3">
-                        <label for="{{ create_form.test_type.id_for_label }}" class="form-label">Test Type</label>
-                        {{ create_form.test_type }}
-                        {% if create_form.test_type.errors %}
-                            <div class="text-danger">{{ create_form.test_type.errors.0 }}</div>
-                        {% endif %}
+                <div class="tab-content" id="createMethodTabsContent">
+                    <!-- Manual Entry Tab -->
+                    <div class="tab-pane fade show active" id="manual-create" role="tabpanel">
+                        <form method="post" id="manualCreateForm">
+                            {% csrf_token %}                    
+                            <div class="mb-3">
+                                <label for="{{ create_form.test_name.id_for_label }}" class="form-label">Test Name</label>
+                                {{ create_form.test_name }}
+                                {% if create_form.test_name.errors %}
+                                    <div class="text-danger">{{ create_form.test_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>                 
+                            <div class="mb-3">
+                                <label for="{{ create_form.test_type.id_for_label }}" class="form-label">Test Type</label>
+                                {{ create_form.test_type }}
+                                {% if create_form.test_type.errors %}
+                                    <div class="text-danger">{{ create_form.test_type.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ create_form.question_count.id_for_label }}" class="form-label">Number of Questions</label>
+                                {{ create_form.question_count }}
+                                {% if create_form.question_count.errors %}
+                                    <div class="text-danger">{{ create_form.question_count.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ create_form.course.id_for_label }}" class="form-label">Course <span class="text-danger">*</span></label>
+                                {{ create_form.course }}
+                                {% if create_form.course.errors %}
+                                    <div class="text-danger">{{ create_form.course.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">{{ create_form.course.help_text }}</small>
+                            </div>
+                            <button type="submit" name="create_form" class="btn btn-success rounded-pill">
+                                <i class="fas fa-plus"></i> Create Answer Key
+                            </button>
+                        </form>
                     </div>
-                    <div class="mb-3">
-                        <label for="{{ create_form.question_count.id_for_label }}" class="form-label">Number of Questions</label>
-                        {{ create_form.question_count }}
-                        {% if create_form.question_count.errors %}
-                            <div class="text-danger">{{ create_form.question_count.errors.0 }}</div>
-                        {% endif %}
+                    
+                    <!-- Upload Image Tab -->
+                    <div class="tab-pane fade" id="upload-create" role="tabpanel">
+                        <form method="post" enctype="multipart/form-data" id="uploadCreateForm">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="upload_test_name" class="form-label">Test Name</label>
+                                <input type="text" class="form-control rounded-pill" id="upload_test_name" name="test_name" required placeholder="Enter test name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="upload_test_type" class="form-label">Test Type</label>
+                                <select class="form-select rounded-pill" id="upload_test_type" name="test_type" required>
+                                    <option value="multiple_choice_4">Multiple Choice (A-D)</option>
+                                    <option value="multiple_choice_5">Multiple Choice (A-E)</option>
+                                    <option value="true_false">True or False</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="upload_question_count" class="form-label">Number of Questions</label>
+                                <input type="number" class="form-control rounded-pill" id="upload_question_count" name="question_count" min="1" max="200" value="50" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="upload_course" class="form-label">Course <span class="text-danger">*</span></label>
+                                <select class="form-select rounded-pill" id="upload_course" name="course" required>
+                                    <option value="">Select a course</option>
+                                    {% for course in create_form.course.field.queryset %}
+                                        <option value="{{ course.id }}">{{ course.course_code }} - {{ course.course_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">Select the course this test belongs to</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="answer_key_file" class="form-label">Answer Key File <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control rounded-pill" id="answer_key_file" name="answer_key_file" accept="image/*,.pdf,.csv" required>
+                                <small class="form-text text-muted">
+                                    Upload your answer key as:
+                                    <br>• <strong>Image</strong> (JPG, PNG, etc.) - Photo of answer sheet
+                                    <br>• <strong>PDF</strong> - Printed answer key document
+                                    <br>• <strong>CSV</strong> - Previously downloaded answer key
+                                </small>
+                            </div>
+                            
+                            <!-- File Preview -->
+                            <div class="mb-3 d-none" id="filePreviewContainer">
+                                <label class="form-label">File Preview</label>
+                                <div class="border rounded p-3 text-center" id="previewContent">
+                                    <!-- Image preview -->
+                                    <img id="imagePreview" src="" alt="Answer key preview" style="max-width: 100%; max-height: 300px; display: none;">
+                                    <!-- PDF preview -->
+                                    <div id="pdfPreview" style="display: none;">
+                                        <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
+                                        <div id="pdfInfo"></div>
+                                    </div>
+                                    <!-- CSV preview -->
+                                    <div id="csvPreview" style="display: none;">
+                                        <i class="fas fa-file-csv fa-3x text-success mb-2"></i>
+                                        <div id="csvInfo"></div>
+                                        <div id="csvContent" class="mt-2 text-start"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Processing Options -->
+                            <div class="mb-3" id="processingOptions">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-title"><i class="fas fa-cogs me-2"></i>Processing Options</h6>
+                                        <div class="form-check" id="autoDetectOption">
+                                            <input class="form-check-input" type="checkbox" id="auto_detect_format" name="auto_detect_format" checked>
+                                            <label class="form-check-label" for="auto_detect_format">
+                                                Auto-detect answer format
+                                            </label>
+                                        </div>
+                                        <div class="form-check" id="enhanceOption">
+                                            <input class="form-check-input" type="checkbox" id="enhance_image" name="enhance_image" checked>
+                                            <label class="form-check-label" for="enhance_image">
+                                                Enhance image quality
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="review_before_save" name="review_before_save" checked>
+                                            <label class="form-check-label" for="review_before_save">
+                                                Review extracted answers before saving
+                                            </label>
+                                        </div>
+                                        <div class="form-check d-none" id="validateCsvOption">
+                                            <input class="form-check-input" type="checkbox" id="validate_csv_format" name="validate_csv_format" checked>
+                                            <label class="form-check-label" for="validate_csv_format">
+                                                Validate CSV format
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" name="upload_form" class="btn btn-primary rounded-pill">
+                                <i class="fas fa-upload"></i> <span id="submitText">Upload & Process Answer Key</span>
+                            </button>
+                        </form>
                     </div>
-                    <div class="mb-3">
-                        <label for="{{ create_form.course.id_for_label }}" class="form-label">Course <span class="text-danger">*</span></label>
-                        {{ create_form.course }}
-                        {% if create_form.course.errors %}
-                            <div class="text-danger">{{ create_form.course.errors.0 }}</div>
-                        {% endif %}
-                        <small class="form-text text-muted">{{ create_form.course.help_text }}</small>
-                    </div>
-                    <button type="submit" name="create_form" class="btn btn-success rounded-pill">
-                        <i class="fas fa-plus"></i> Create Answer Key
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -256,6 +374,210 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// File upload preview functionality (updated)
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('answer_key_file');
+    const previewContainer = document.getElementById('filePreviewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const pdfPreview = document.getElementById('pdfPreview');
+    const csvPreview = document.getElementById('csvPreview');
+    const submitText = document.getElementById('submitText');
+    
+    // Processing option elements
+    const autoDetectOption = document.getElementById('autoDetectOption');
+    const enhanceOption = document.getElementById('enhanceOption');
+    const validateCsvOption = document.getElementById('validateCsvOption');
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const fileType = file.type;
+                const fileName = file.name.toLowerCase();
+                
+                // Hide all previews first
+                imagePreview.style.display = 'none';
+                pdfPreview.style.display = 'none';
+                csvPreview.style.display = 'none';
+                
+                // Show/hide processing options based on file type
+                autoDetectOption.style.display = 'block';
+                enhanceOption.style.display = 'block';
+                validateCsvOption.classList.add('d-none');
+                
+                if (fileType.startsWith('image/')) {
+                    // Handle image files
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                        previewContainer.classList.remove('d-none');
+                    };
+                    reader.readAsDataURL(file);
+                    submitText.textContent = 'Upload & Process Image';
+                    
+                } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+                    // Handle PDF files
+                    document.getElementById('pdfInfo').innerHTML = 
+                        `<strong>${file.name}</strong><br>` +
+                        `Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>` +
+                        `<small class="text-muted">PDF will be converted to images for processing</small>`;
+                    pdfPreview.style.display = 'block';
+                    previewContainer.classList.remove('d-none');
+                    submitText.textContent = 'Upload & Process PDF';
+                    
+                } else if (fileType === 'text/csv' || fileName.endsWith('.csv')) {
+                    // Handle CSV files
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const csvContent = e.target.result;
+                        const lines = csvContent.split('\n').slice(0, 10); // Show first 10 lines
+                        
+                        document.getElementById('csvInfo').innerHTML = 
+                            `<strong>${file.name}</strong><br>` +
+                            `Size: ${(file.size / 1024).toFixed(2)} KB<br>` +
+                            `<small class="text-muted">CSV data will be imported directly</small>`;
+                        
+                        document.getElementById('csvContent').innerHTML = 
+                            '<small><strong>Preview (first 10 lines):</strong></small><br>' +
+                            '<code style="font-size: 0.8em;">' + 
+                            lines.map(line => line.substring(0, 80) + (line.length > 80 ? '...' : '')).join('<br>') + 
+                            '</code>';
+                        
+                        csvPreview.style.display = 'block';
+                        previewContainer.classList.remove('d-none');
+                    };
+                    reader.readAsText(file);
+                    submitText.textContent = 'Upload & Import CSV';
+                    
+                    // Show CSV-specific options, hide image options
+                    autoDetectOption.style.display = 'none';
+                    enhanceOption.style.display = 'none';
+                    validateCsvOption.classList.remove('d-none');
+                    
+                } else {
+                    // Unsupported file type
+                    alert('Unsupported file type. Please upload an image (JPG, PNG), PDF, or CSV file.');
+                    fileInput.value = '';
+                    return;
+                }
+            } else {
+                previewContainer.classList.add('d-none');
+                submitText.textContent = 'Upload & Process Answer Key';
+            }
+        });
+    }
+    
+    // Handle upload form submission
+    const uploadForm = document.getElementById('uploadCreateForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleUploadSubmission(this);
+        });
+    }
+    
+    // Handle manual form submission (existing code)
+    const manualForm = document.getElementById('manualCreateForm');
+    if (manualForm) {
+        manualForm.addEventListener('submit', function(e) {
+            // Keep existing manual form handling
+        });
+    }
+});
+
+function handleUploadSubmission(form) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+    
+    const formData = new FormData(form);
+    
+    fetch('{% url "main:upload_answer_key" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.review_required) {
+                // Redirect to review page
+                window.location.href = data.review_url;
+            } else {
+                // Direct success
+                showToast(data.message, 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        } else {
+            // Show errors
+            showToast(data.message || 'Error processing image', 'error');
+            if (data.errors) {
+                console.error('Upload errors:', data.errors);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while processing the image', 'error');
+    })
+    .finally(() => {
+        // Reset button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+}
+
+function showToast(message, type = 'info') {
+    // Create toast notification
+    const toastId = 'toast-' + Date.now();
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = 'toast align-items-center text-white bg-' + type + ' border-0 position-fixed';
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px;';
+    toast.setAttribute('role', 'alert');
+    
+    const iconMap = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'warning': 'fa-exclamation-triangle',
+        'info': 'fa-info-circle'
+    };
+    
+    toast.innerHTML = 
+        '<div class="d-flex">' +
+            '<div class="toast-body d-flex align-items-center">' +
+                '<i class="fas ' + (iconMap[type] || iconMap.info) + ' me-2 fa-lg"></i>' +
+                '<span>' + message + '</span>' +
+            '</div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+        '</div>';
+    
+    document.body.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast, {
+        animation: true,
+        autohide: true,
+        delay: 5000
+    });
+    
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    });
+}
 </script>
 
 {% endblock %}
