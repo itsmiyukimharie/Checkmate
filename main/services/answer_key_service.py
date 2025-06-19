@@ -386,7 +386,7 @@ class AnswerKeyService:
     
     @staticmethod
     def generate_pdf_template(test_type, question_count):
-        """Generate a blank PDF template for manual answer sheet creation"""
+        """Generate a compact PDF template with improved padding and spacing"""
         import io
         import logging
         from django.http import HttpResponse
@@ -394,16 +394,13 @@ class AnswerKeyService:
         logger = logging.getLogger(__name__)
         
         try:
-            # Try to use ReportLab for PDF generation
             from reportlab.pdfgen import canvas
             from reportlab.lib.pagesizes import letter, A4
             from reportlab.lib.units import inch
             
-            # Create response
             response = HttpResponse(content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="answer_sheet_template_{test_type}_{question_count}q.pdf"'
+            response['Content-Disposition'] = f'attachment; filename="ALPHA_V4_template_{test_type}_{question_count}q.pdf"'
             
-            # Create PDF buffer
             buffer = io.BytesIO()
             
             # Get test type info
@@ -420,221 +417,171 @@ class AnswerKeyService:
                 type_display = 'Multiple Choice (A, B, C, D)'
                 choices = ['A', 'B', 'C', 'D']
             
-            # Create canvas
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
             
-            # Fixed layout parameters - reduced margins for more space
-            margin = 0.25 * inch
+            # ALPHA V4 - IMPROVED LAYOUT PARAMETERS
+            margin = 0.4 * inch  # Slightly larger margins for better appearance
             content_width = width - 2 * margin
             
-            # Fixed grid: exactly 5 columns, 40 rows per column
-            max_columns = 5
-            rows_per_column = 40
-            questions_per_page = max_columns * rows_per_column  # 200 questions per page
+            # OPTIMIZED GRID - 4 columns with better spacing
+            columns = 4  # 4 columns of questions
+            questions_per_page = 100  # 100 questions per page (25 per column)
+            questions_per_column = 25
+            column_width = content_width / columns
             
-            # Calculate spacing
-            column_width = content_width / max_columns
-            row_height = 14
-            bubble_radius = 5
-            bubble_spacing = 12
-            
-            # Helper function to draw centered text
-            def draw_centered_text(canvas_obj, x, y, text, font_name="Helvetica", font_size=10):
-                canvas_obj.setFont(font_name, font_size)
-                text_width = canvas_obj.stringWidth(text, font_name, font_size)
-                canvas_obj.drawString(x - text_width/2, y, text)
+            # IMPROVED spacing for better readability
+            row_height = 14  # Slightly increased from 12 for better spacing
+            bubble_radius = 5  # Increased from 4 for better visibility
+            bubble_spacing = 16  # Increased from 14 for better spacing between choices
             
             current_question = 1
             page_num = 1
             
             while current_question <= question_count:
-                # Header section - more compact spacing
-                header_y = height - 0.3 * inch
+                # IMPROVED HEADER with better padding
+                header_y = height - 0.3 * inch  # More space from top
+                header_height = 45  # Slightly increased
                 
-                # Main title with border
                 c.setLineWidth(2)
-                header_height = 55  # Reduced from 60
                 c.rect(margin, header_y - header_height, content_width, header_height, stroke=1, fill=0)
                 
-                # Title
-                c.setFont("Helvetica-Bold", 16)
-                title_y = header_y - 15
-                draw_centered_text(c, width/2, title_y, "CheckMate Answer Sheet Template", "Helvetica-Bold", 16)
+                # Title with better vertical centering
+                c.setFont("Helvetica-Bold", 13)  # Slightly smaller for better fit
+                title_text = f"ALPHA V4 - {type_display}"
+                text_width = c.stringWidth(title_text, "Helvetica-Bold", 13)
+                title_x = margin + (content_width - text_width) / 2
+                c.drawString(title_x, header_y - 16, title_text)  # Better vertical position
                 
-                # Test info - more compact
-                c.setFont("Helvetica-Bold", 10)
-                info_y = title_y - 18  # Reduced spacing
-                draw_centered_text(c, width/2, info_y, f"Test Type: {type_display}", "Helvetica-Bold", 10)
+                # Question range and page info with better spacing
+                questions_this_page = min(questions_per_page, question_count - current_question + 1)
+                end_question = current_question + questions_this_page - 1
                 
-                info_y -= 10  # Reduced spacing
-                draw_centered_text(c, width/2, info_y, f"Questions: {question_count} | Date: _____________", "Helvetica", 9)
+                c.setFont("Helvetica", 9)
+                info_text = f"Questions {current_question}-{end_question} | Total: {question_count} | Page {page_num}"
+                text_width = c.stringWidth(info_text, "Helvetica", 9)
+                info_x = margin + (content_width - text_width) / 2
+                c.drawString(info_x, header_y - 32, info_text)  # Better spacing from title
                 
-                if page_num > 1:
-                    info_y -= 8  # Reduced spacing
-                    draw_centered_text(c, width/2, info_y, f"Page {page_num}", "Helvetica-Bold", 9)
-                
-                # Student Information Section - only on first page with reduced spacing
+                # IMPROVED STUDENT INFO (only on first page)
                 if page_num == 1:
-                    student_info_y = header_y - header_height - 8  # Reduced from 15
-                    
-                    # Student info box - smaller height
-                    info_box_height = 45  # Reduced from 50
-                    c.setLineWidth(2)
-                    c.rect(margin, student_info_y - info_box_height, content_width, info_box_height, stroke=1, fill=0)
-                    
-                    # Background shading
-                    c.setFillGray(0.95)
-                    c.rect(margin + 1, student_info_y - info_box_height + 1, content_width - 2, info_box_height - 2, stroke=0, fill=1)
-                    c.setFillGray(0)
-                    
-                    # Student info title
-                    c.setFont("Helvetica-Bold", 12)
-                    c.drawString(margin + 5, student_info_y - 12, "STUDENT INFORMATION")
-                    
-                    # Student info fields - more compact
-                    c.setFont("Helvetica-Bold", 9)
-                    field_y = student_info_y - 22  # Adjusted
-                    
-                    # Row 1
-                    c.drawString(margin + 10, field_y, "Name:")
-                    c.line(margin + 45, field_y - 2, margin + content_width/2 - 10, field_y - 2)
-                    
-                    c.drawString(margin + content_width/2, field_y, "Student ID:")
-                    c.line(margin + content_width/2 + 60, field_y - 2, margin + content_width - 10, field_y - 2)
-                    
-                    # Row 2
-                    field_y -= 12  # Reduced spacing
-                    c.drawString(margin + 10, field_y, "Course:")
-                    c.line(margin + 50, field_y - 2, margin + content_width/2 - 10, field_y - 2)
-                    
-                    c.drawString(margin + content_width/2, field_y, "Section:")
-                    c.line(margin + content_width/2 + 45, field_y - 2, margin + content_width - 10, field_y - 2)
-                    
-                    # Instructions box - more compact
-                    instructions_y = student_info_y - info_box_height - 8  # Reduced from 15
-                    instructions_height = 30  # Reduced from 35
+                    student_y = header_y - header_height - 15  # More spacing from header
+                    info_height = 55  # Slightly increased height
                     
                     c.setLineWidth(1)
-                    c.rect(margin, instructions_y - instructions_height, content_width, instructions_height, stroke=1, fill=0)
-                    
-                    # Instructions background
-                    c.setFillGray(0.98)
-                    c.rect(margin + 1, instructions_y - instructions_height + 1, content_width - 2, instructions_height - 2, stroke=0, fill=1)
-                    c.setFillGray(0)
+                    c.rect(margin, student_y - info_height, content_width, info_height, stroke=1, fill=0)
                     
                     c.setFont("Helvetica-Bold", 10)
-                    c.drawString(margin + 5, instructions_y - 10, "INSTRUCTIONS:")
+                    c.drawString(margin + 8, student_y - 18, "STUDENT INFO")  # Better padding from edge
                     
-                    c.setFont("Helvetica", 8)
-                    c.drawString(margin + 10, instructions_y - 20, "• Fill in the bubbles completely with a dark pencil or pen")
-                    c.drawString(margin + 10, instructions_y - 28, "• Make sure only one answer is selected per question • Erase completely if you need to change an answer")
+                    c.setFont("Helvetica", 9)
+                    # Better spacing and alignment for form fields
+                    c.drawString(margin + 12, student_y - 34, "Name:")
+                    c.line(margin + 55, student_y - 36, margin + content_width/2 - 12, student_y - 36)
                     
-                    grid_start_y = instructions_y - instructions_height - 10  # Reduced from 20
+                    c.drawString(margin + content_width/2 + 12, student_y - 34, "ID:")
+                    c.line(margin + content_width/2 + 35, student_y - 36, margin + content_width - 12, student_y - 36)
+                    
+                    c.drawString(margin + 12, student_y - 50, "Course:")
+                    c.line(margin + 55, student_y - 52, margin + content_width/2 - 12, student_y - 52)
+                    
+                    c.drawString(margin + content_width/2 + 12, student_y - 50, "Section:")
+                    c.line(margin + content_width/2 + 55, student_y - 52, margin + content_width - 12, student_y - 52)
+                    
+                    grid_start_y = student_y - info_height - 20  # More spacing before grid
                 else:
-                    # For subsequent pages - reduced spacing
-                    grid_start_y = header_y - header_height - 10  # Reduced from 20
+                    grid_start_y = header_y - header_height - 20  # More spacing for non-first pages
                 
-                # Calculate columns needed for remaining questions
-                remaining_questions = question_count - current_question + 1
-                columns_needed = min(max_columns, (remaining_questions + rows_per_column - 1) // rows_per_column)
-                
-                # Draw main answer grid border
-                grid_height = rows_per_column * row_height + 25
+                # IMPROVED ANSWER GRID with better padding
+                grid_height = questions_per_column * row_height + 40  # Increased header space
                 c.setLineWidth(2)
                 c.rect(margin, grid_start_y - grid_height, content_width, grid_height, stroke=1, fill=0)
                 
-                # Column headers with background
-                header_row_y = grid_start_y - 5
-                header_cell_height = 20
-                
-                for col in range(columns_needed):
-                    x_col_start = margin + col * column_width
+                # Draw 4 columns with improved spacing
+                for col in range(columns):
+                    col_x = margin + col * column_width
                     
-                    # Header cell border
+                    # Column separator with proper padding
+                    if col > 0:
+                        c.setLineWidth(1)
+                        separator_x = col_x + 3  # Small offset from edge
+                        c.line(separator_x, grid_start_y - 5, separator_x, grid_start_y - grid_height + 5)
+                    
+                    # Column header with better dimensions
+                    header_padding = 4
                     c.setLineWidth(1)
-                    c.rect(x_col_start + 1, header_row_y - header_cell_height, column_width - 2, header_cell_height, stroke=1, fill=0)
+                    c.rect(col_x + header_padding, grid_start_y - 25, column_width - (2 * header_padding), 20, stroke=1, fill=0)
                     
-                    # Header background
                     c.setFillGray(0.9)
-                    c.rect(x_col_start + 2, header_row_y - header_cell_height + 1, column_width - 4, header_cell_height - 2, stroke=0, fill=1)
+                    c.rect(col_x + header_padding + 1, grid_start_y - 24, column_width - (2 * header_padding) - 2, 18, stroke=0, fill=1)
                     c.setFillGray(0)
                     
-                    # Draw "Q" header
-                    c.setFont("Helvetica-Bold", 8)
-                    c.drawString(x_col_start + 8, header_row_y - 12, "Q")
+                    # Calculate question range for this column
+                    col_start = current_question + col * questions_per_column
+                    col_end = min(col_start + questions_per_column - 1, current_question + questions_this_page - 1)
                     
-                    # Draw choice headers
-                    choice_x = x_col_start + 22
-                    for choice in choices:
-                        c.drawString(choice_x, header_row_y - 12, choice)
-                        choice_x += bubble_spacing
+                    if col_start <= question_count:
+                        c.setFont("Helvetica-Bold", 8)
+                        col_title = f"Q{col_start}-{min(col_end, question_count)}"
+                        title_width = c.stringWidth(col_title, "Helvetica-Bold", 8)
+                        title_x = col_x + (column_width - title_width) / 2
+                        c.drawString(title_x, grid_start_y - 18, col_title)
+                        
+                        # Choice headers with better spacing
+                        c.setFont("Helvetica", 7)
+                        choice_start_x = col_x + 30  # More space for question numbers
+                        for i, choice in enumerate(choices):
+                            choice_x = choice_start_x + i * bubble_spacing
+                            c.drawString(choice_x + 2, grid_start_y - 35, choice)  # Better alignment
+                        
+                        # Draw questions with improved spacing
+                        for row in range(questions_per_column):
+                            question_num = col_start + row
+                            if question_num > question_count or question_num > col_end:
+                                break
+                            
+                            row_y = grid_start_y - 40 - (row * row_height)  # Better starting position
+                            
+                            # Question number with better positioning
+                            c.setFont("Helvetica", 8)
+                            q_text = f"{question_num}."
+                            c.drawString(col_x + 8, row_y - 6, q_text)  # Better padding from edge
+                            
+                            # Answer bubbles with improved positioning
+                            for i, choice in enumerate(choices):
+                                bubble_x = choice_start_x + i * bubble_spacing + bubble_radius
+                                bubble_y = row_y - 6  # Better vertical alignment
+                                
+                                c.setLineWidth(1.5)
+                                c.circle(bubble_x, bubble_y, bubble_radius, stroke=1, fill=0)
                 
-                # Draw column separators (vertical lines between columns)
-                c.setLineWidth(1)
-                for col in range(1, columns_needed):
-                    x_separator = margin + col * column_width
-                    # Draw line from header top to bottom of answer area
-                    c.line(x_separator, header_row_y, x_separator, grid_start_y - grid_height)
+                # Update for next page
+                current_question += questions_this_page
                 
-                # Draw the answer grid - 40 rows per column (no individual question borders)
+                # Footer with better positioning
+                footer_y = 30  # More space from bottom
                 c.setFont("Helvetica", 7)
+                footer_text = "ALPHA V4 - Compact Design | CheckMate System"
+                text_width = c.stringWidth(footer_text, "Helvetica", 7)
+                footer_x = margin + (content_width - text_width) / 2
+                c.drawString(footer_x, footer_y, footer_text)
                 
-                for col in range(columns_needed):
-                    x_col_start = margin + col * column_width
-                    
-                    for row in range(rows_per_column):
-                        question_num = current_question + col * rows_per_column + row
-                        
-                        if question_num > question_count:
-                            break
-                        
-                        # Calculate row position with 1px margin
-                        row_y = grid_start_y - header_cell_height - 5 - (row * row_height) - 1  # Added 1px margin
-                        
-                        # Alternating row background (light) with margin
-                        if row % 2 == 0:
-                            c.setFillGray(0.97)
-                            c.rect(x_col_start + 2, row_y - row_height + 3, column_width - 4, row_height - 1, stroke=0, fill=1)  # Reduced height by 1px for margin
-                            c.setFillGray(0)
-                        
-                        # Draw question number
-                        c.setFont("Helvetica-Bold", 7)
-                        c.drawString(x_col_start + 5, row_y - 8, f"{question_num}.")
-                        
-                        # Draw bubbles for each choice
-                        choice_x = x_col_start + 22
-                        for choice in choices:
-                            # Draw empty circle (bubble)
-                            bubble_center_x = choice_x + bubble_radius
-                            bubble_center_y = row_y - 7
-                            c.setLineWidth(1)
-                            c.circle(bubble_center_x, bubble_center_y, bubble_radius, stroke=1, fill=0)
-                            choice_x += bubble_spacing
+                # Corner alignment markers (slightly larger for better visibility)
+                marker_size = 8
+                c.setFillGray(0)
+                c.rect(margin - 4, height - margin - 4, marker_size, marker_size, stroke=0, fill=1)
+                c.rect(width - margin - 4, height - margin - 4, marker_size, marker_size, stroke=0, fill=1)
+                c.rect(margin - 4, margin - 4, marker_size, marker_size, stroke=0, fill=1)
+                c.rect(width - margin - 4, margin - 4, marker_size, marker_size, stroke=0, fill=1)
                 
-                # Update current question for next page
-                questions_on_this_page = min(questions_per_page, question_count - current_question + 1)
-                current_question += questions_on_this_page
-                
-                # Footer positioned correctly at bottom
-                footer_y = 0.4 * inch  # Reduced from 0.5 inch for more space
-                c.setFont("Helvetica", 8)
-                footer_text = f"Generated by CheckMate - Optimized for OMR Processing"
-                draw_centered_text(c, width/2, footer_y, footer_text, "Helvetica", 8)
-                
-                # Start new page if more questions remain
+                # Start new page if more questions
                 if current_question <= question_count:
                     c.showPage()
                     page_num += 1
             
-            # Save the PDF
             c.save()
-            
-            # Get PDF data
             pdf_data = buffer.getvalue()
             buffer.close()
-            
-            # Write to response
             response.write(pdf_data)
             return response
             
@@ -645,75 +592,10 @@ class AnswerKeyService:
         except Exception as e:
             logger.error(f"PDF generation error: {str(e)}")
             return AnswerKeyService._create_pdf_error_response(test_type, question_count, str(e))
-    
-    @staticmethod
-    def _create_reportlab_install_response(test_type, question_count):
-        """Create a response indicating ReportLab needs to be installed"""
-        from django.http import HttpResponse
-        
-        response = HttpResponse(content_type='text/plain')
-        response['Content-Disposition'] = f'attachment; filename="INSTALL_REPORTLAB_FOR_PDF.txt"'
-        
-        content = f"""
-CheckMate PDF Template Generation
-
-ERROR: ReportLab library is not installed.
-
-To enable PDF template generation, please install ReportLab:
-
-1. Open your terminal/command prompt
-2. Navigate to your project directory
-3. Run: pip install reportlab
-
-After installation, refresh this page and try downloading the PDF template again.
-
-ALTERNATIVE: You can use the CSV template option which doesn't require additional libraries.
-
-Template Request Details:
-- Test Type: {test_type}
-- Question Count: {question_count}
-- Requested Format: PDF
-
-For support, please contact your system administrator.
-"""
-        
-        response.write(content)
-        return response
-    
-    @staticmethod
-    def _create_pdf_error_response(test_type, question_count, error_message):
-        """Create a response for PDF generation errors"""
-        from django.http import HttpResponse
-        
-        response = HttpResponse(content_type='text/plain')
-        response['Content-Disposition'] = f'attachment; filename="PDF_GENERATION_ERROR.txt"'
-        
-        content = f"""
-CheckMate PDF Template Generation Error
-
-An error occurred while generating the PDF template.
-
-Error Details: {error_message}
-
-Template Request Details:
-- Test Type: {test_type}
-- Question Count: {question_count}
-- Requested Format: PDF
-
-ALTERNATIVE SOLUTIONS:
-1. Try the CSV template option instead
-2. Reduce the number of questions if it's very large
-3. Contact your system administrator
-
-For immediate use, please use the CSV template download option.
-"""
-        
-        response.write(content)
-        return response
 
     @staticmethod
     def generate_answer_key_pdf(test_info, answer_keys, mode='answer_key'):
-        """Generate PDF for answer key or answer sheet with actual test data"""
+        """Generate compact PDF for answer key or answer sheet with improved padding"""
         import io
         import logging
         from django.http import HttpResponse
@@ -721,28 +603,23 @@ For immediate use, please use the CSV template download option.
         logger = logging.getLogger(__name__)
         
         try:
-            # Try to use ReportLab for PDF generation
             from reportlab.pdfgen import canvas
             from reportlab.lib.pagesizes import letter, A4
             from reportlab.lib.units import inch
             
-            # Clean test name for filename (remove special characters)
+            # Clean test name for filename
             import re
             clean_test_name = re.sub(r'[^\w\s-]', '', test_info.test_name)
             clean_test_name = re.sub(r'[-\s]+', '_', clean_test_name)
             
-            # Create response with concatenated filename
             if mode == 'answer_key':
-                filename = f"{clean_test_name}_answer_key.pdf"
-                content_disposition = f'attachment; filename="{filename}"'
+                filename = f"ALPHA_V4_{clean_test_name}_answer_key.pdf"
             else:
-                filename = f"{clean_test_name}_answer_sheet.pdf"
-                content_disposition = f'attachment; filename="{filename}"'
+                filename = f"ALPHA_V4_{clean_test_name}_answer_sheet.pdf"
             
             response = HttpResponse(content_type='application/pdf')
-            response['Content-Disposition'] = content_disposition
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
-            # Create PDF buffer
             buffer = io.BytesIO()
             
             # Get test type info
@@ -759,40 +636,21 @@ For immediate use, please use the CSV template download option.
                 type_display = 'Multiple Choice (A, B, C, D)'
                 choices = ['A', 'B', 'C', 'D']
             
-            # Create canvas
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
             
-            # Fixed layout parameters
-            margin = 0.25 * inch
+            # ALPHA V4 - IMPROVED LAYOUT (same as template)
+            margin = 0.4 * inch
             content_width = width - 2 * margin
-            
-            # Grid configuration based on test type
-            if test_info.test_type == 'true_false':
-                max_columns = 8
-                rows_per_column = 25  # 200 questions per page
-            elif test_info.test_type == 'multiple_choice_5':
-                max_columns = 5
-                rows_per_column = 40  # 200 questions per page
-            else:  # multiple_choice_4
-                max_columns = 6
-                rows_per_column = 33  # ~200 questions per page
-            
-            questions_per_page = max_columns * rows_per_column
-            
-            # Calculate spacing
-            column_width = content_width / max_columns
+            columns = 4
+            questions_per_page = 100
+            questions_per_column = 25
+            column_width = content_width / columns
             row_height = 14
             bubble_radius = 5
-            bubble_spacing = 12
+            bubble_spacing = 16
             
-            # Helper function to draw centered text
-            def draw_centered_text(canvas_obj, x, y, text, font_name="Helvetica", font_size=10):
-                canvas_obj.setFont(font_name, font_size)
-                text_width = canvas_obj.stringWidth(text, font_name, font_size)
-                canvas_obj.drawString(x - text_width/2, y, text)
-            
-            # Create a mapping of answers for quick lookup
+            # Create answer mapping
             answer_map = {}
             for answer_key in answer_keys:
                 answer_map[answer_key.question_number] = answer_key.answer
@@ -801,236 +659,180 @@ For immediate use, please use the CSV template download option.
             page_num = 1
             
             while current_question <= test_info.question_count:
-                # Header section
+                # IMPROVED HEADER
                 header_y = height - 0.3 * inch
+                header_height = 45
                 
-                # Main title with border
                 c.setLineWidth(2)
-                header_height = 55
                 c.rect(margin, header_y - header_height, content_width, header_height, stroke=1, fill=0)
                 
                 # Title
-                c.setFont("Helvetica-Bold", 16)
-                title_y = header_y - 15
+                c.setFont("Helvetica-Bold", 13)
                 if mode == 'answer_key':
-                    draw_centered_text(c, width/2, title_y, f"{test_info.test_name} - Answer Key", "Helvetica-Bold", 16)
+                    title_text = f"ALPHA V4 - {test_info.test_name} (ANSWER KEY)"
                 else:
-                    draw_centered_text(c, width/2, title_y, f"{test_info.test_name} - Answer Sheet", "Helvetica-Bold", 16)
+                    title_text = f"ALPHA V4 - {test_info.test_name} (SHEET)"
                 
-                # Test info
-                c.setFont("Helvetica-Bold", 10)
-                info_y = title_y - 18
-                draw_centered_text(c, width/2, info_y, f"Test Type: {type_display}", "Helvetica-Bold", 10)
+                # Truncate title if too long
+                if len(title_text) > 55:
+                    title_text = title_text[:52] + "..."
                 
-                info_y -= 10
-                date_str = test_info.created_at.strftime("%B %d, %Y")
-                draw_centered_text(c, width/2, info_y, f"Questions: {test_info.question_count} | Date: {date_str}", "Helvetica", 9)
+                text_width = c.stringWidth(title_text, "Helvetica-Bold", 13)
+                title_x = margin + (content_width - text_width) / 2
+                c.drawString(title_x, header_y - 16, title_text)
                 
-                # Course info
-                if test_info.course:
-                    info_y -= 10
-                    course_info = f"Course: {test_info.course.course_code} - {test_info.course.course_name}"
-                    if test_info.course.academic_year or test_info.course.semester:
-                        course_details = []
-                        if test_info.course.academic_year:
-                            course_details.append(f"AY: {test_info.course.academic_year}")
-                        if test_info.course.semester:
-                            course_details.append(f"Sem: {test_info.course.semester}")
-                        course_info += f" | {' | '.join(course_details)}"
-                    draw_centered_text(c, width/2, info_y, course_info, "Helvetica", 8)
+                # Question range and info
+                questions_this_page = min(questions_per_page, test_info.question_count - current_question + 1)
+                end_question = current_question + questions_this_page - 1
                 
-                if page_num > 1:
-                    info_y -= 8
-                    draw_centered_text(c, width/2, info_y, f"Page {page_num}", "Helvetica-Bold", 9)
+                c.setFont("Helvetica", 9)
+                info_text = f"Questions {current_question}-{end_question} | {type_display} | Page {page_num}"
+                text_width = c.stringWidth(info_text, "Helvetica", 9)
+                info_x = margin + (content_width - text_width) / 2
+                c.drawString(info_x, header_y - 32, info_text)
                 
-                # Student Information Section - only for answer sheets on first page
+                # IMPROVED STUDENT INFO (only for answer sheets on first page)
                 if mode == 'answer_sheet' and page_num == 1:
-                    student_info_y = header_y - header_height - 8
-                    
-                    # Student info box
-                    info_box_height = 45
-                    c.setLineWidth(2)
-                    c.rect(margin, student_info_y - info_box_height, content_width, info_box_height, stroke=1, fill=0)
-                    
-                    # Background shading
-                    c.setFillGray(0.95)
-                    c.rect(margin + 1, student_info_y - info_box_height + 1, content_width - 2, info_box_height - 2, stroke=0, fill=1)
-                    c.setFillGray(0)
-                    
-                    # Student info title
-                    c.setFont("Helvetica-Bold", 12)
-                    c.drawString(margin + 5, student_info_y - 12, "STUDENT INFORMATION")
-                    
-                    # Student info fields
-                    c.setFont("Helvetica-Bold", 9)
-                    field_y = student_info_y - 22
-                    
-                    # Row 1
-                    c.drawString(margin + 10, field_y, "Name:")
-                    c.line(margin + 45, field_y - 2, margin + content_width/2 - 10, field_y - 2)
-                    
-                    c.drawString(margin + content_width/2, field_y, "Student ID:")
-                    c.line(margin + content_width/2 + 60, field_y - 2, margin + content_width - 10, field_y - 2)
-                    
-                    # Row 2
-                    field_y -= 12  # Reduced spacing
-                    c.drawString(margin + 10, field_y, "Course:")
-                    c.line(margin + 50, field_y - 2, margin + content_width/2 - 10, field_y - 2)
-                    
-                    c.drawString(margin + content_width/2, field_y, "Section:")
-                    c.line(margin + content_width/2 + 45, field_y - 2, margin + content_width - 10, field_y - 2)
-                    
-                    # Instructions box
-                    instructions_y = student_info_y - info_box_height - 8
-                    instructions_height = 30
+                    student_y = header_y - header_height - 15
+                    info_height = 55
                     
                     c.setLineWidth(1)
-                    c.rect(margin, instructions_y - instructions_height, content_width, instructions_height, stroke=1, fill=0)
+                    c.rect(margin, student_y - info_height, content_width, info_height, stroke=1, fill=0)
                     
-                    # Instructions background
-                    c.setFillGray(0.98)
-                    c.rect(margin + 1, instructions_y - instructions_height + 1, content_width - 2, instructions_height - 2, stroke=0, fill=1)
+                    c.setFillGray(0.95)
+                    c.rect(margin + 1, student_y - info_height + 1, content_width - 2, info_height - 2, stroke=0, fill=1)
                     c.setFillGray(0)
                     
                     c.setFont("Helvetica-Bold", 10)
-                    c.drawString(margin + 5, instructions_y - 10, "INSTRUCTIONS:")
+                    c.drawString(margin + 8, student_y - 18, "STUDENT INFO")
                     
-                    c.setFont("Helvetica", 8)
-                    c.drawString(margin + 10, instructions_y - 20, "• Fill in the bubbles completely with a dark pencil or pen")
-                    c.drawString(margin + 10, instructions_y - 28, "• Make sure only one answer is selected per question • Erase completely if you need to change an answer")
+                    c.setFont("Helvetica", 9)
+                    c.drawString(margin + 12, student_y - 34, "Name:")
+                    c.line(margin + 55, student_y - 36, margin + content_width/2 - 12, student_y - 36)
                     
-                    grid_start_y = instructions_y - instructions_height - 10  # Reduced from 20
+                    c.drawString(margin + content_width/2 + 12, student_y - 34, "ID:")
+                    c.line(margin + content_width/2 + 35, student_y - 36, margin + content_width - 12, student_y - 36)
+                    
+                    c.drawString(margin + 12, student_y - 50, "Course:")
+                    c.line(margin + 55, student_y - 52, margin + content_width/2 - 12, student_y - 52)
+                    
+                    c.drawString(margin + content_width/2 + 12, student_y - 50, "Section:")
+                    c.line(margin + content_width/2 + 55, student_y - 52, margin + content_width - 12, student_y - 52)
+                    
+                    grid_start_y = student_y - info_height - 20
                 else:
-                    # For answer keys or subsequent pages
-                    grid_start_y = header_y - header_height - 10  # Reduced from 20
+                    grid_start_y = header_y - header_height - 20
                 
-                # Calculate columns needed for remaining questions
-                remaining_questions = test_info.question_count - current_question + 1
-                columns_needed = min(max_columns, (remaining_questions + rows_per_column - 1) // rows_per_column)
-                
-                # Draw main answer grid border
-                grid_height = rows_per_column * row_height + 25
+                # IMPROVED ANSWER GRID
+                grid_height = questions_per_column * row_height + 40
                 c.setLineWidth(2)
                 c.rect(margin, grid_start_y - grid_height, content_width, grid_height, stroke=1, fill=0)
                 
-                # Column headers with background
-                header_row_y = grid_start_y - 5
-                header_cell_height = 20
-                
-                for col in range(columns_needed):
-                    x_col_start = margin + col * column_width
+                # Draw 4 columns with improved spacing
+                for col in range(columns):
+                    col_x = margin + col * column_width
                     
-                    # Header cell border
+                    # Column separator
+                    if col > 0:
+                        c.setLineWidth(1)
+                        separator_x = col_x + 3
+                        c.line(separator_x, grid_start_y - 5, separator_x, grid_start_y - grid_height + 5)
+                    
+                    # Column header
+                    header_padding = 4
                     c.setLineWidth(1)
-                    c.rect(x_col_start + 1, header_row_y - header_cell_height, column_width - 2, header_cell_height, stroke=1, fill=0)
-                    
-                    # Header background
+                    c.rect(col_x + header_padding, grid_start_y - 25, column_width - (2 * header_padding), 20, stroke=1, fill=0)
                     c.setFillGray(0.9)
-                    c.rect(x_col_start + 2, header_row_y - header_cell_height + 1, column_width - 4, header_cell_height - 2, stroke=0, fill=1)
+                    c.rect(col_x + header_padding + 1, grid_start_y - 24, column_width - (2 * header_padding) - 2, 18, stroke=0, fill=1)
                     c.setFillGray(0)
                     
-                    # Draw "Q" header
-                    c.setFont("Helvetica-Bold", 8)
-                    c.drawString(x_col_start + 8, header_row_y - 12, "Q")
+                    # Calculate question range for this column
+                    col_start = current_question + col * questions_per_column
+                    col_end = min(col_start + questions_per_column - 1, current_question + questions_this_page - 1)
                     
-                    # Draw choice headers
-                    choice_x = x_col_start + 22
-                    for choice in choices:
-                        display_choice = choice
-                        if choice == 'True':
-                            display_choice = 'T'
-                        elif choice == 'False':
-                            display_choice = 'F'
-                        c.drawString(choice_x, header_row_y - 12, display_choice)
-                        choice_x += bubble_spacing
+                    if col_start <= test_info.question_count:
+                        c.setFont("Helvetica-Bold", 8)
+                        col_title = f"Q{col_start}-{min(col_end, test_info.question_count)}"
+                        title_width = c.stringWidth(col_title, "Helvetica-Bold", 8)
+                        title_x = col_x + (column_width - title_width) / 2
+                        c.drawString(title_x, grid_start_y - 18, col_title)
+                        
+                        # Choice headers
+                        c.setFont("Helvetica", 7)
+                        choice_start_x = col_x + 30
+                        for i, choice in enumerate(choices):
+                            choice_x = choice_start_x + i * bubble_spacing
+                            display_choice = choice
+                            if choice == 'True':
+                                display_choice = 'T'
+                            elif choice == 'False':
+                                display_choice = 'F'
+                            c.drawString(choice_x + 2, grid_start_y - 35, display_choice)
+                        
+                        # Draw questions
+                        for row in range(questions_per_column):
+                            question_num = col_start + row
+                            if question_num > test_info.question_count or question_num > col_end:
+                                break
+                            
+                            row_y = grid_start_y - 40 - (row * row_height)
+                            
+                            # Question number
+                            c.setFont("Helvetica", 8)
+                            c.drawString(col_x + 8, row_y - 6, f"{question_num}.")
+                            
+                            # Answer bubbles
+                            correct_answer = answer_map.get(question_num)
+                            
+                            for i, choice in enumerate(choices):
+                                bubble_x = choice_start_x + i * bubble_spacing + bubble_radius
+                                bubble_y = row_y - 6
+                                
+                                c.setLineWidth(1.5)
+                                
+                                # Fill bubble if correct answer and answer key mode
+                                if mode == 'answer_key' and correct_answer == choice:
+                                    c.setFillGray(0)  # Black fill
+                                    c.circle(bubble_x, bubble_y, bubble_radius, stroke=1, fill=1)
+                                    c.setFillGray(0)
+                                else:
+                                    c.circle(bubble_x, bubble_y, bubble_radius, stroke=1, fill=0)
                 
-                # Draw column separators
-                c.setLineWidth(1)
-                for col in range(1, columns_needed):
-                    x_separator = margin + col * column_width
-                    c.line(x_separator, header_row_y, x_separator, grid_start_y - grid_height)
+                # Update for next page
+                current_question += questions_this_page
                 
-                # Draw the answer grid
+                # Footer with better positioning
+                footer_y = 30
                 c.setFont("Helvetica", 7)
+                footer_text = "ALPHA V4 - Compact Design | CheckMate System"
+                text_width = c.stringWidth(footer_text, "Helvetica", 7)
+                footer_x = margin + (content_width - text_width) / 2
+                c.drawString(footer_x, footer_y, footer_text)
                 
-                for col in range(columns_needed):
-                    x_col_start = margin + col * column_width
-                    
-                    for row in range(rows_per_column):
-                        question_num = current_question + col * rows_per_column + row
-                        
-                        if question_num > test_info.question_count:
-                            break
-                        
-                        # Calculate row position with 1px margin
-                        row_y = grid_start_y - header_cell_height - 5 - (row * row_height) - 1
-                        
-                        # Alternating row background (light) with margin
-                        if row % 2 == 0:
-                            c.setFillGray(0.97)
-                            c.rect(x_col_start + 2, row_y - row_height + 3, column_width - 4, row_height - 1, stroke=0, fill=1)
-                            c.setFillGray(0)
-                        
-                        # Draw question number
-                        c.setFont("Helvetica-Bold", 7)
-                        c.drawString(x_col_start + 5, row_y - 8, f"{question_num}.")
-                        
-                        # Draw bubbles for each choice
-                        choice_x = x_col_start + 22
-                        correct_answer = answer_map.get(question_num)
-                        
-                        for choice in choices:
-                            # Draw bubble circle
-                            bubble_center_x = choice_x + bubble_radius
-                            bubble_center_y = row_y - 7
-                            c.setLineWidth(1)
-                            
-                            # Fill bubble if this is the correct answer and we're in answer key mode
-                            if mode == 'answer_key' and correct_answer == choice:
-                                # Fill the bubble for answer key
-                                c.setFillGray(0)  # Black fill
-                                c.circle(bubble_center_x, bubble_center_y, bubble_radius, stroke=1, fill=1)
-                                c.setFillGray(0)  # Reset fill color
-                            else:
-                                # Empty bubble for answer sheet or non-correct answers
-                                c.circle(bubble_center_x, bubble_center_y, bubble_radius, stroke=1, fill=0)
-                            
-                            choice_x += bubble_spacing
+                # Corner markers
+                marker_size = 8
+                c.setFillGray(0)
+                c.rect(margin - 4, height - margin - 4, marker_size, marker_size, stroke=0, fill=1)
+                c.rect(width - margin - 4, height - margin - 4, marker_size, marker_size, stroke=0, fill=1)
+                c.rect(margin - 4, margin - 4, marker_size, marker_size, stroke=0, fill=1)
+                c.rect(width - margin - 4, margin - 4, marker_size, marker_size, stroke=0, fill=1)
                 
-                # Update current question for next page
-                questions_on_this_page = min(questions_per_page, test_info.question_count - current_question + 1)
-                current_question += questions_on_this_page
-                
-                # Footer positioned correctly at bottom
-                footer_y = 0.4 * inch  # Reduced from 0.5 inch for more space
-                c.setFont("Helvetica", 8)
-                footer_text = f"Generated by CheckMate - Optimized for OMR Processing"
-                draw_centered_text(c, width/2, footer_y, footer_text, "Helvetica", 8)
-                
-                # Start new page if more questions remain
                 if current_question <= test_info.question_count:
                     c.showPage()
                     page_num += 1
             
-            # Save the PDF
             c.save()
-            
-            # Get PDF data
             pdf_data = buffer.getvalue()
             buffer.close()
-            
-            # Write to response
             response.write(pdf_data)
             return response
             
         except ImportError as e:
             logger.warning(f"ReportLab not available: {str(e)}")
-            # Fallback to HTML print
             return None
             
         except Exception as e:
             logger.error(f"PDF generation error: {str(e)}")
-            # Fallback to HTML print
             return None
 
 def get_answer_choices_for_type(test_type):
