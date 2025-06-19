@@ -399,7 +399,7 @@ class AnswerKeyService:
             from reportlab.lib.units import inch
             
             response = HttpResponse(content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="ALPHA_V4_template_{test_type}_{question_count}q.pdf"'
+            response['Content-Disposition'] = f'attachment; filename="CheckMate_V4_template_{test_type}_{question_count}q.pdf"'
             
             buffer = io.BytesIO()
             
@@ -420,7 +420,7 @@ class AnswerKeyService:
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
             
-            # ALPHA V4 - IMPROVED LAYOUT PARAMETERS
+            # CHECKMATE V4 - IMPROVED LAYOUT PARAMETERS
             margin = 0.4 * inch  # Slightly larger margins for better appearance
             content_width = width - 2 * margin
             
@@ -588,7 +588,7 @@ class AnswerKeyService:
                 # Update for next page
                 current_question += questions_this_page
                 
-                # Footer with better positioning
+                # Footer with updated CheckMate branding
                 footer_y = 30  # More space from bottom
                 c.setFont("Helvetica", 7)
                 footer_text = "CheckMate: AI-Powered Test Score Scanner"
@@ -643,9 +643,9 @@ class AnswerKeyService:
             clean_test_name = re.sub(r'[-\s]+', '_', clean_test_name)
             
             if mode == 'answer_key':
-                filename = f"ALPHA_V4_{clean_test_name}_answer_key.pdf"
+                filename = f"CheckMate_V4_{clean_test_name}_answer_key.pdf"
             else:
-                filename = f"ALPHA_V4_{clean_test_name}_answer_sheet.pdf"
+                filename = f"CheckMate_V4_{clean_test_name}_answer_sheet.pdf"
             
             response = HttpResponse(content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -859,7 +859,7 @@ class AnswerKeyService:
                 # Update for next page
                 current_question += questions_this_page
                 
-                # Footer with better positioning
+                # Footer with updated CheckMate branding
                 footer_y = 30
                 c.setFont("Helvetica", 7)
                 footer_text = "CheckMate: AI-Powered Test Score Scanner"
