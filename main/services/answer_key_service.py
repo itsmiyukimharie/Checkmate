@@ -385,7 +385,7 @@ class AnswerKeyService:
         return response
     
     @staticmethod
-    def generate_pdf_template(test_type, question_count):
+    def generate_pdf_template(test_type, question_count, test_title=None, academic_year=None, semester=None):
         """Generate a compact PDF template with improved padding and spacing"""
         import io
         import logging
@@ -439,29 +439,59 @@ class AnswerKeyService:
             page_num = 1
             
             while current_question <= question_count:
-                # IMPROVED HEADER with better padding
+                # IMPROVED HEADER with test information
                 header_y = height - 0.3 * inch  # More space from top
-                header_height = 45  # Slightly increased
+                header_height = 60 if test_title or academic_year or semester else 45  # Dynamic height
                 
                 c.setLineWidth(2)
                 c.rect(margin, header_y - header_height, content_width, header_height, stroke=1, fill=0)
                 
-                # Title with better vertical centering
-                c.setFont("Helvetica-Bold", 13)  # Slightly smaller for better fit
-                title_text = f"ALPHA V4 - {type_display}"
+                # Main title with test information
+                c.setFont("Helvetica-Bold", 13)
+                if test_title:
+                    title_text = f"{test_title}"
+                    # Truncate if too long
+                    if len(title_text) > 60:
+                        title_text = title_text[:57] + "..."
+                else:
+                    title_text = f"{type_display}"
+                
                 text_width = c.stringWidth(title_text, "Helvetica-Bold", 13)
                 title_x = margin + (content_width - text_width) / 2
-                c.drawString(title_x, header_y - 16, title_text)  # Better vertical position
+                c.drawString(title_x, header_y - 16, title_text)
                 
-                # Question range and page info with better spacing
-                questions_this_page = min(questions_per_page, question_count - current_question + 1)
-                end_question = current_question + questions_this_page - 1
-                
-                c.setFont("Helvetica", 9)
-                info_text = f"Questions {current_question}-{end_question} | Total: {question_count} | Page {page_num}"
-                text_width = c.stringWidth(info_text, "Helvetica", 9)
-                info_x = margin + (content_width - text_width) / 2
-                c.drawString(info_x, header_y - 32, info_text)  # Better spacing from title
+                # Academic information line
+                if academic_year or semester:
+                    c.setFont("Helvetica", 10)
+                    academic_info = []
+                    if academic_year:
+                        academic_info.append(f"AY: {academic_year}")
+                    if semester:
+                        academic_info.append(f"Semester: {semester}")
+                    
+                    academic_text = " | ".join(academic_info)
+                    text_width = c.stringWidth(academic_text, "Helvetica", 10)
+                    academic_x = margin + (content_width - text_width) / 2
+                    c.drawString(academic_x, header_y - 32, academic_text)
+                    
+                    # Question range and info
+                    questions_this_page = min(questions_per_page, question_count - current_question + 1)
+                    end_question = current_question + questions_this_page - 1
+                    
+                    info_text = f"Questions {current_question}-{end_question} | Total: {question_count} | Page {page_num}"
+                    text_width = c.stringWidth(info_text, "Helvetica", 10)
+                    info_x = margin + (content_width - text_width) / 2
+                    c.drawString(info_x, header_y - 48, info_text)
+                else:
+                    # Question range and info (original position)
+                    questions_this_page = min(questions_per_page, question_count - current_question + 1)
+                    end_question = current_question + questions_this_page - 1
+                    
+                    c.setFont("Helvetica", 10)
+                    info_text = f"Questions {current_question}-{end_question} | Total: {question_count} | Page {page_num}"
+                    text_width = c.stringWidth(info_text, "Helvetica", 10)
+                    info_x = margin + (content_width - text_width) / 2
+                    c.drawString(info_x, header_y - 32, info_text)
                 
                 # IMPROVED STUDENT INFO (only on first page)
                 if page_num == 1:
@@ -478,7 +508,7 @@ class AnswerKeyService:
                     # Better spacing and alignment for form fields
                     c.drawString(margin + 12, student_y - 34, "Name:")
                     c.line(margin + 55, student_y - 36, margin + content_width/2 - 12, student_y - 36)
-                    
+
                     c.drawString(margin + content_width/2 + 12, student_y - 34, "ID:")
                     c.line(margin + content_width/2 + 35, student_y - 36, margin + content_width - 12, student_y - 36)
                     
@@ -561,7 +591,7 @@ class AnswerKeyService:
                 # Footer with better positioning
                 footer_y = 30  # More space from bottom
                 c.setFont("Helvetica", 7)
-                footer_text = "ALPHA V4 - Compact Design | CheckMate System"
+                footer_text = "CheckMate: AI-Powered Test Score Scanner"
                 text_width = c.stringWidth(footer_text, "Helvetica", 7)
                 footer_x = margin + (content_width - text_width) / 2
                 c.drawString(footer_x, footer_y, footer_text)
@@ -659,19 +689,23 @@ class AnswerKeyService:
             page_num = 1
             
             while current_question <= test_info.question_count:
-                # IMPROVED HEADER
+                # IMPROVED HEADER with test information
                 header_y = height - 0.3 * inch
-                header_height = 45
+                
+                # Determine if we need extra space for academic info
+                has_academic_info = (test_info.course and 
+                                   (test_info.course.academic_year or test_info.course.semester))
+                header_height = 60 if has_academic_info else 45
                 
                 c.setLineWidth(2)
                 c.rect(margin, header_y - header_height, content_width, header_height, stroke=1, fill=0)
                 
-                # Title
+                # Title with test information
                 c.setFont("Helvetica-Bold", 13)
                 if mode == 'answer_key':
-                    title_text = f"ALPHA V4 - {test_info.test_name} (ANSWER KEY)"
+                    title_text = f"{test_info.test_name} (ANSWER KEY)"
                 else:
-                    title_text = f"ALPHA V4 - {test_info.test_name} (SHEET)"
+                    title_text = f"{test_info.test_name} (ANSWER SHEET)"
                 
                 # Truncate title if too long
                 if len(title_text) > 55:
@@ -681,15 +715,39 @@ class AnswerKeyService:
                 title_x = margin + (content_width - text_width) / 2
                 c.drawString(title_x, header_y - 16, title_text)
                 
-                # Question range and info
-                questions_this_page = min(questions_per_page, test_info.question_count - current_question + 1)
-                end_question = current_question + questions_this_page - 1
-                
-                c.setFont("Helvetica", 9)
-                info_text = f"Questions {current_question}-{end_question} | {type_display} | Page {page_num}"
-                text_width = c.stringWidth(info_text, "Helvetica", 9)
-                info_x = margin + (content_width - text_width) / 2
-                c.drawString(info_x, header_y - 32, info_text)
+                # Academic information line
+                if has_academic_info:
+                    c.setFont("Helvetica", 10)
+                    academic_info = []
+                    if test_info.course.academic_year:
+                        academic_info.append(f"AY: {test_info.course.academic_year}")
+                    if test_info.course.semester:
+                        academic_info.append(f"Semester: {test_info.course.semester}")
+                    
+                    if academic_info:
+                        academic_text = " | ".join(academic_info)
+                        text_width = c.stringWidth(academic_text, "Helvetica", 10)
+                        academic_x = margin + (content_width - text_width) / 2
+                        c.drawString(academic_x, header_y - 32, academic_text)
+                    
+                    # Question range and info
+                    questions_this_page = min(questions_per_page, test_info.question_count - current_question + 1)
+                    end_question = current_question + questions_this_page - 1
+                    
+                    info_text = f"Questions {current_question}-{end_question} | {type_display} | Page {page_num}"
+                    text_width = c.stringWidth(info_text, "Helvetica", 9)
+                    info_x = margin + (content_width - text_width) / 2
+                    c.drawString(info_x, header_y - 48, info_text)
+                else:
+                    # Question range and info (original position)
+                    questions_this_page = min(questions_per_page, test_info.question_count - current_question + 1)
+                    end_question = current_question + questions_this_page - 1
+                    
+                    c.setFont("Helvetica", 9)
+                    info_text = f"Questions {current_question}-{end_question} | {type_display} | Page {page_num}"
+                    text_width = c.stringWidth(info_text, "Helvetica", 9)
+                    info_x = margin + (content_width - text_width) / 2
+                    c.drawString(info_x, header_y - 32, info_text)
                 
                 # IMPROVED STUDENT INFO (only for answer sheets on first page)
                 if mode == 'answer_sheet' and page_num == 1:
@@ -804,7 +862,7 @@ class AnswerKeyService:
                 # Footer with better positioning
                 footer_y = 30
                 c.setFont("Helvetica", 7)
-                footer_text = "ALPHA V4 - Compact Design | CheckMate System"
+                footer_text = "CheckMate: AI-Powered Test Score Scanner"
                 text_width = c.stringWidth(footer_text, "Helvetica", 7)
                 footer_x = margin + (content_width - text_width) / 2
                 c.drawString(footer_x, footer_y, footer_text)

@@ -4,6 +4,7 @@ import logging
 from PIL import Image
 import pandas as pd
 from django.core.files.uploadedfile import UploadedFile
+from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -337,3 +338,273 @@ class FileProcessingService:
             confidence_scores[i] = 0.75 + (0.2 * random.random())  # 75-95% confidence
         
         return answers, confidence_scores
+    
+    @staticmethod
+    def generate_template_with_info(file_type, test_type, question_count, test_title=None, academic_year=None, semester=None):
+        """Generate template with test information included"""
+        try:
+            if file_type == 'pdf':
+                from ..services.answer_key_service import AnswerKeyService
+                return AnswerKeyService.generate_pdf_template(
+                    test_type=test_type,
+                    question_count=question_count,
+                    test_title=test_title,
+                    academic_year=academic_year,
+                    semester=semester
+                )
+            elif file_type == 'csv':
+                return FileProcessingService._generate_csv_template_with_info(
+                    test_type=test_type,
+                    question_count=question_count,
+                    test_title=test_title,
+                    academic_year=academic_year,
+                    semester=semester
+                )
+            else:
+                raise ValueError(f"Unsupported file type: {file_type}")
+                
+        except Exception as e:
+            logger.error(f"Error generating template: {str(e)}")
+            return None
+    
+    @staticmethod
+    def _generate_csv_template_with_info(test_type, question_count, test_title=None, academic_year=None, semester=None):
+        """Generate CSV template with test information"""
+        import csv
+        from django.http import HttpResponse
+        
+        # Get answer choices
+        if test_type == 'multiple_choice_4':
+            choices = ['A', 'B', 'C', 'D']
+            type_display = 'Multiple Choice (A-D)'
+        elif test_type == 'multiple_choice_5':
+            choices = ['A', 'B', 'C', 'D', 'E']
+            type_display = 'Multiple Choice (A-E)'
+        elif test_type == 'true_false':
+            choices = ['True', 'False']
+            type_display = 'True/False'
+        else:
+            choices = ['A', 'B', 'C', 'D']
+            type_display = 'Multiple Choice (A-D)'
+        
+        # Create filename with test info
+        filename_parts = ['answer_key_template']
+        if test_title:
+            clean_title = ''.join(c for c in test_title if c.isalnum() or c in '-_').rstrip()
+            filename_parts.append(clean_title[:30])  # Limit length
+        filename_parts.extend([test_type, f'{question_count}q'])
+        filename = '_'.join(filename_parts) + '.csv'
+        
+        # Create response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        
+        # Write header information with test details
+        writer.writerow(['# CheckMate Answer Key Template'])
+        if test_title:
+            writer.writerow(['# Test Title:', test_title])
+        writer.writerow(['# Test Type:', type_display])
+        writer.writerow(['# Questions:', question_count])
+        if academic_year:
+            writer.writerow(['# Academic Year:', academic_year])
+        if semester:
+            writer.writerow(['# Semester:', semester])
+        writer.writerow(['# Valid Answers:', ', '.join(choices)])
+        writer.writerow(['# Instructions: Fill in the Answer column with your correct answers'])
+        writer.writerow(['#'])
+        writer.writerow(['# Format: Keep the Question Number column as-is, only modify the Answer column'])
+        writer.writerow(['#'])
+        
+        # Write column headers
+        writer.writerow(['Question Number', 'Answer', 'Notes (Optional)'])
+        
+        # Write empty rows for each question
+        for i in range(1, question_count + 1):
+            writer.writerow([i, '', ''])  # Empty answer and notes
+        
+        # Write footer instructions
+        writer.writerow(['#'])
+        writer.writerow(['# Upload Instructions:'])
+        writer.writerow(['# 1. Fill in the Answer column with correct answers'])
+        writer.writerow(['# 2. Save this file as CSV'])
+        writer.writerow(['# 3. Upload through CheckMate Answer Key Upload'])
+        
+        return response
+    
+    @staticmethod
+    def extract_test_info_from_form(request):
+        """Extract test information from form data"""
+        test_info = {}
+        
+        # Extract basic test info
+        test_info['test_title'] = request.POST.get('test_name', '').strip()
+        test_info['test_type'] = request.POST.get('test_type', 'multiple_choice_4')
+        test_info['question_count'] = int(request.POST.get('question_count', 50))
+        
+        # Extract course information
+        course_id = request.POST.get('course')
+        if course_id:
+            try:
+                from ..models import Courses
+                course = Courses.objects.get(id=course_id, user=request.user)
+                test_info['academic_year'] = course.academic_year
+                test_info['semester'] = course.semester
+                test_info['course_code'] = course.course_code
+                test_info['course_name'] = course.course_name
+            except:
+                test_info['academic_year'] = None
+                test_info['semester'] = None
+        
+        return test_info
+    
+    @staticmethod
+    def process_grading_session_files(request):
+        """Process files uploaded for grading session"""
+        try:
+            files_processed = []
+            errors = []
+            
+            # Get uploaded files
+            student_answer_sheets = request.FILES.getlist('student_answer_sheets')
+            
+            if not student_answer_sheets:
+                return {
+                    'success': False,
+                    'error': 'No files uploaded',
+                    'files_processed': [],
+                    'errors': []
+                }
+            
+            # Process each file
+            for uploaded_file in student_answer_sheets:
+                try:
+                    file_info = {
+                        'name': uploaded_file.name,
+                        'size': uploaded_file.size,
+                        'type': uploaded_file.content_type,
+                        'processed': False,
+                        'student_info': None,
+                        'answers': {},
+                        'errors': []
+                    }
+                    
+                    # Process based on file type
+                    if uploaded_file.content_type == 'application/pdf':
+                        result = FileProcessingService._process_student_pdf(uploaded_file)
+                    elif uploaded_file.content_type.startswith('image/'):
+                        result = FileProcessingService._process_student_image(uploaded_file)
+                    elif uploaded_file.content_type == 'text/csv':
+                        result = FileProcessingService._process_student_csv(uploaded_file)
+                    else:
+                        result = {
+                            'success': False,
+                            'error': f'Unsupported file type: {uploaded_file.content_type}'
+                        }
+                    
+                    if result['success']:
+                        file_info['processed'] = True
+                        file_info['student_info'] = result.get('student_info', {})
+                        file_info['answers'] = result.get('answers', {})
+                    else:
+                        file_info['errors'].append(result.get('error', 'Unknown error'))
+                    
+                    files_processed.append(file_info)
+                    
+                except Exception as e:
+                    errors.append(f"Error processing {uploaded_file.name}: {str(e)}")
+            
+            return {
+                'success': True,
+                'files_processed': files_processed,
+                'errors': errors,
+                'total_files': len(student_answer_sheets),
+                'successful_files': len([f for f in files_processed if f['processed']])
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing grading session files: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'files_processed': [],
+                'errors': []
+            }
+    
+    @staticmethod
+    def _process_student_pdf(pdf_file):
+        """Process individual student PDF file"""
+        try:
+            # Use existing PDF extraction
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
+                pdf_file.seek(0)
+                temp_pdf.write(pdf_file.read())
+                temp_pdf_path = temp_pdf.name
+            
+            try:
+                from ..test_pdf_extraction import StudentInfoExtractor
+                extractor = StudentInfoExtractor()
+                
+                # Process PDF
+                result = extractor.process_pdf(temp_pdf_path, extract_answers=True)
+                
+                if result:
+                    return {
+                        'success': True,
+                        'student_info': {
+                            'name': result['student_name'],
+                            'id': result['student_id']
+                        },
+                        'answers': result['answers']
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Could not extract information from PDF'
+                    }
+                    
+            finally:
+                try:
+                    os.unlink(temp_pdf_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def _process_student_image(image_file):
+        """Process individual student image file"""
+        try:
+            # Basic image processing - can be enhanced
+            return {
+                'success': False,
+                'error': 'Image processing not yet implemented for student sheets'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def _process_student_csv(csv_file):
+        """Process individual student CSV file"""
+        try:
+            # Basic CSV processing - can be enhanced
+            return {
+                'success': False,
+                'error': 'CSV processing not yet implemented for student sheets'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }

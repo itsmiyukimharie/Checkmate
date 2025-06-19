@@ -592,49 +592,36 @@ def get_grading_history(request):
 
 @login_required
 def download_template(request):
-    """Download blank answer key template (PDF or CSV)"""
+    """Download template files with test information"""
+    file_type = request.GET.get('file_type', 'pdf')
+    test_type = request.GET.get('test_type', 'multiple_choice_4')
+    question_count = int(request.GET.get('question_count', 50))
+    
+    # Extract test information from session or request
+    test_title = request.GET.get('test_title')
+    academic_year = request.GET.get('academic_year')
+    semester = request.GET.get('semester')
+    
     try:
-        file_type = request.GET.get('file_type', 'pdf')
-        test_type = request.GET.get('test_type', 'multiple_choice_4')
-        question_count = int(request.GET.get('question_count', 50))
+        from .services.file_processing_service import FileProcessingService
         
-        # Validate parameters
-        if file_type not in ['pdf', 'csv']:
-            messages.error(request, 'Invalid file type requested.')
+        response = FileProcessingService.generate_template_with_info(
+            file_type=file_type,
+            test_type=test_type,
+            question_count=question_count,
+            test_title=test_title,
+            academic_year=academic_year,
+            semester=semester
+        )
+        
+        if response:
+            return response
+        else:
+            messages.error(request, 'Failed to generate template')
             return redirect('main:answer_keys')
-        
-        if test_type not in ['multiple_choice_4', 'multiple_choice_5', 'true_false']:
-            messages.error(request, 'Invalid test type requested.')
-            return redirect('main:answer_keys')
-        
-        # Enforce 200 question maximum
-        if question_count < 1 or question_count > 200:
-            messages.error(request, 'Question count must be between 1 and 200.')
-            return redirect('main:answer_keys')
-        
-        # Log the template request
-        logger.info(f"Template request: {file_type} - {test_type} - {question_count} questions - User: {request.user.username}")
-        
-        # Generate template
-        if file_type == 'csv':
-            return AnswerKeyService.generate_csv_template(test_type, question_count)
-        else:  # PDF
-            try:
-                return AnswerKeyService.generate_pdf_template(test_type, question_count)
-            except Exception as e:
-                logger.error(f"PDF template generation failed: {str(e)}")
-                # Add user-friendly error message
-                messages.error(request, 
-                    f'PDF generation failed: {str(e)}. Please try the CSV template instead or contact support.')
-                return redirect('main:answer_keys')
             
-    except ValueError as e:
-        logger.error(f"Invalid question count: {str(e)}")
-        messages.error(request, 'Invalid question count provided.')
-        return redirect('main:answer_keys')
     except Exception as e:
-        logger.error(f"Template generation error: {str(e)}")
-        messages.error(request, f'Failed to generate template: {str(e)}. Please try again.')
+        messages.error(request, f'Error generating template: {str(e)}')
         return redirect('main:answer_keys')
 
 @login_required
@@ -865,49 +852,36 @@ def get_answer_choices_for_type(test_type):
 
 @login_required
 def download_template(request):
-    """Download blank answer key template (PDF or CSV)"""
+    """Download template files with test information"""
+    file_type = request.GET.get('file_type', 'pdf')
+    test_type = request.GET.get('test_type', 'multiple_choice_4')
+    question_count = int(request.GET.get('question_count', 50))
+    
+    # Extract test information from session or request
+    test_title = request.GET.get('test_title')
+    academic_year = request.GET.get('academic_year')
+    semester = request.GET.get('semester')
+    
     try:
-        file_type = request.GET.get('file_type', 'pdf')
-        test_type = request.GET.get('test_type', 'multiple_choice_4')
-        question_count = int(request.GET.get('question_count', 50))
+        from .services.file_processing_service import FileProcessingService
         
-        # Validate parameters
-        if file_type not in ['pdf', 'csv']:
-            messages.error(request, 'Invalid file type requested.')
+        response = FileProcessingService.generate_template_with_info(
+            file_type=file_type,
+            test_type=test_type,
+            question_count=question_count,
+            test_title=test_title,
+            academic_year=academic_year,
+            semester=semester
+        )
+        
+        if response:
+            return response
+        else:
+            messages.error(request, 'Failed to generate template')
             return redirect('main:answer_keys')
-        
-        if test_type not in ['multiple_choice_4', 'multiple_choice_5', 'true_false']:
-            messages.error(request, 'Invalid test type requested.')
-            return redirect('main:answer_keys')
-        
-        # Enforce 200 question maximum
-        if question_count < 1 or question_count > 200:
-            messages.error(request, 'Question count must be between 1 and 200.')
-            return redirect('main:answer_keys')
-        
-        # Log the template request
-        logger.info(f"Template request: {file_type} - {test_type} - {question_count} questions - User: {request.user.username}")
-        
-        # Generate template
-        if file_type == 'csv':
-            return AnswerKeyService.generate_csv_template(test_type, question_count)
-        else:  # PDF
-            try:
-                return AnswerKeyService.generate_pdf_template(test_type, question_count)
-            except Exception as e:
-                logger.error(f"PDF template generation failed: {str(e)}")
-                # Add user-friendly error message
-                messages.error(request, 
-                    f'PDF generation failed: {str(e)}. Please try the CSV template instead or contact support.')
-                return redirect('main:answer_keys')
             
-    except ValueError as e:
-        logger.error(f"Invalid question count: {str(e)}")
-        messages.error(request, 'Invalid question count provided.')
-        return redirect('main:answer_keys')
     except Exception as e:
-        logger.error(f"Template generation error: {str(e)}")
-        messages.error(request, f'Failed to generate template: {str(e)}. Please try again.')
+        messages.error(request, f'Error generating template: {str(e)}')
         return redirect('main:answer_keys')
 
 @login_required

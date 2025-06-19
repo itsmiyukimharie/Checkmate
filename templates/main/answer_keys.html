@@ -146,8 +146,8 @@
                             </div>
                             <div class="mb-3">
                                 <label for="upload_question_count" class="form-label">Number of Questions</label>
-                                <input type="number" class="form-control rounded-pill" id="upload_question_count" name="question_count" min="1" max="200" value="50" required>
-                                <small class="form-text text-muted">Maximum 200 questions allowed</small>
+                                <input type="number" class="form-control rounded-pill" id="upload_question_count" name="question_count" min="1" max="500" value="50" required>
+                                <small class="form-text text-muted">Maximum 500 questions allowed</small>
                             </div>
                             <div class="mb-3">
                                 <label for="upload_course" class="form-label">Course <span class="text-danger">*</span></label>
@@ -419,8 +419,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="customQuestionCount" class="form-label">Number of Questions</label>
-                        <input type="number" class="form-control" id="customQuestionCount" min="1" max="200" value="50" required>
-                        <small class="form-text text-muted">Enter the number of questions (1-200)</small>
+                        <input type="number" class="form-control" id="customQuestionCount" min="1" max="500" value="50" required>
+                        <small class="form-text text-muted">Enter the number of questions (1-500)</small>
                     </div>
                     <div class="mb-3">
                         <label for="customFileType" class="form-label">File Type</label>
@@ -473,12 +473,37 @@ function downloadTemplate(fileType, testType, questionCount) {
     // Show loading toast
     showToast('Generating template...', 'info');
     
+    // Get test information from form if available
+    const testTitle = document.getElementById('upload_test_name')?.value || 
+                     document.getElementById('{{ create_form.test_name.id_for_label }}')?.value;
+    const courseSelect = document.getElementById('upload_course') || 
+                        document.getElementById('{{ create_form.course.id_for_label }}');
+    
+    let academicYear = '';
+    let semester = '';
+    
+    if (courseSelect && courseSelect.selectedIndex > 0) {
+        const selectedOption = courseSelect.options[courseSelect.selectedIndex];
+        // Extract academic year and semester from course data if available
+        // This would need to be populated from the backend
+        academicYear = selectedOption.dataset.academicYear || '';
+        semester = selectedOption.dataset.semester || '';
+    }
+    
     // Create download URL using Django URL template
     const baseUrl = '{% url "main:download_template" %}';
-    const url = baseUrl + 
-                '?file_type=' + encodeURIComponent(fileType) + 
-                '&test_type=' + encodeURIComponent(testType) + 
-                '&question_count=' + encodeURIComponent(questionCount);
+    const params = new URLSearchParams({
+        'file_type': fileType,
+        'test_type': testType,
+        'question_count': questionCount
+    });
+    
+    // Add optional parameters
+    if (testTitle) params.append('test_title', testTitle);
+    if (academicYear) params.append('academic_year', academicYear);
+    if (semester) params.append('semester', semester);
+    
+    const url = baseUrl + '?' + params.toString();
     
     // Create temporary link for download
     const link = document.createElement('a');
@@ -508,8 +533,8 @@ function downloadCustomTemplate() {
         return;
     }
     
-    if (questionCount < 1 || questionCount > 200) {
-        showToast('Question count must be between 1 and 200', 'warning');
+    if (questionCount < 1 || questionCount > 500) {
+        showToast('Question count must be between 1 and 500', 'warning');
         return;
     }
     
