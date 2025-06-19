@@ -1,0 +1,6 @@
+PyMuPDF
+pytesseract
+Pillow
+opencv-python
+numpy
+scipy
