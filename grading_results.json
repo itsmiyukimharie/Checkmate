@@ -1,0 +1,112 @@
+{
+  "student_name": "Unknown",
+  "student_id": "Unknown",
+  "score": 0.0,
+  "correct_answers": 0,
+  "total_questions": 20,
+  "answers": {
+    "1": "MULTIPLE (A,B,C,D)"
+  },
+  "detailed_results": {
+    "1": {
+      "correct_answer": "A",
+      "student_answer": "MULTIPLE (A,B,C,D)",
+      "is_correct": false
+    },
+    "2": {
+      "correct_answer": "B",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "3": {
+      "correct_answer": "C",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "4": {
+      "correct_answer": "D",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "5": {
+      "correct_answer": "A",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "6": {
+      "correct_answer": "B",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "7": {
+      "correct_answer": "C",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "8": {
+      "correct_answer": "D",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "9": {
+      "correct_answer": "A",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "10": {
+      "correct_answer": "B",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "11": {
+      "correct_answer": "C",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "12": {
+      "correct_answer": "D",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "13": {
+      "correct_answer": "A",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "14": {
+      "correct_answer": "B",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "15": {
+      "correct_answer": "C",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "16": {
+      "correct_answer": "D",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "17": {
+      "correct_answer": "A",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "18": {
+      "correct_answer": "B",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "19": {
+      "correct_answer": "C",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    },
+    "20": {
+      "correct_answer": "D",
+      "student_answer": "NO_ANSWER",
+      "is_correct": false
+    }
+  }
+}
