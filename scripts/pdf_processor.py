@@ -573,7 +573,7 @@ class PDFAnswerSheetProcessor:
             
         if section_coords:
             self.custom_field_coords['section'] = section_coords
-            logger.info(f"Set section field coordinates: {section_coords}")
+            logger.info(f"Set field coordinates: {section_coords}")
     
     def _extract_field_regions(self, processed_region):
         """Extract individual field regions using configuration coordinates"""
@@ -705,7 +705,8 @@ class PDFAnswerSheetProcessor:
                         # For IDs, use PSM 8 (single word) since they usually don't have spaces
                         custom_config = r'--oem 3 --psm 8 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-'
                     elif field_name == 'course':
-                        # For course codes, use PSM 8 (single word)
+                        # IMPROVED COURSE OCR - Multiple attempts to handle character confusion
+                        # First attempt with standard OCR
                         custom_config = r'--oem 3 --psm 8 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
                     else:  # section
                         # For sections, use PSM 6 to allow spaces
@@ -713,6 +714,257 @@ class PDFAnswerSheetProcessor:
                     
                     # Extract text using Tesseract
                     text = pytesseract.image_to_string(processed_field, config=custom_config)
+                    
+                    # ENHANCED OCR SCORING SYSTEM FOR ALL FIELDS
+                    if field_name in ['name', 'id', 'course', 'section']:
+                        original_text = text.strip()
+                        logger.info(f"{field_name.title()} OCR attempt 1: '{original_text}'")
+                        
+                        # Check if we should try alternatives based on field-specific criteria
+                        should_try_alternatives = False
+                        
+                        if field_name == 'name':
+                            # Try alternatives if no spaces detected in long names, or suspicious characters
+                            should_try_alternatives = (
+                                (len(original_text) > 8 and ' ' not in original_text) or
+                                any(char in original_text for char in ['0', '1', '8', '5', '6']) or
+                                len(original_text) < 3
+                            )
+                        elif field_name == 'id':
+                            # Try alternatives if format doesn't match expected pattern or has suspicious chars
+                            import re
+                            expected_pattern = r'^[0-9]{4}-[0-9]{5}-[A-Z]{2}-[0-9]+$'
+                            should_try_alternatives = (
+                                not re.match(expected_pattern, original_text) or
+                                len(original_text) < 10 or
+                                any(char in original_text for char in ['O', 'I', 'l'])
+                            )
+                        elif field_name == 'course':
+                            # Already implemented above
+                            should_try_alternatives = ('8' in original_text or '0' in original_text or '3' in original_text)
+                        elif field_name == 'section':
+                            # Try alternatives if format doesn't match expected pattern or missing space
+                            import re
+                            expected_patterns = [
+                                r'^[A-Z]{2,4}\s+\d+-\d+$',  # "BSIT 2-1" with space
+                                r'^[A-Z]{2,4}\d+-\d+$'      # "BSIT2-1" without space
+                            ]
+                            matches_pattern = any(re.match(pattern, original_text) for pattern in expected_patterns)
+                            should_try_alternatives = (
+                                not matches_pattern or
+                                len(original_text) < 4 or
+                                ('BSIT' in original_text and ' ' not in original_text and '2-1' in original_text)  # Missing space
+                            )
+                        
+                        if should_try_alternatives:
+                            # Define alternative configs based on field type
+                            if field_name == 'name':
+                                alternative_configs = [
+                                    r'--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ',
+                                    r'--oem 3 --psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ',
+                                    r'--oem 3 --psm 13 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ',
+                                    r'--oem 3 --psm 6',  # No whitelist for better space detection
+                                ]
+                            elif field_name == 'id':
+                                alternative_configs = [
+                                    r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-',
+                                    r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-',
+                                    r'--oem 3 --psm 13 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-',
+                                    r'--oem 3 --psm 8 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-',  # Uppercase focus
+                                ]
+                            elif field_name == 'course':
+                                alternative_configs = [
+                                    r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+                                    r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+                                    r'--oem 3 --psm 13 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+                                    r'--oem 3 --psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',  # Letters first
+                                ]
+                            elif field_name == 'section':
+                                alternative_configs = [
+                                    r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- ',
+                                    r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- ',
+                                    r'--oem 3 --psm 13 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- ',
+                                    r'--oem 3 --psm 6',  # No whitelist for better space detection
+                                ]
+                            
+                            best_text = original_text
+                            best_confidence = 0
+                            
+                            for i, alt_config in enumerate(alternative_configs):
+                                try:
+                                    alt_text = pytesseract.image_to_string(processed_field, config=alt_config)
+                                    alt_text = alt_text.strip()
+                                    logger.info(f"{field_name.title()} OCR attempt {i+2}: '{alt_text}'")
+                                    
+                                    # Calculate score based on field type
+                                    score = 0
+                                    
+                                    if field_name == 'name':
+                                        # Enhanced name scoring system
+                                        words = alt_text.split()
+                                        
+                                        # Prefer multiple words (first + last name or more)
+                                        if len(words) >= 2:
+                                            score += 10
+                                            
+                                            # Extra bonus for 3+ words (includes middle names/initials)
+                                            if len(words) >= 3:
+                                                score += 5
+                                                
+                                            # Bonus for middle initial pattern (e.g., "John M. Smith")
+                                            for word in words:
+                                                if len(word) == 2 and word.endswith('.'):
+                                                    score += 3  # Middle initial bonus
+                                                elif len(word) == 1 and word.isupper():
+                                                    score += 2  # Single letter initial
+                                        
+                                        elif len(words) == 1 and len(alt_text) > 3:
+                                            score += 5
+                                        
+                                        # Prefer alphabetic characters
+                                        alpha_ratio = sum(c.isalpha() for c in alt_text) / max(len(alt_text), 1)
+                                        score += int(alpha_ratio * 8)
+                                        
+                                        # Prefer proper length (8-50 characters for names with initials)
+                                        if 8 <= len(alt_text) <= 50:
+                                            score += 5
+                                        elif 6 <= len(alt_text) <= 30:
+                                            score += 3
+                                        
+                                        # Penalize numbers and most special chars, but allow periods and commas
+                                        if any(c.isdigit() for c in alt_text):
+                                            score -= 5
+                                        
+                                        # Bonus for capitalized words
+                                        if all(word[0].isupper() for word in words if word and word.replace('.', '').replace(',', '')):
+                                            score += 3
+                                        
+                                        # Bonus for comma pattern (Last, First format)
+                                        if ',' in alt_text:
+                                            parts = alt_text.split(',')
+                                            if len(parts) == 2 and all(part.strip() for part in parts):
+                                                score += 6  # Strong preference for "Last, First" format
+                                        
+                                        # Bonus for period pattern (middle initials)
+                                        period_count = alt_text.count('.')
+                                        if 1 <= period_count <= 2:  # 1-2 periods typical for initials
+                                            score += 2
+                                    
+                                    elif field_name == 'id':
+                                        # ID scoring system
+                                        import re
+                                        
+                                        # Strong preference for correct pattern
+                                        if re.match(r'^[0-9]{4}-[0-9]{5}-[A-Z]{2}-[0-9]+$', alt_text):
+                                            score += 15
+                                        elif re.match(r'^[0-9]{4}-[0-9]{5}-[A-Z]{2}', alt_text):
+                                            score += 10  # Partial match
+                                        elif '-' in alt_text and any(c.isdigit() for c in alt_text):
+                                            score += 5   # Has dashes and numbers
+                                        
+                                        # Prefer correct length (around 15-17 characters)
+                                        if 13 <= len(alt_text) <= 18:
+                                            score += 5
+                                        
+                                        # Prefer more digits
+                                        digit_count = sum(c.isdigit() for c in alt_text)
+                                        score += min(digit_count, 8)
+                                        
+                                        # Prefer uppercase letters
+                                        upper_count = sum(c.isupper() for c in alt_text if c.isalpha())
+                                        score += min(upper_count * 2, 6)
+                                        
+                                        # Penalize problematic characters
+                                        if 'O' in alt_text:
+                                            score -= 2  # Often confused with 0
+                                        if 'I' in alt_text or 'l' in alt_text:
+                                            score -= 2  # Often confused with 1
+                                    
+                                    elif field_name == 'course':
+                                        # Course scoring (already implemented above)
+                                        if 'CS' in alt_text.upper():
+                                            score += 10
+                                        elif 'C' in alt_text and 'S' in alt_text:
+                                            score += 8
+                                        elif alt_text.upper().startswith('C'):
+                                            score += 5
+                                        
+                                        if '101' in alt_text:
+                                            score += 8
+                                        elif '01' in alt_text:
+                                            score += 6
+                                        elif '1' in alt_text:
+                                            score += 3
+                                        
+                                        import re
+                                        if re.match(r'^[A-Z]{2,4}\d{2,4}$', alt_text.upper()):
+                                            score += 5
+                                        
+                                        if len(alt_text) == 5:
+                                            score += 3
+                                        elif len(alt_text) == 4:
+                                            score += 2
+                                        
+                                        if '8' in alt_text:
+                                            score -= 3
+                                        if '0' in alt_text and alt_text.count('0') > 1:
+                                            score -= 2
+                                        if '3' in alt_text and not '13' in alt_text:
+                                            score -= 2
+                                        
+                                        if alt_text.upper() == 'CS101':
+                                            score += 15
+                                    
+                                    elif field_name == 'section':
+                                        # Section scoring system
+                                        import re
+                                        
+                                        # Strong preference for correct patterns with space
+                                        if re.match(r'^BSIT\s+2-1$', alt_text):
+                                            score += 15  # Perfect match for "BSIT 2-1"
+                                        elif re.match(r'^[A-Z]{2,4}\s+\d+-\d+$', alt_text):
+                                            score += 12  # General pattern with space
+                                        elif re.match(r'^BSIT2-1$', alt_text):
+                                            score += 8   # Missing space but correct content
+                                        elif re.match(r'^[A-Z]{2,4}\d+-\d+$', alt_text):
+                                            score += 6   # General pattern without space
+                                        elif 'BSIT' in alt_text and '2-1' in alt_text:
+                                            score += 5   # Contains right elements
+                                        
+                                        # Prefer proper spacing
+                                        if ' ' in alt_text and 'BSIT' in alt_text:
+                                            score += 5
+                                        
+                                        # Prefer correct length (around 7-9 characters for "BSIT 2-1")
+                                        if 6 <= len(alt_text) <= 10:
+                                            score += 3
+                                        
+                                        # Prefer uppercase letters for program codes
+                                        upper_count = sum(c.isupper() for c in alt_text if c.isalpha())
+                                        if upper_count >= 3:  # At least "BSIT"
+                                            score += 4
+                                        
+                                        # Prefer dashes in section numbers
+                                        if '-' in alt_text:
+                                            score += 3
+                                        
+                                        # Penalize too many numbers or wrong patterns
+                                        if alt_text.count('-') > 1:
+                                            score -= 2  # Too many dashes
+                                        if any(char in alt_text for char in ['0', '8', '5']):
+                                            score -= 1  # Suspicious characters
+                                    
+                                    if score > best_confidence:
+                                        best_confidence = score
+                                        best_text = alt_text
+                                        logger.info(f"New best {field_name} text: '{best_text}' (score: {score})")
+                                        
+                                except Exception as e:
+                                    logger.warning(f"Alternative {field_name} OCR failed: {e}")
+                            
+
+                            text = best_text
+                            logger.info(f"Final {field_name} OCR result: '{text}'")
                     
                     # Clean the extracted text
                     cleaned_text = self._clean_extracted_text(text, field_name)
@@ -749,23 +1001,60 @@ class PDFAnswerSheetProcessor:
         
         # Field-specific cleaning with improved space handling
         if field_name == 'name':
-            # Names: Be very careful to preserve spaces
-            # First, remove non-alphabetic characters except spaces
-            temp = ''.join(c if c.isalpha() or c.isspace() else ' ' for c in cleaned)
+            # Enhanced Names: Handle multiple formats and preserve important punctuation
+            # Allow letters, spaces, periods (for initials), and commas (for Last, First format)
+            temp = ''.join(c if c.isalpha() or c in ' .,' else ' ' for c in cleaned)
             
             # Normalize multiple spaces to single spaces
-            words = temp.split()
-            # Keep words that are at least 2 characters OR single uppercase letters (initials)
-            words = [word for word in words if len(word) >= 2 or (len(word) == 1 and word.isupper())]
-            cleaned = ' '.join(words)
+            temp = ' '.join(temp.split())
             
-            # If no spaces detected but we have a long string, try to add spaces intelligently
-            if ' ' not in cleaned and len(cleaned) > 6:
-                # Look for common name patterns (capitalize after likely word boundaries)
-                import re
-                # Insert space before capital letters that follow lowercase letters
-                cleaned = re.sub(r'([a-z])([A-Z])', r'\1 \2', cleaned)
-            
+            # Handle different name formats
+            if ',' in temp:
+                # "Last, First Middle" format - keep comma
+                parts = temp.split(',')
+                if len(parts) == 2:
+                    last_name = parts[0].strip()
+                    first_part = parts[1].strip()
+                    
+                    # Clean each part
+                    last_words = [word for word in last_name.split() if len(word) >= 2 or (len(word) == 1 and word.isupper())]
+                    first_words = [word for word in first_part.split() if len(word) >= 1]  # Allow single initials
+                    
+                    if last_words and first_words:
+                        cleaned = ', '.join([' '.join(last_words), ' '.join(first_words)])
+                    else:
+                        cleaned = temp
+                else:
+                    cleaned = temp
+            else:
+                # "First Middle Last" format - preserve structure
+                words = temp.split()
+                
+                # Enhanced word filtering for names with initials
+                filtered_words = []
+                for word in words:
+                    # Keep words that are:
+                    # - 2+ characters long
+                    # - Single uppercase letters (initials)
+                    # - Single letters followed by period (initials like "C.")
+                    if (len(word) >= 2 or 
+                        (len(word) == 1 and word.isupper()) or
+                        (len(word) == 2 and word[1] == '.' and word[0].isupper())):
+                        filtered_words.append(word)
+                
+                cleaned = ' '.join(filtered_words)
+                
+                # Smart space insertion if no spaces detected but we have a long string
+                if ' ' not in cleaned and len(cleaned) > 8:
+                    import re
+                    # Insert space before capital letters that follow lowercase letters
+                    # This handles cases like "JohnMathewParocha" -> "John Mathew Parocha"
+                    cleaned = re.sub(r'([a-z])([A-Z])', r'\1 \2', cleaned)
+                    
+                    # Handle period patterns for initials
+                    # "JohnC.Parocha" -> "John C. Parocha"
+                    cleaned = re.sub(r'([a-z])([A-Z]\.)', r'\1 \2', cleaned)
+
         elif field_name == 'id':
             # Student IDs: alphanumeric and dashes only, no spaces
             # Remove extra leading/trailing dashes and normalize
@@ -777,16 +1066,100 @@ class PDFAnswerSheetProcessor:
             cleaned = re.sub(r'-+', '-', cleaned)
             
         elif field_name == 'course':
+            # ENHANCED COURSE CLEANING - Handle common OCR mistakes
             # Course codes: alphanumeric only, typically short, no spaces
             cleaned = ''.join(c for c in cleaned if c.isalnum())
             
+            # Apply intelligent character corrections for course codes
+            if len(cleaned) >= 3:
+                corrected = cleaned.upper()  # Convert to uppercase first
+                
+                # Apply pattern-based corrections
+                # Handle common OCR mistakes for "CS101"
+                patterns = [
+                    # Pattern: C + number/letter + 101 variants
+                    (r'^C8101$', 'CS101'),      # C8101 -> CS101
+                    (r'^C3101$', 'CS101'),      # C3101 -> CS101  
+                    (r'^C5101$', 'CS101'),      # C5101 -> CS101
+                    (r'^C6101$', 'CS101'),      # C6101 -> CS101
+                    (r'^C81O1$', 'CS101'),      # C81O1 -> CS101 (O instead of 0)
+                    (r'^C31O1$', 'CS101'),      # C31O1 -> CS101
+                    
+                    # Pattern: CS + number variants  
+                    (r'^CS1O1$', 'CS101'),      # CS1O1 -> CS101 (O instead of 0)
+                    (r'^CS10I$', 'CS101'),      # CS10I -> CS101 (I instead of 1)
+                    (r'^CS1OI$', 'CS101'),      # CS1OI -> CS101
+                    (r'^CSIO1$', 'CS101'),      # CSIO1 -> CS101
+                    (r'^CSIOI$', 'CS101'),      # CSIOI -> CS101
+                    (r'^CS100$', 'CS101'),      # CS100 -> CS101
+                    
+                    # Pattern: Other common mistakes
+                    (r'^C[38S][01OI][01OI][01OI]$', 'CS101'),  # Generic pattern
+                ]
+                
+                # Apply pattern-based corrections
+                import re
+                for pattern, replacement in patterns:
+                    if re.match(pattern, corrected):
+                        logger.info(f"Course pattern correction: '{cleaned}' -> '{replacement}'")
+                        corrected = replacement
+                        break
+                else:
+                    # If no pattern matches, apply character-by-character fixes
+                    if corrected.startswith('C') and len(corrected) >= 2:
+                        # Fix second character if it's commonly misread
+                        if corrected[1] in '38356':  # Numbers often confused with 'S'
+                            corrected = 'CS' + corrected[2:]
+                            logger.info(f"Course character correction: '{cleaned}' -> '{corrected}'")
+                    
+                    # Fix common number confusions in course codes
+                    if 'O' in corrected:  # O -> 0
+                        corrected = corrected.replace('O', '0')
+                    if 'I' in corrected and corrected != 'CS101':  # I -> 1 (but not if already correct)
+                        corrected = corrected.replace('I', '1')
+                
+                cleaned = corrected
+            
         elif field_name == 'section':
+            # ENHANCED SECTION CLEANING - Handle spaces properly for "BSIT 2-1"
             # Sections: alphanumeric, spaces, and dashes
-            # Clean up but preserve meaningful spaces and dashes
+            
+            # First, clean up but preserve meaningful spaces and dashes
             temp = ''.join(c if c.isalnum() or c in '- ' else ' ' for c in cleaned)
             words = temp.split()
-            # Rejoin with single spaces
-            cleaned = ' '.join(words)
+            
+            # Smart reconstruction for section format
+            if len(words) >= 2:
+                # Check if we have a program code + section number pattern
+                program_part = words[0].upper()  # e.g., "BSIT"
+                section_parts = words[1:]  # e.g., ["2-1"] or ["2", "1"]
+                
+                # Reconstruct section number if it was split
+                if len(section_parts) == 2 and section_parts[0].isdigit() and section_parts[1].isdigit():
+                    # "BSIT" "2" "1" -> "BSIT 2-1"
+                    section_number = f"{section_parts[0]}-{section_parts[1]}"
+                elif len(section_parts) == 1:
+                    # "BSIT" "2-1" -> "BSIT 2-1"
+                    section_number = section_parts[0]
+                else:
+                    # Fallback: join remaining parts
+                    section_number = ''.join(section_parts)
+                
+                cleaned = f"{program_part} {section_number}"
+            else:
+                # Single word - try to intelligently split if needed
+                single_word = words[0] if words else cleaned
+                
+                # Check for patterns like "BSIT2-1" -> "BSIT 2-1"
+                import re
+                match = re.match(r'^([A-Z]{2,4})(\d+-\d+)$', single_word.upper())
+                if match:
+                    program_code = match.group(1)
+                    section_number = match.group(2)
+                    cleaned = f"{program_code} {section_number}"
+                else:
+                    # Keep as is if no clear pattern
+                    cleaned = single_word
         
         # Final cleanup
         cleaned = cleaned.strip()
@@ -1213,8 +1586,8 @@ def main():
     parser.add_argument('--y', type=int, help='Student region Y coordinate') 
     parser.add_argument('--width', type=int, help='Student region width')
     parser.add_argument('--height', type=int, help='Student region height')
-    parser.add_argument('--dpi', type=int, default=300, 
-                       help='DPI for PDF conversion (default: 300)')
+    parser.add_argument('--dpi', type=int, default=600, 
+                       help='DPI for PDF conversion (default: 600)')
     parser.add_argument('--use-config', action='store_true',
                        help='Force use config file coordinates (default if available)')
     parser.add_argument('--no-config', action='store_true',

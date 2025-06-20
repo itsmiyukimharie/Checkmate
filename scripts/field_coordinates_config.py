@@ -49,15 +49,15 @@ FIELD_COORDINATES = {
     },
     
     'course': {
-        'x': 100,        # X position for course field - moved slightly right
-        'y': 180,        # Y position for bottom row - moved up
-        'width': 800,    # Field width - increased
+        'x': 200,        # X position for course field - moved slightly right
+        'y': 175,        # Y position for bottom row - moved up
+        'width': 1000,    # Field width - increased
         'height': 80     # Field height - increased
     },
     
     'section': {
-        'x': 1350,       # X position for section field (right side)
-        'y': 180,        # Y position for bottom row - moved up
+        'x': 1450,       # X position for section field (right side)
+        'y': 170,        # Y position for bottom row - moved up
         'width': 800,    # Field width - increased
         'height': 80     # Field height - increased
     }
