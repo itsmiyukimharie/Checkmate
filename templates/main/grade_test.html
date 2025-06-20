@@ -176,6 +176,12 @@
                             </button>
                         </div>
                     </div>
+                    <!-- Add Grade (PDF) button -->
+                    <div class="mb-3" id="gradePdfBtnContainer">
+                        <button type="submit" class="btn btn-primary btn-block" id="gradePdfBtn" formaction="{% url 'main:process_answer_sheets_pdf' %}">
+                            <i class="fas fa-file-pdf"></i> Grade (PDF)
+                        </button>
+                    </div>
                     <!-- No submit button for now -->
                 </form>
             </div>
@@ -427,7 +433,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fileTypeHelpText.textContent = help;
         uploadedFilesPreview.classList.add('d-none');
         filePreviewList.innerHTML = '';
+        // Show/hide Grade (PDF) button
+        document.getElementById('gradePdfBtnContainer').style.display = (this.value === 'pdf') ? '' : 'none';
     });
+
+    // On page load, show/hide Grade (PDF) button based on initial file type
+    document.getElementById('gradePdfBtnContainer').style.display = (fileTypeSelect.value === 'pdf') ? '' : 'none';
 
     function refreshFilePreview() {
         filePreviewList.innerHTML = '';

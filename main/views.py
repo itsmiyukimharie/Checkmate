@@ -1089,7 +1089,7 @@ def analytics(request):
 def process_answer_sheets_pdf(request):
     """
     API endpoint to process one or more uploaded PDF answer sheets.
-    Accepts multiple files via 'pdf_files' (multipart/form-data).
+    Accepts multiple files via 'student_files' (multipart/form-data).
     Returns JSON with extracted student info and answers for each file.
     """
     import json
@@ -1100,8 +1100,8 @@ def process_answer_sheets_pdf(request):
     # Optional: output_dir for debug images (not required for web)
     output_dir = None
 
-    # Accept multiple files
-    pdf_files = request.FILES.getlist('pdf_files')
+    # Accept multiple files (use the correct field name from the form)
+    pdf_files = request.FILES.getlist('student_files')
     if not pdf_files:
         return JsonResponse({'success': False, 'error': 'No PDF files uploaded.'}, status=400)
 
@@ -1118,6 +1118,19 @@ def process_answer_sheets_pdf(request):
 
     # Process PDFs
     service = CheckmateService()
+    service = CheckmateService()
+    service.save_mapping_debug_image(
+        pdf_path="pdf_directory/Test2.pdf",      # Path to your input PDF
+        output_path="debug_mapping.png",         # Output image file path
+        question_count=100,                      # (optional) Number of questions
+        test_type="multiple_choice_4",           # (optional) Test type
+        cut = True,                     # (optional) Cut the image into section
+    )
+    service = CheckmateService()
+    service.save_student_fields_debug_image(
+        pdf_path="pdf_directory/Test2.pdf",
+        output_path="debug_student_info.png"
+    )
     results = service.process_pdfs(temp_files, question_count=question_count, test_type=test_type, output_dir=output_dir)
 
     # Clean up temp files

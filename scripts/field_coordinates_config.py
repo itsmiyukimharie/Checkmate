@@ -36,9 +36,9 @@ STUDENT_REGION = {
 FIELD_COORDINATES = {
     'name': {
         'x': 220,        # X position within student region (left side)
-        'y': 120,         # Y position within student region (top row)
+        'y': 130,         # Y position within student region (top row)
         'width': 1050,    # Field width
-        'height': 90     # Field height
+        'height': 80     # Field height
     },
     
     'id': {
@@ -52,14 +52,14 @@ FIELD_COORDINATES = {
         'x': 245,         # X position for course field (left side)
         'y': 210,        # Y position for bottom row
         'width': 1050,    # Field width
-        'height': 65     # Field height
+        'height': 75     # Field height
     },
     
     'section': {
         'x': 1450,       # X position for section field (right side)
         'y': 210,        # Y position for bottom row
         'width': 950,    # Field width
-        'height': 65     # Field height
+        'height': 75     # Field height
     }
 }
 
@@ -130,10 +130,10 @@ DEBUG = {
 
 # ANSWER GRID CONFIGURATION
 ANSWER_GRID = {
-    'x': 150,
-    'y': 780,
-    'width': 2200,
-    'height': 1680,
+    'x': 120,      # was 150, move slightly left
+    'y': 760,      # was 780, move slightly up
+    'width': 2250, # was 2200, make slightly wider
+    'height': 1720,# was 1680, make slightly taller
     'columns': 4,
     'max_questions_per_column': 25,
     'max_questions_per_page': 100
@@ -141,28 +141,28 @@ ANSWER_GRID = {
 
 # COLUMN SPECIFICATIONS
 COLUMN_CONFIG = {
-    'column_width': 450,
-    'column_spacing': 150,
+    'column_width': 520,    # was 450, make wider
+    'column_spacing': 140,  # was 150, adjust spacing
     'header_height': 90,
-    'question_row_height': 60,
+    'question_row_height': 66, # was 60, slightly taller
     'question_start_y': 190,
     'max_questions_per_column': 25
 }
 
 # COLUMN AREAS (manual definition for each column in the answer grid)
 COLUMN_AREAS = {
-    0: {'x': 150,  'y': 780,  'width': 450, 'height': 1590},  # Column 1
-    1: {'x': 750,  'y': 780,  'width': 450, 'height': 1590},  # Column 2
-    2: {'x': 1350, 'y': 780,  'width': 450, 'height': 1590},  # Column 3
-    3: {'x': 1950, 'y': 780,  'width': 400, 'height': 1590},  # Column 4 (width may be less if grid is not perfectly divisible)
+    0: {'x': 120,  'y': 760,  'width': 520, 'height': 1630},  # Column 1
+    1: {'x': 670,  'y': 760,  'width': 520, 'height': 1630},  # Column 2
+    2: {'x': 1220, 'y': 760,  'width': 520, 'height': 1630},  # Column 3
+    3: {'x': 1770, 'y': 760,  'width': 500, 'height': 1630},  # Column 4
 }
 
 # COLUMN HEADER AREAS (manual definition for each column header in the answer grid)
 COLUMN_HEADER_AREAS = {
-    0: {'x': 150,  'y': 780,  'width': 450, 'height': 50},   # Header for Column 1
-    1: {'x': 750,  'y': 780,  'width': 450, 'height': 50},   # Header for Column 2
-    2: {'x': 1350, 'y': 780,  'width': 450, 'height': 50},   # Header for Column 3
-    3: {'x': 1950, 'y': 780,  'width': 400, 'height': 50},   # Header for Column 4
+    0: {'x': 120,  'y': 760,  'width': 520, 'height': 55},   # Header for Column 1
+    1: {'x': 670,  'y': 760,  'width': 520, 'height': 55},   # Header for Column 2
+    2: {'x': 1220, 'y': 760,  'width': 520, 'height': 55},   # Header for Column 3
+    3: {'x': 1770, 'y': 760,  'width': 500, 'height': 55},   # Header for Column 4
 }
 
 def get_field_config(field_name):
@@ -257,3 +257,6 @@ if __name__ == "__main__":
     # Example of how to adjust coordinates
     # adjust_field_coordinates('name', x=125, width=850)
     # print_current_config()
+
+# NOTE: Use the mapping debug image (see save_mapping_debug_image in pdf_processor_main_prototype.py)
+# to visually check and further fine-tune these coordinates for your specific scanned sheet.
