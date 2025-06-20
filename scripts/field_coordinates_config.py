@@ -151,18 +151,18 @@ COLUMN_CONFIG = {
 
 # COLUMN AREAS (manual definition for each column in the answer grid)
 COLUMN_AREAS = {
-    0: {'x': 160, 'y': 790,  'width': 450, 'height': 1570},  # Column 1
-    1: {'x': 750, 'y': 790,  'width': 450, 'height': 1570},  # Column 2
-    2: {'x': 1340, 'y': 790,  'width': 450, 'height': 1570},  # Column 3
-    3: {'x': 1940, 'y': 790,  'width': 450, 'height': 1570},  # Column 4
+    0: {'x': 260,  'y': 950,  'width': 450, 'height': 1570},  # Column 1 (x +100)
+    1: {'x': 850,  'y': 950,  'width': 450, 'height': 1570},  # Column 2 (x +100)
+    2: {'x': 1440, 'y': 950,  'width': 450, 'height': 1570},  # Column 3 (x +100)
+    3: {'x': 2040, 'y': 950,  'width': 450, 'height': 1570},  # Column 4 (x +100)
 }
 
 # COLUMN HEADER AREAS (manual definition for each column header in the answer grid)
 COLUMN_HEADER_AREAS = {
-    0: {'x': 120,  'y': 760,  'width': 520, 'height': 55},   # Header for Column 1
-    1: {'x': 670,  'y': 760,  'width': 520, 'height': 55},   # Header for Column 2
-    2: {'x': 1220, 'y': 760,  'width': 520, 'height': 55},   # Header for Column 3
-    3: {'x': 1770, 'y': 760,  'width': 500, 'height': 55},   # Header for Column 4
+    0: {'x': 260,  'y': 950,  'width': 450, 'height': 40},   # Header for Column 1
+    1: {'x': 850,  'y': 950,  'width': 450, 'height': 40},   # Header for Column 2
+    2: {'x': 1440, 'y': 950,  'width': 450, 'height': 40},   # Header for Column 3
+    3: {'x': 2040, 'y': 950,  'width': 450, 'height': 40},   # Header for Column 4
 }
 
 def get_field_config(field_name):

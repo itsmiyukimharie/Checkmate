@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 # Import the configuration
 try:
     from field_coordinates_config import (
-        FIELD_COORDINATES, 
-        STUDENT_REGION, 
-        OCR_CONFIG, 
+        FIELD_COORDINATES,
+        STUDENT_REGION,
+        OCR_CONFIG,
         PREPROCESSING,
         get_field_config,
         get_student_region_config
@@ -28,6 +28,38 @@ try:
 except ImportError:
     CONFIG_AVAILABLE = False
     logger.warning("field_coordinates_config.py not found. Using default coordinates.")
+
+    # Use the config values as defaults if config is missing
+    STUDENT_REGION = {
+        'x': 0, 'y': 300, 'width': 2600, 'height': 300
+    }
+    FIELD_COORDINATES = {
+        'name': {'x': 220, 'y': 130, 'width': 1050, 'height': 80},
+        'id': {'x': 1350, 'y': 90, 'width': 1050, 'height': 120},
+        'course': {'x': 245, 'y': 210, 'width': 1050, 'height': 75},
+        'section': {'x': 1450, 'y': 210, 'width': 950, 'height': 75}
+    }
+    OCR_CONFIG = {
+        'name': {'psm_mode': 6, 'whitelist': '', 'scaling_factor': 4, 'padding': 30},
+        'id': {'psm_mode': 8, 'whitelist': '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-', 'scaling_factor': 4, 'padding': 30},
+        'course': {'psm_mode': 8, 'whitelist': '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 'scaling_factor': 4, 'padding': 30},
+        'section': {'psm_mode': 6, 'whitelist': '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- ', 'scaling_factor': 4, 'padding': 30}
+    }
+    PREPROCESSING = {
+        'student_region_scaling': 2,
+        'enhance_contrast': True,
+        'gaussian_blur': True,
+        'morphological_ops': True,
+        'adaptive_threshold': True
+    }
+    def get_field_config(field_name):
+        return {
+            'coordinates': FIELD_COORDINATES.get(field_name, {}),
+            'ocr': OCR_CONFIG.get(field_name, {}),
+            'validation': {}
+        }
+    def get_student_region_config():
+        return STUDENT_REGION.copy()
 
 
 class StudentInfoExtractor:

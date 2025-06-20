@@ -336,10 +336,8 @@ class StudentAnswerProcessor:
     def map_rows_in_column(self, column_img, num_questions=25, debug=False, output_path=None, col_idx=None):
         """
         Map each row (question) in a column image using OpenCV.
-        Always skips the header area as defined in config.
-        Uses fixed row height for robust mapping.
-        Starts rows exactly at the header's bottom edge.
-        Row labels reflect the actual question numbers for each column.
+        Tries to automatically detect row boundaries using horizontal projection.
+        Falls back to fixed row height if detection fails.
         """
         import numpy as np
         import cv2
@@ -356,30 +354,48 @@ class StudentAnswerProcessor:
         if not header_height or header_height >= h:
             header_height = int(h * 0.06)
 
-        # Determine the starting question number for this column
-        start_question = 1
-        if CONFIG_AVAILABLE and col_idx is not None:
-            from field_coordinates_config import COLUMN_CONFIG
-            max_per_col = COLUMN_CONFIG.get('max_questions_per_column', 25)
-            start_question = col_idx * max_per_col + 1
+        # Crop out header area for row detection
+        answer_area = column_img[header_height:, :]
+        answer_h = answer_area.shape[0]
 
-        # Start rows at header's bottom edge
-        answer_area_height = h - header_height
-        row_height = answer_area_height // num_questions
+        # Horizontal projection (sum of black pixels per row)
+        proj = np.sum(255 - answer_area, axis=1)
+        proj_norm = (proj - np.min(proj)) / (np.max(proj) - np.min(proj) + 1e-6)
+
+        # Find valleys (gaps) between rows using local minima
+        from scipy.signal import find_peaks
+        # Invert projection so valleys become peaks
+        inv_proj = 1 - proj_norm
+        peaks, _ = find_peaks(inv_proj, distance=answer_h // num_questions // 2, prominence=0.1)
+
+        # If we find enough valleys, use them as row boundaries
         row_boxes = []
-        question_numbers = []
-        for i in range(num_questions):
-            y1 = header_height + i * row_height
-            y2 = header_height + (i + 1) * row_height if i < num_questions - 1 else h
-            row_boxes.append((y1, y2))
-            question_numbers.append(start_question + i)
+        if len(peaks) >= num_questions - 1:
+            # Use detected valleys to split rows
+            boundaries = [0] + sorted(peaks.tolist()) + [answer_h]
+            # If too many, pick the best num_questions-1
+            if len(boundaries) > num_questions + 1:
+                # Uniformly sample boundaries
+                idxs = np.linspace(0, len(boundaries)-1, num_questions+1, dtype=int)
+                boundaries = [boundaries[i] for i in idxs]
+            for i in range(num_questions):
+                y1 = header_height + boundaries[i]
+                y2 = header_height + boundaries[i+1]
+                row_boxes.append((y1, y2))
+        else:
+            # Fallback: fixed row height
+            row_height = answer_h // num_questions
+            for i in range(num_questions):
+                y1 = header_height + i * row_height
+                y2 = header_height + (i + 1) * row_height if i < num_questions - 1 else h
+                row_boxes.append((y1, y2))
 
         # Debug visualization
         if debug and output_path:
             debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR)
             for idx, (y1, y2) in enumerate(row_boxes):
                 cv2.rectangle(debug_img, (0, y1), (w-1, y2), (0, 0, 255), 2)
-                cv2.putText(debug_img, f"Q{question_numbers[idx]}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
+                cv2.putText(debug_img, f"Q{idx+1}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
             cv2.imwrite(output_path, debug_img)
             logger.info(f"Saved row mapping debug image: {output_path}")
 
@@ -430,94 +446,206 @@ class StudentAnswerProcessor:
             logger.info(f"Saved column row mapping debug image: {output_path}")
         return debug_img
 
-    def detect_answers_in_column(self, column_img, col_idx, num_questions=25, choices=4, debug=False, output_path=None):
+    def detect_answers_in_column(self, column_img, col_idx, num_questions=25, choices=4, debug=False, output_path=None,
+                                 vertical_spacing=None):
         """
         Detect filled answers for each question row in a column image.
-
+        For each row, use a fixed initial bubble x/y and fixed spacing for all bubbles.
+        Optionally specify vertical_spacing to adjust bubble y-position within each row.
+        Automatically creates a debug image showing bubble detection for every call.
+        Fix: Ensure last row always reaches the bottom of the column image.
         Args:
             column_img: Grayscale image of a single answer column.
             col_idx: Column index (0-based).
             num_questions: Number of questions (rows) in the column.
-            choices: Number of choices per question (default 4).
-            debug: If True, saves a debug image with detected answers.
-            output_path: Path to save the debug image.
-
-        Returns:
-            List of detected answers, e.g. ['A', 'C', None, ...]
+            choices: Number of choices per question (A-D).
+            debug: If True, saves debug image.
+            output_path: Path to save debug image.
+            vertical_spacing: (Optional) If set, vertical distance between bubbles in a row (for vertical bubble layouts).
         """
         import cv2
         import numpy as np
+        import os
 
-        row_boxes = self.map_rows_in_column(column_img, num_questions=num_questions, col_idx=col_idx)
         h, w = column_img.shape
 
-        # Bubble positions: Use more robust spacing based on actual bubble locations
-        # Try to estimate bubble centers by finding the center of each black circle in the first row
-        # If not possible, fallback to config/fixed spacing
+        # Use header height from config if available, else fallback
+        header_height = 65
+        column_width = w
+        if CONFIG_AVAILABLE and col_idx is not None:
+            from field_coordinates_config import get_column_header_areas, COLUMN_CONFIG
+            header_areas = get_column_header_areas()
+            if col_idx in header_areas:
+                header_height = header_areas[col_idx].get('height', 0)
+            column_width = COLUMN_CONFIG.get('column_width', w)
+        if not header_height or header_height >= h:
+            header_height = int(h * 0.06)
 
-        # Try to find bubble centers in the first row
-        first_row_img = column_img[row_boxes[0][0]:row_boxes[0][1], :]
-        _, thresh = cv2.threshold(first_row_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        bubble_centers_x = []
-        for cnt in contours:
-            (x, y), radius = cv2.minEnclosingCircle(cnt)
-            if 10 < radius < 40:  # Heuristic: filter out noise/small/large blobs
-                bubble_centers_x.append(int(x))
-        bubble_centers_x = sorted(bubble_centers_x)
-        # If we find the right number of bubbles, use them
-        if len(bubble_centers_x) == choices:
-            bubble_xs = bubble_centers_x
-        else:
-            # Fallback: use config/fixed spacing
-            if CONFIG_AVAILABLE:
-                from field_coordinates_config import COLUMN_CONFIG
-                col_w = COLUMN_CONFIG.get('column_width', w)
-                margin_x = int(col_w * 0.12)
-                margin_x_end = int(col_w * 0.88)
-                bubble_xs = np.linspace(margin_x, margin_x_end, choices)
+        # Fixed row mapping: ensure last row reaches the bottom
+        answer_area_height = h - header_height
+        row_boxes = []
+        for i in range(num_questions):
+            y1 = header_height + i * (answer_area_height // num_questions)
+            if i == num_questions - 1:
+                y2 = h  # Last row goes to the bottom
             else:
-                bubble_xs = np.linspace(int(w*0.15), int(w*0.85), choices)
+                y2 = header_height + (i + 1) * (answer_area_height // num_questions)
+            row_boxes.append((y1, y2))
+
+        # --- Use hard-coded bubble placement per column if desired ---
+        if col_idx == 0:
+            initial_bubble_x = 40
+            bubble_spacing = 70
+        elif col_idx == 1:
+            initial_bubble_x = 40
+            bubble_spacing = 70
+        elif col_idx == 2:
+            initial_bubble_x = 45
+            bubble_spacing = 70
+        elif col_idx == 3:
+            initial_bubble_x = 38
+            bubble_spacing = 70
+        else:
+            initial_bubble_x = int(column_width * 0.25)
+            bubble_spacing = int(column_width * 0.21)
+        bubble_y_offset = 0
+        bubble_radius = int(min(row_boxes[0][1] - row_boxes[0][0], column_width // choices) * 0.25)
 
         detected_answers = []
-        debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR) if debug else None
+        debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR)
 
+        # --- FIX: Use evenly spaced vertical positions for bubbles in each row ---
         for q_idx, (y1, y2) in enumerate(row_boxes):
             row_img = column_img[y1:y2, :]
-            bubble_scores = []
-            for c_idx, bx in enumerate(bubble_xs):
-                by = (y2 + y1) // 2
-                radius = int(min((y2-y1), w//choices) * 0.38)
-                mask = np.zeros_like(row_img, dtype=np.uint8)
-                cv2.circle(mask, (int(bx), (y2-y1)//2), radius, 255, -1)
-                bubble_region = cv2.bitwise_and(row_img, row_img, mask=mask)
-                # Score: mean intensity (lower means more filled)
-                mean_val = cv2.mean(bubble_region, mask=mask)[0]
-                bubble_scores.append(mean_val)
-                if debug:
-                    color = (0, 255, 0) if mean_val < 180 else (0, 0, 255)
-                    cv2.circle(debug_img, (int(bx), by), radius, color, 2)
-                    cv2.putText(debug_img, chr(65+c_idx), (int(bx)-8, by-8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            row_h, row_w = row_img.shape
 
-            min_idx = int(np.argmin(bubble_scores))
-            min_val = bubble_scores[min_idx]
-            sorted_scores = sorted(bubble_scores)
-            # Improved: require the filled bubble to be much darker than the average of the others
-            others = [v for i, v in enumerate(bubble_scores) if i != min_idx]
-            if min_val < 180 and (np.mean(others) - min_val > 25):
+            cx = initial_bubble_x
+            # Evenly distribute bubbles vertically in the row (centered)
+            total_bubble_height = (choices - 1) * bubble_radius * 2
+            start_y = (row_h - total_bubble_height) // 2 + bubble_radius
+
+            bubble_centers = []
+            for i in range(choices):
+                bx = cx + i * bubble_spacing
+                by = int(row_h // 2)  # Default: all bubbles on the same y
+                # For vertical spacing, distribute bubbles vertically
+                if vertical_spacing is not None:
+                    by = int(start_y + i * vertical_spacing)
+                bubble_centers.append((int(bx), by))
+
+            bubble_fill_ratios = []
+            for c_idx, (bx, by) in enumerate(bubble_centers):
+                bx = int(np.clip(bx, bubble_radius, row_w - bubble_radius - 1))
+                by = int(np.clip(by, bubble_radius, row_h - bubble_radius - 1))
+                mask = np.zeros_like(row_img, dtype=np.uint8)
+                cv2.circle(mask, (bx, by), bubble_radius, 255, -1)
+                bubble_region = cv2.bitwise_and(row_img, row_img, mask=mask)
+                # Calculate fill ratio: ratio of dark pixels (filled) to total pixels in the bubble
+                total_pixels = np.sum(mask == 255)
+                filled_pixels = np.sum(bubble_region[mask == 255] < 180)
+                fill_ratio = filled_pixels / total_pixels if total_pixels > 0 else 0
+                bubble_fill_ratios.append(fill_ratio)
+                color = (0, 255, 0) if fill_ratio >= 0.8 else (0, 0, 255)
+                cv2.circle(debug_img, (bx, y1 + by), bubble_radius, color, 2)
+                cv2.putText(debug_img, chr(65+c_idx), (bx-8, y1 + by - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            if not bubble_fill_ratios:
+                detected_answers.append(None)
+                cv2.putText(debug_img, "?", (10, y1 + row_h // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                continue
+
+            # Find bubbles with at least 80% fill
+            filled_indices = [i for i, ratio in enumerate(bubble_fill_ratios) if ratio >= 0.75]
+            if len(filled_indices) == 1:
+                min_idx = filled_indices[0]
                 detected_answers.append(chr(65 + min_idx))
-                if debug:
-                    cv2.putText(debug_img, chr(65 + min_idx), (10, y1+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+                bx, by = bubble_centers[min_idx]
+                cv2.putText(debug_img, chr(65 + min_idx), (10, y1 + by + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
             else:
                 detected_answers.append(None)
-                if debug:
-                    cv2.putText(debug_img, "?", (10, y1+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+                cv2.putText(debug_img, "?", (10, y1 + row_h // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
 
-        if debug and output_path:
-            cv2.imwrite(output_path, debug_img)
-            logger.info(f"Saved answer detection debug image: {output_path}")
+        if output_path is None:
+            output_path = f"column_{col_idx+1}_answers_debug.png"
+        cv2.imwrite(output_path, debug_img)
+        logger.info(f"Saved answer detection debug image: {output_path}")
 
         return detected_answers
+    
+    def debug_bubble_detection(self, column_img, col_idx, num_questions=25, choices=4, output_path=None):
+            """
+            Visualize and save the detected bubble centers and filled status for each row in a column.
+            Draws all candidate bubbles, highlights the detected answer, and marks ambiguous/empty rows.
+            """
+            import cv2
+            import numpy as np
+
+            row_boxes = self.map_rows_in_column(column_img, num_questions=num_questions, col_idx=col_idx)
+            h, w = column_img.shape
+
+            # Try to find bubble centers in the first row
+            first_row_img = column_img[row_boxes[0][0]:row_boxes[0][1], :]
+            _, thresh = cv2.threshold(first_row_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            bubble_centers_x = []
+            for cnt in contours:
+                (x, y), radius = cv2.minEnclosingCircle(cnt)
+                if 10 < radius < 40:
+                    bubble_centers_x.append(int(x))
+            bubble_centers_x = sorted(bubble_centers_x)
+            if len(bubble_centers_x) == choices:
+                bubble_xs = bubble_centers_x
+            else:
+                if CONFIG_AVAILABLE:
+                    from field_coordinates_config import COLUMN_CONFIG
+                    col_w = COLUMN_CONFIG.get('column_width', w)
+                    margin_x = int(col_w * 0.12)
+                    margin_x_end = int(col_w * 0.88)
+                    bubble_xs = np.linspace(margin_x, margin_x_end, choices)
+                else:
+                    bubble_xs = np.linspace(int(w*0.15), int(w*0.85), choices)
+
+            debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR)
+            detected_answers = []
+
+            for q_idx, (y1, y2) in enumerate(row_boxes):
+                row_img = column_img[y1:y2, :]
+                bubble_scores = []
+                bubble_centers = []
+                for c_idx, bx in enumerate(bubble_xs):
+                    by = (y2 + y1) // 2
+                    radius = int(min((y2-y1), w//choices) * 0.38)
+                    mask = np.zeros_like(row_img, dtype=np.uint8)
+                    cv2.circle(mask, (int(bx), (y2-y1)//2), radius, 255, -1)
+                    bubble_region = cv2.bitwise_and(row_img, row_img, mask=mask)
+                    mean_val = cv2.mean(bubble_region, mask=mask)[0]
+                    bubble_scores.append(mean_val)
+                    bubble_centers.append((int(bx), by, radius))
+                    # Draw all candidate bubbles
+                    cv2.circle(debug_img, (int(bx), by), radius, (200, 200, 200), 1)
+                    cv2.putText(debug_img, chr(65+c_idx), (int(bx)-8, by-8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180,180,180), 1)
+
+                min_idx = int(np.argmin(bubble_scores))
+                min_val = bubble_scores[min_idx]
+                others = [v for i, v in enumerate(bubble_scores) if i != min_idx]
+                # Highlight detected answer if confident
+                if min_val < 180 and (np.mean(others) - min_val > 25):
+                    detected_answers.append(chr(65 + min_idx))
+                    bx, by, radius = bubble_centers[min_idx]
+                    cv2.circle(debug_img, (bx, by), radius, (0, 255, 0), 2)
+                    cv2.putText(debug_img, chr(65 + min_idx), (bx-8, by+radius+18), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+                else:
+                    detected_answers.append(None)
+                    # Mark ambiguous/empty row
+                    for bx, by, radius in bubble_centers:
+                        cv2.circle(debug_img, (bx, by), radius, (0, 0, 255), 1)
+                    cv2.putText(debug_img, "?", (10, y1+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
+            if output_path:
+                cv2.imwrite(output_path, debug_img)
+                logger.info(f"Saved bubble detection debug image: {output_path}")
+
+            return detected_answers
 
 if __name__ == "__main__":
     # Remove CLI/testing code, this file is now a service module only.
@@ -546,3 +674,88 @@ if __name__ == "__main__":
     )
     for i, ans in enumerate(answers, 1):
         print(f"Q{i}: {ans}")
+
+# Usage example for debugging bubble detection in a column:
+# (Assume you have already extracted the column image as `col_img` and know its column index `col_idx`)
+#
+# import cv2
+# from scripts.pdf_processor_stud_answer import StudentAnswerProcessor
+#
+# # Load your column image (grayscale)
+# col_img = cv2.imread(r"D:\YUKI\ADET\Checkmate\column_row_debug\column_1_header_rows_debug.png", cv2.IMREAD_GRAYSCALE)
+# processor = StudentAnswerProcessor()
+# processor.debug_bubble_detection(
+#     column_img=col_img,           # Grayscale image of a single answer column
+#     col_idx=0,                    # Column index (0-based, so 0 for column_1)
+#     num_questions=25,             # Number of questions in this column
+#     choices=4,                    # Number of choices per question (A-D)
+#     output_path="col1_bubble_debug.png"  # Output path for debug image
+# )
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+# col_img = cv2.imread(r"D:\YUKI\ADET\Checkmate\column_row_debug\column_1_header_rows_debug.png", cv2.IMREAD_GRAYSCALE)
+# processor = StudentAnswerProcessor()
+# processor.debug_bubble_detection(
+#     column_img=col_img,           # Grayscale image of a single answer column
+#     col_idx=0,                    # Column index (0-based, so 0 for column_1)
+#     num_questions=25,             # Number of questions in this column
+#     choices=4,                    # Number of choices per question (A-D)
+#     output_path="col1_bubble_debug.png"  # Output path for debug image
+# )
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+    processor = StudentAnswerProcessor()
+    answers = processor.detect_answers_in_column(
+        img, col_idx, num_questions=25, choices=4, debug=debug,
+        output_path="column_{}_answers_debug.png".format(col_idx+1) if debug else None
+    )
+    for i, ans in enumerate(answers, 1):
+        print(f"Q{i}: {ans}")
+
+# Usage example for debugging bubble detection in a column:
+# (Assume you have already extracted the column image as `col_img` and know its column index `col_idx`)
+#
+# import cv2
+# from scripts.pdf_processor_stud_answer import StudentAnswerProcessor
+#
+# # Load your column image (grayscale)
+# col_img = cv2.imread(r"D:\YUKI\ADET\Checkmate\column_row_debug\column_1_header_rows_debug.png", cv2.IMREAD_GRAYSCALE)
+# processor = StudentAnswerProcessor()
+# processor.debug_bubble_detection(
+#     column_img=col_img,           # Grayscale image of a single answer column
+#     col_idx=0,                    # Column index (0-based, so 0 for column_1)
+#     num_questions=25,             # Number of questions in this column
+#     choices=4,                    # Number of choices per question (A-D)
+#     output_path="col1_bubble_debug.png"  # Output path for debug image
+# )
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+# col_img = cv2.imread(r"D:\YUKI\ADET\Checkmate\column_row_debug\column_1_header_rows_debug.png", cv2.IMREAD_GRAYSCALE)
+# processor = StudentAnswerProcessor()
+# processor.debug_bubble_detection(
+#     column_img=col_img,           # Grayscale image of a single answer column
+#     col_idx=0,                    # Column index (0-based, so 0 for column_1)
+#     num_questions=25,             # Number of questions in this column
+#     choices=4,                    # Number of choices per question (A-D)
+#     output_path="col1_bubble_debug.png"  # Output path for debug image
+# )
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.
+#
+# This will save an image showing all candidate bubbles, highlight the detected answer,
+# and mark ambiguous/empty rows for visual inspection.

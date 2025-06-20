@@ -1141,6 +1141,18 @@ def process_answer_sheets_pdf(request):
         pdf_path="pdf_directory/Test2.pdf",
         output_dir="column_row_debug"
     )
+    from scripts.pdf_processor_stud_answer import StudentAnswerProcessor
+    import cv2
+    col_img = cv2.imread(r"D:\YUKI\ADET\Checkmate\column_row_debug\column_1_header_rows_debug.png", cv2.IMREAD_GRAYSCALE)
+    processor = StudentAnswerProcessor()
+    # FIX: Pass column_img as the first argument
+    processor.debug_bubble_detection(
+        col_img,                  # column_img (required positional argument)
+        col_idx=0,                # Column index (0-based)
+        num_questions=25,         # Number of questions in this column
+        choices=4,                # Number of choices per question (A-D)
+        output_path="col0_bubble_debug.png"  # Output path for debug image
+    )
     results = service.process_pdfs(temp_files, question_count=question_count, test_type=test_type, output_dir=output_dir)
 
     # Clean up temp files

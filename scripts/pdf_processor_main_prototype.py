@@ -166,14 +166,15 @@ class CheckmateService:
                     COLUMN_CONF = grid_config['columns']
                 answer_grid = answer_result['answer_grid']
                 for col_idx, area in column_areas.items():
-                    x = area['x'] - grid_config['grid']['x']
-                    y = area['y'] - grid_config['grid']['y']
-                    w = area['width']
-                    h = area['height']
-                    x = max(0, min(x, answer_grid.shape[1] - 1))
-                    y = max(0, min(y, answer_grid.shape[0] - 1))
-                    w = min(w, answer_grid.shape[1] - x)
-                    h = min(h, answer_grid.shape[0] - y)
+                    # --- FIX: Ensure column cut is correct and does not exceed bounds ---
+                    x = max(0, area['x'] - grid_config['grid']['x'])
+                    y = max(0, area['y'] - grid_config['grid']['y'])
+                    w = min(area['width'], answer_grid.shape[1] - x)
+                    h = min(area['height'], answer_grid.shape[0] - y)
+                    if x + w > answer_grid.shape[1]:
+                        w = answer_grid.shape[1] - x
+                    if y + h > answer_grid.shape[0]:
+                        h = answer_grid.shape[0] - y
                     col_img = answer_grid[y:y+h, x:x+w]
                     max_per_col = COLUMN_CONF.get('max_questions_per_column', 25)
                     start_q = col_idx * max_per_col + 1
@@ -210,6 +211,7 @@ class CheckmateService:
                     else:
                         choice_labels = ['A', 'B', 'C', 'D']
 
+                    # --- KEY: Always pass choices=detected_choices to detect_answers_in_column ---
                     col_answers = answer_processor.detect_answers_in_column(
                         col_img, col_idx, num_questions=num_q, choices=detected_choices, debug=False
                     )
