@@ -189,15 +189,14 @@ class StudentInfoExtractor:
                         logger.warning(f"Field '{field_name}' not found in config")
                 
             else:
-                # Fallback to hardcoded coordinates
+                # Updated fallback coordinates to match your fine-tuned configuration
                 logger.info("Using fallback field coordinates")
                 
-                # Use proven coordinates as fallback
                 fallback_coords = {
-                    'name': {'x': 120, 'y': 65, 'width': 800, 'height': 80},
-                    'id': {'x': 1300, 'y': 60, 'width': 800, 'height': 86},
-                    'course': {'x': 80, 'y': 150, 'width': 600, 'height': 70},
-                    'section': {'x': 1400, 'y': 150, 'width': 600, 'height': 70}
+                    'name': {'x': 220, 'y': 135, 'width': 1050, 'height': 85},
+                    'id': {'x': 1400, 'y': 135, 'width': 1200, 'height': 85},
+                    'course': {'x': 220, 'y': 215, 'width': 1050, 'height': 85},
+                    'section': {'x': 1525, 'y': 215, 'width': 1050, 'height': 90}
                 }
                 
                 scale_factor = 2  # Default preprocessing scaling
@@ -810,4 +809,5 @@ class StudentInfoExtractor:
         if height is not None:
             self.student_info_region['height'] = int(height)
         
+        logger.info(f"Updated student region: {self.student_info_region}")
         logger.info(f"Updated student region: {self.student_info_region}")

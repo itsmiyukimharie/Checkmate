@@ -1,0 +1,17 @@
+ANSWER GRID COORDINATE ANALYSIS
+==================================================
+
+Image dimensions: 2480 x 3508
+Grid coordinates: x=50, y=680, w=2380, h=1680
+Grid bottom: 2360 (image height: 3508)
+Grid right: 2430 (image width: 2480)
+Column width: 600
+Bubble spacing: 60
+Start X offset: 1000
+
+COORDINATE SUGGESTIONS:
+
+Recommended adjustments for your PDF:
+- Try Y position: 650
+- Try height: 2400
+- Current config seems: OK
