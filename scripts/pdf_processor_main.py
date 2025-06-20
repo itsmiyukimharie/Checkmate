@@ -716,15 +716,16 @@ class CheckMatePDFProcessor:
             
             # Get answer grid config
             if CONFIG_AVAILABLE:
-                from field_coordinates_config import get_answer_grid_config
+                from field_coordinates_config import get_answer_grid_config, get_column_areas
                 grid_config = get_answer_grid_config()
+                column_areas = get_column_areas()
             else:
                 # Fallback config
                 grid_config = {
                     'grid': {'x': 30, 'y': 650, 'width': 2420, 'height': 2400},
-                    'columns': {'column_width': 605, 'max_questions_per_column': 25},
-                    'bubbles': {'spacing': 18, 'start_x_offset': 35}
+                    'columns': {'column_width': 605, 'max_questions_per_column': 25}
                 }
+                column_areas = {}
             
             grid = grid_config['grid']
             x, y, w, h = grid['x'], grid['y'], grid['width'], grid['height']
@@ -749,9 +750,40 @@ class CheckMatePDFProcessor:
                 cv2.putText(debug_img, f"COL {col+1}", (col_x + 10, y + 60), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
             
+            # Draw manually defined column areas if available
+            if column_areas:
+                for col_idx, area in column_areas.items():
+                    col_x = area['x']
+                    col_y = area['y']
+                    col_w = area['width']
+                    col_h = area['height']
+                    cv2.rectangle(debug_img, (col_x, col_y), (col_x + col_w, col_y + col_h), (0, 0, 255), 2)
+                    cv2.putText(debug_img, f"MANUAL COL {col_idx+1}", (col_x + 10, col_y + 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
             # Extract and save answer grid region
             answer_grid = gray[y:y+h, x:x+w] if y + h <= height and x + w <= width else gray[y:height, x:width]
             
+            # --- NEW: Extract and save each individual column image ---
+            if column_areas and output_dir:
+                import os
+                os.makedirs(output_dir, exist_ok=True)
+                for col_idx, area in column_areas.items():
+                    col_x = area['x']
+                    col_y = area['y']
+                    col_w = area['width']
+                    col_h = area['height']
+                    # Ensure bounds
+                    col_x = max(0, min(col_x, width - 1))
+                    col_y = max(0, min(col_y, height - 1))
+                    col_w = min(col_w, width - col_x)
+                    col_h = min(col_h, height - col_y)
+                    col_img = gray[col_y:col_y+col_h, col_x:col_x+col_w]
+                    col_filename = os.path.join(output_dir, f"column_{col_idx+1}_highres.png")
+                    cv2.imwrite(col_filename, col_img)
+                    logger.info(f"Saved column {col_idx+1} image: {col_filename}")
+            # --- END NEW ---
+
             # Create enhanced visualization of answer grid
             if answer_grid.size > 0:
                 # Apply contrast enhancement
@@ -762,8 +794,8 @@ class CheckMatePDFProcessor:
                 grid_debug = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2RGB)
                 
                 # Draw sample bubble positions for first few questions
-                bubble_spacing = grid_config['bubbles']['spacing']
-                start_x_offset = grid_config['bubbles']['start_x_offset']
+                bubble_spacing = 72
+                start_x_offset = 153
                 choices = ['A', 'B', 'C', 'D']
                 
                 for col in range(min(2, 4)):  # Show first 2 columns
@@ -875,8 +907,7 @@ class CheckMatePDFProcessor:
                 # Fallback config
                 grid_config = {
                     'grid': {'x': 30, 'y': 650, 'width': 2420, 'height': 2400},
-                    'columns': {'column_width': 605, 'header_height': 30, 'question_start_y': 50, 'max_questions_per_column': 25},
-                    'bubbles': {'spacing': 18, 'start_x_offset': 35}
+                    'columns': {'column_width': 605, 'header_height': 30, 'question_start_y': 50, 'max_questions_per_column': 25}
                 }
             
             grid = grid_config['grid']
@@ -1094,9 +1125,9 @@ class CheckMatePDFProcessor:
             
             # Draw column boundaries and bubbles
             column_width = grid_config['columns']['column_width']
-            bubble_radius = grid_config['bubbles']['radius']
-            bubble_spacing = grid_config['bubbles']['spacing']
-            start_x_offset = grid_config['bubbles']['start_x_offset']
+            bubble_radius = 32
+            bubble_spacing = 70
+            start_x_offset = 150
             question_start_y = grid_config['columns']['question_start_y']
             question_row_height = grid_config['columns'].get('question_row_height', 20)
             

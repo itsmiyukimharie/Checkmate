@@ -16,9 +16,7 @@ logger = logging.getLogger(__name__)
 try:
     from field_coordinates_config import (
         get_answer_grid_config,
-        calculate_column_layout,
-        get_bubble_coordinates,
-        BUBBLE_CONFIG
+        get_column_areas,  # Only import manual column areas
     )
     CONFIG_AVAILABLE = True
 except ImportError:
@@ -33,7 +31,7 @@ class StudentAnswerProcessor:
     
     def __init__(self):
         self.debug_images = []
-        logger.info("StudentAnswerProcessor initialized with bubble detection")
+        logger.info("StudentAnswerProcessor initialized (bubble detection removed)")
     
     def extract_student_answers(self, corrected_image, question_count, test_type, output_dir=None):
         """
@@ -46,10 +44,10 @@ class StudentAnswerProcessor:
             output_dir: Directory to save debug images (optional)
             
         Returns:
-            Dictionary with extracted answers
+            Dictionary with extracted answer grid region and layout
         """
         try:
-            logger.info(f"Extracting answers for {question_count} questions, type: {test_type}")
+            logger.info(f"Extracting answer grid for {question_count} questions, type: {test_type}")
             
             # Clear previous debug images
             self.debug_images = []
@@ -63,58 +61,47 @@ class StudentAnswerProcessor:
             # Get configuration
             if CONFIG_AVAILABLE:
                 grid_config = get_answer_grid_config()
-                layout = calculate_column_layout(question_count)
-                choices = grid_config['bubbles']['choices'][test_type]
+                column_areas = get_column_areas()
             else:
-                # Fallback configuration
                 grid_config = self._get_fallback_config()
-                layout = self._calculate_fallback_layout(question_count)
-                choices = ['A', 'B', 'C', 'D'] if test_type == 'multiple_choice_4' else ['A', 'B', 'C', 'D', 'E'] if test_type == 'multiple_choice_5' else ['T', 'F']
-            
+                column_areas = None
+
             # Extract answer grid region
             answer_grid = self._extract_answer_grid(gray, grid_config)
             self.debug_images.append(('01_answer_grid', answer_grid))
-            
-            # Preprocess for bubble detection
-            processed_grid = self._preprocess_for_bubbles(answer_grid)
-            self.debug_images.append(('02_processed_grid', processed_grid))
-            
-            # Detect answers for each question
-            detected_answers = {}
-            confidence_scores = {}
-            
-            for col_info in layout['column_ranges']:
-                logger.info(f"Processing column {col_info['column']}: Q{col_info['start_question']}-{col_info['end_question']}")
-                
-                col_answers, col_confidence = self._process_column(
-                    processed_grid, col_info, choices, test_type, grid_config
-                )
-                
-                detected_answers.update(col_answers)
-                confidence_scores.update(col_confidence)
-            
+
+            # Extract each column area from the answer grid using manual column areas
+            extracted_columns = {}
+            if column_areas:
+                for col_idx, area in column_areas.items():
+                    x = area['x'] - grid_config['grid']['x']
+                    y = area['y'] - grid_config['grid']['y']
+                    w = area['width']
+                    h = area['height']
+                    x = max(0, min(x, answer_grid.shape[1] - 1))
+                    y = max(0, min(y, answer_grid.shape[0] - 1))
+                    w = min(w, answer_grid.shape[1] - x)
+                    h = min(h, answer_grid.shape[0] - y)
+                    extracted_columns[col_idx] = answer_grid[y:y+h, x:x+w]
+                    self.debug_images.append((f'column_{col_idx}_area', extracted_columns[col_idx]))
+
             # Save debug images
             if output_dir:
                 self.save_debug_images(output_dir)
-            
+
             result = {
-                'answers': detected_answers,
-                'confidence_scores': confidence_scores,
-                'total_detected': len(detected_answers),
-                'layout': layout,
-                'test_type': test_type,
+                'answer_grid': answer_grid,
+                'column_areas': list(column_areas.keys()) if column_areas else [],
                 'success': True
             }
             
-            logger.info(f"Successfully detected {len(detected_answers)} answers")
+            logger.info(f"Answer grid extracted: {answer_grid.shape}")
             return result
             
         except Exception as e:
             logger.error(f"Error extracting student answers: {str(e)}")
             return {
-                'answers': {},
-                'confidence_scores': {},
-                'total_detected': 0,
+                'answer_grid': None,
                 'error': str(e),
                 'success': False
             }
@@ -134,85 +121,58 @@ class StudentAnswerProcessor:
         answer_grid = gray_image[y:y+h, x:x+w]
         logger.info(f"Extracted answer grid: {answer_grid.shape}")
         return answer_grid
+
+    def _get_fallback_config(self):
+        """Fallback configuration when config file not available"""
+        return {
+            'grid': {
+                'x': 30, 'y': 600, 'width': 2420, 'height': 2500,
+                'columns': 4, 'max_questions_per_column': 25
+            },
+            'columns': {
+                'column_width': 605, 'header_height': 25,
+                'question_row_height': 14, 'question_start_y': 40
+            }
+        }
     
-    def _preprocess_for_bubbles(self, answer_grid):
-        """Preprocess the answer grid for bubble detection"""
+    def save_debug_images(self, output_dir):
+        """Save debug images for answer processing"""
         try:
-            # Enhance contrast
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            enhanced = clahe.apply(answer_grid)
+            import os
+            # Create answer debug subdirectory
+            answer_debug_dir = os.path.join(output_dir, 'answer_debug')
+            os.makedirs(answer_debug_dir, exist_ok=True)
             
-            # Gaussian blur to reduce noise
-            blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
-            
-            # Binary threshold for bubble detection
-            _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            
-            logger.info("Answer grid preprocessed for bubble detection")
-            return binary
-            
+            for stage_name, debug_img in self.debug_images:
+                filename = f"{stage_name}.png"
+                filepath = os.path.join(answer_debug_dir, filename)
+                
+                # Save image
+                cv2.imwrite(filepath, debug_img)
+                logger.info(f"Saved answer debug image: {filepath}")
+                
         except Exception as e:
-            logger.error(f"Error in preprocessing: {str(e)}")
-            return answer_grid
+            logger.error(f"Error saving answer debug images: {str(e)}")
     
-    def _process_column(self, processed_grid, col_info, choices, test_type, grid_config):
-        """Process a single column of questions"""
-        answers = {}
-        confidence_scores = {}
+    def validate_answers(self, detected_answers, answer_key):
+        """
+        Validate detected answers against answer key
         
-        try:
-            column = col_info['column']
+        Args:
+            detected_answers: Dictionary of detected student answers
+            answer_key: Dictionary of correct answers
             
-            # Create visualization for this column
-            height, width = processed_grid.shape
-            col_debug = cv2.cvtColor(processed_grid, cv2.COLOR_GRAY2RGB)
-            
-            for q_num in range(col_info['start_question'], col_info['end_question'] + 1):
-                # Detect bubbles for this question
-                question_answers = []
-                question_confidences = []
-                
-                for choice_idx, choice in enumerate(choices):
-                    bubble_coords = self._get_bubble_coords(column, q_num, choice_idx, grid_config)
-                    
-                    if bubble_coords:
-                        fill_ratio, confidence = self._detect_bubble_fill(
-                            processed_grid, bubble_coords, grid_config
-                        )
-                        
-                        question_answers.append((choice, fill_ratio, confidence))
-                        question_confidences.append(confidence)
-                        
-                        # Draw bubble on debug image
-                        cv2.circle(col_debug, 
-                                 (int(bubble_coords['x']), int(bubble_coords['y'])), 
-                                 bubble_coords['radius'] + 2, 
-                                 (0, 255, 0) if fill_ratio > grid_config['detection']['filled_threshold'] else (255, 0, 0), 
-                                 2)
-                        
-                        # Add text labels
-                        cv2.putText(col_debug, f"Q{q_num}", 
-                                  (int(bubble_coords['x'] - 20), int(bubble_coords['y'])), 
-                                  cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
-                
-                # Determine the answer for this question
-                detected_answer, answer_confidence = self._determine_answer(
-                    question_answers, grid_config['detection']
-                )
-                
-                if detected_answer:
-                    answers[q_num] = detected_answer
-                    confidence_scores[q_num] = answer_confidence
-                    logger.debug(f"Q{q_num}: {detected_answer} (confidence: {answer_confidence:.2f})")
-            
-            # Save column debug image
-            self.debug_images.append((f'03_column_{column}_detection', col_debug))
-            
-            return answers, confidence_scores
-            
-        except Exception as e:
-            logger.error(f"Error processing column {col_info['column']}: {str(e)}")
-            return {}, {}
+        Returns:
+            Validation results with scores
+        """
+        # TODO: Implement answer validation
+        logger.info("Answer validation - implementation pending")
+        return {
+            'correct_count': 0,
+            'total_questions': len(answer_key),
+            'score_percentage': 0.0,
+            'detailed_results': {}
+        }
     
     def _get_bubble_coords(self, column, question_num, choice_index, grid_config):
         """Get bubble coordinates relative to the grid"""
@@ -335,6 +295,17 @@ class StudentAnswerProcessor:
             }
         }
     
+    def _calculate_fallback_bubble_coords(self, column, question_num, choice_index):
+        """Fallback bubble coordinate calculation"""
+        # Basic calculation for fallback
+        questions_per_col = 25
+        question_in_col = ((question_num - 1) % questions_per_col)
+        
+        x = 30 + (column * 605) + 30 + (choice_index * 16)
+        y = 40 + (question_in_col * 14)
+        
+        return {'x': x, 'y': y, 'radius': 5}
+
     def _calculate_fallback_layout(self, question_count):
         """Fallback layout calculation"""
         questions_per_column = 25
@@ -353,52 +324,48 @@ class StudentAnswerProcessor:
         
         return layout
     
-    def _calculate_fallback_bubble_coords(self, column, question_num, choice_index):
-        """Fallback bubble coordinate calculation"""
-        # Basic calculation for fallback
-        questions_per_col = 25
-        question_in_col = ((question_num - 1) % questions_per_col)
-        
-        x = 30 + (column * 605) + 30 + (choice_index * 16)
-        y = 40 + (question_in_col * 14)
-        
-        return {'x': x, 'y': y, 'radius': 5}
-    
-    def save_debug_images(self, output_dir):
-        """Save debug images for answer processing"""
-        try:
-            import os
-            # Create answer debug subdirectory
-            answer_debug_dir = os.path.join(output_dir, 'answer_debug')
-            os.makedirs(answer_debug_dir, exist_ok=True)
-            
-            for stage_name, debug_img in self.debug_images:
-                filename = f"{stage_name}.png"
-                filepath = os.path.join(answer_debug_dir, filename)
-                
-                # Save image
-                cv2.imwrite(filepath, debug_img)
-                logger.info(f"Saved answer debug image: {filepath}")
-                
-        except Exception as e:
-            logger.error(f"Error saving answer debug images: {str(e)}")
-    
-    def validate_answers(self, detected_answers, answer_key):
+    def extract_and_save_column_images(self, corrected_image, output_dir):
         """
-        Validate detected answers against answer key
-        
+        Extract and save high-quality images of the four answer columns.
+
         Args:
-            detected_answers: Dictionary of detected student answers
-            answer_key: Dictionary of correct answers
-            
+            corrected_image: Perspective-corrected full answer sheet image (RGB or grayscale)
+            output_dir: Directory to save the column images
         Returns:
-            Validation results with scores
+            List of saved file paths
         """
-        # TODO: Implement answer validation
-        logger.info("Answer validation - implementation pending")
-        return {
-            'correct_count': 0,
-            'total_questions': len(answer_key),
-            'score_percentage': 0.0,
-            'detailed_results': {}
-        }
+        if not CONFIG_AVAILABLE:
+            logger.error("Configuration not available. Cannot extract columns.")
+            return []
+
+        import os
+        import cv2
+
+        column_areas = get_column_areas()
+        output_dir = os.path.abspath(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Convert to grayscale for consistency, but save as PNG (lossless)
+        if len(corrected_image.shape) == 3:
+            gray = cv2.cvtColor(corrected_image, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = corrected_image.copy()
+
+        saved_files = []
+        for col_idx, area in column_areas.items():
+            x, y, w, h = area['x'], area['y'], area['width'], area['height']
+            # Ensure coordinates are within bounds
+            height, width = gray.shape
+            x = max(0, min(x, width - 1))
+            y = max(0, min(y, height - 1))
+            w = min(w, width - x)
+            h = min(h, height - y)
+            col_img = gray[y:y+h, x:x+w]
+            filename = os.path.join(output_dir, f"column_{col_idx+1}_highres.png")
+            success = cv2.imwrite(filename, col_img)
+            if success:
+                logger.info(f"Saved column {col_idx+1} image: {filename}")
+                saved_files.append(filename)
+            else:
+                logger.error(f"Failed to save column {col_idx+1} image: {filename}")
+        return saved_files

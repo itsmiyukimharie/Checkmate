@@ -130,43 +130,31 @@ DEBUG = {
 
 # ANSWER GRID CONFIGURATION
 ANSWER_GRID = {
-    'x': 50,           # Start X position of answer grid (closer to left edge)
-    'y': 680,          # Start Y position (much higher - right after student info)
-    'width': 2380,      # Total width of answer grid (much smaller)
-    'height': 1680,     # Total height of answer grid 
-    'columns': 4,      # Default number of columns
-    'max_questions_per_column': 25,  # Maximum questions per column
-    'max_questions_per_page': 100    # Maximum questions per page
+    'x': 150,
+    'y': 780,
+    'width': 2200,
+    'height': 1680,
+    'columns': 4,
+    'max_questions_per_column': 25,
+    'max_questions_per_page': 100
 }
 
 # COLUMN SPECIFICATIONS
 COLUMN_CONFIG = {
-    'column_width': 595,        # Width of each column (570/4)
-    'column_spacing': 0,        # Additional spacing between columns
-    'header_height': 90,        # Height of column headers (Q1-25, etc.)
-    'question_row_height': 60,  # Height of each question row
-    'question_start_y': 190,     # Y offset from column top to first question
-    'max_questions_per_column': 25  # Maximum questions per column
+    'column_width': 450,
+    'column_spacing': 150,
+    'header_height': 90,
+    'question_row_height': 60,
+    'question_start_y': 190,
+    'max_questions_per_column': 25
 }
 
-# BUBBLE SPECIFICATIONS  
-BUBBLE_CONFIG = {
-    'radius': 8,               # Bubble radius in pixels (smaller)
-    'spacing': 72,             # Horizontal spacing between bubbles (tighter)
-    'start_x_offset': 153,      # X offset from column start to first bubble
-    'choices': {
-        'multiple_choice_4': ['A', 'B', 'C', 'D'],
-        'multiple_choice_5': ['A', 'B', 'C', 'D', 'E'], 
-        'true_false': ['T', 'F']
-    }
-}
-
-# DETECTION THRESHOLDS
-DETECTION_CONFIG = {
-    'filled_threshold': 0.3,    # Lower threshold for bubble detection
-    'confidence_threshold': 0.4, # Lower confidence threshold  
-    'multiple_answers_penalty': 0.5,  # Confidence penalty for multiple answers
-    'no_answer_threshold': 0.15   # Maximum fill ratio to consider empty
+# COLUMN AREAS (manual definition for each column in the answer grid)
+COLUMN_AREAS = {
+    0: {'x': 150,  'y': 780,  'width': 450, 'height': 1590},  # Column 1
+    1: {'x': 750,  'y': 780,  'width': 450, 'height': 1590},  # Column 2
+    2: {'x': 1350, 'y': 780,  'width': 450, 'height': 1590},  # Column 3
+    3: {'x': 1950, 'y': 780,  'width': 400, 'height': 1590},  # Column 4 (width may be less if grid is not perfectly divisible)
 }
 
 def get_field_config(field_name):
@@ -192,10 +180,12 @@ def get_answer_grid_config():
     """Get answer grid configuration"""
     return {
         'grid': ANSWER_GRID.copy(),
-        'columns': COLUMN_CONFIG.copy(),
-        'bubbles': BUBBLE_CONFIG.copy(),
-        'detection': DETECTION_CONFIG.copy()
+        'columns': COLUMN_CONFIG.copy()
     }
+
+def get_column_areas():
+    """Get manually defined column areas"""
+    return COLUMN_AREAS.copy()
 
 # QUICK ADJUSTMENT FUNCTIONS
 def adjust_field_coordinates(field_name, x=None, y=None, width=None, height=None):
@@ -229,13 +219,11 @@ def calculate_column_layout(question_count):
     """Calculate dynamic column layout based on question count"""
     questions_per_column = COLUMN_CONFIG['max_questions_per_column']
     columns_needed = min(4, (question_count + questions_per_column - 1) // questions_per_column)
-    
     layout = {
         'columns': columns_needed,
         'questions_per_column': questions_per_column,
         'column_ranges': []
     }
-    
     for col in range(columns_needed):
         start_q = col * questions_per_column + 1
         end_q = min(start_q + questions_per_column - 1, question_count)
@@ -246,36 +234,9 @@ def calculate_column_layout(question_count):
                 'end_question': end_q,
                 'question_count': end_q - start_q + 1
             })
-    
     return layout
 
-def get_bubble_coordinates(column, question_num, choice_index, test_type):
-    """Calculate exact bubble coordinates"""
-    grid_config = get_answer_grid_config()
-    
-    # Get column position
-    column_width = grid_config['columns']['column_width']
-    col_x = grid_config['grid']['x'] + (column * column_width)
-    
-    # Get question row position within column
-    questions_per_col = grid_config['columns']['max_questions_per_column']
-    question_in_col = ((question_num - 1) % questions_per_col)
-    row_height = grid_config['columns']['question_row_height']
-    question_start_y = grid_config['columns']['question_start_y']
-    
-    question_y = (grid_config['grid']['y'] + question_start_y + 
-                  (question_in_col * row_height))
-    
-    # Get bubble position within row
-    bubble_start_x = col_x + grid_config['bubbles']['start_x_offset']
-    bubble_spacing = grid_config['bubbles']['spacing']
-    bubble_x = bubble_start_x + (choice_index * bubble_spacing)
-    
-    return {
-        'x': bubble_x,
-        'y': question_y,
-        'radius': grid_config['bubbles']['radius']
-    }
+
 
 if __name__ == "__main__":
     # Quick test of configuration
