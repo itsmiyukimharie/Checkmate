@@ -31,35 +31,35 @@ STUDENT_REGION = {
 
 # INDIVIDUAL FIELD COORDINATES
 # These are relative to the STUDENT_REGION defined above
-# Based on your successful debugging results:
+# Updated based on the PDF structure and text annotations
 
 FIELD_COORDINATES = {
     'name': {
-        'x': 200,        # X position within student region
-        'y': 90,         # Y position within student region
-        'width': 1000,   # Field width
-        'height': 90     # Field height
+        'x': 220,        # X position within student region (left side)
+        'y': 135,         # Y position within student region (top row)
+        'width': 1050,    # Field width
+        'height': 85     # Field height
     },
     
     'id': {
-        'x': 1350,       # X position for ID field (right side)
-        'y': 80,         # Y position within student region
-        'width': 1000,   # Field width
-        'height': 100    # Field height
+        'x': 1400,       # X position for ID field (right side)
+        'y': 135,         # Y position within student region (top row)
+        'width': 1200,    # Field width
+        'height': 85     # Field height
     },
     
     'course': {
-        'x': 200,        # X position for course field - moved slightly right
-        'y': 175,        # Y position for bottom row - moved up
-        'width': 1000,    # Field width - increased
-        'height': 80     # Field height - increased
+        'x': 220,         # X position for course field (left side)
+        'y': 215,        # Y position for bottom row
+        'width': 1050,    # Field width
+        'height': 85     # Field height
     },
     
     'section': {
-        'x': 1450,       # X position for section field (right side)
-        'y': 170,        # Y position for bottom row - moved up
-        'width': 800,    # Field width - increased
-        'height': 80     # Field height - increased
+        'x': 1525,       # X position for section field (right side)
+        'y': 215,        # Y position for bottom row
+        'width': 1050,    # Field width
+        'height': 90     # Field height
     }
 }
 
