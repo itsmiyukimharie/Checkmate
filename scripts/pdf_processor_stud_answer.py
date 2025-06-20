@@ -429,3 +429,120 @@ class StudentAnswerProcessor:
             cv2.imwrite(output_path, debug_img)
             logger.info(f"Saved column row mapping debug image: {output_path}")
         return debug_img
+
+    def detect_answers_in_column(self, column_img, col_idx, num_questions=25, choices=4, debug=False, output_path=None):
+        """
+        Detect filled answers for each question row in a column image.
+
+        Args:
+            column_img: Grayscale image of a single answer column.
+            col_idx: Column index (0-based).
+            num_questions: Number of questions (rows) in the column.
+            choices: Number of choices per question (default 4).
+            debug: If True, saves a debug image with detected answers.
+            output_path: Path to save the debug image.
+
+        Returns:
+            List of detected answers, e.g. ['A', 'C', None, ...]
+        """
+        import cv2
+        import numpy as np
+
+        row_boxes = self.map_rows_in_column(column_img, num_questions=num_questions, col_idx=col_idx)
+        h, w = column_img.shape
+
+        # Bubble positions: Use more robust spacing based on actual bubble locations
+        # Try to estimate bubble centers by finding the center of each black circle in the first row
+        # If not possible, fallback to config/fixed spacing
+
+        # Try to find bubble centers in the first row
+        first_row_img = column_img[row_boxes[0][0]:row_boxes[0][1], :]
+        _, thresh = cv2.threshold(first_row_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        bubble_centers_x = []
+        for cnt in contours:
+            (x, y), radius = cv2.minEnclosingCircle(cnt)
+            if 10 < radius < 40:  # Heuristic: filter out noise/small/large blobs
+                bubble_centers_x.append(int(x))
+        bubble_centers_x = sorted(bubble_centers_x)
+        # If we find the right number of bubbles, use them
+        if len(bubble_centers_x) == choices:
+            bubble_xs = bubble_centers_x
+        else:
+            # Fallback: use config/fixed spacing
+            if CONFIG_AVAILABLE:
+                from field_coordinates_config import COLUMN_CONFIG
+                col_w = COLUMN_CONFIG.get('column_width', w)
+                margin_x = int(col_w * 0.12)
+                margin_x_end = int(col_w * 0.88)
+                bubble_xs = np.linspace(margin_x, margin_x_end, choices)
+            else:
+                bubble_xs = np.linspace(int(w*0.15), int(w*0.85), choices)
+
+        detected_answers = []
+        debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR) if debug else None
+
+        for q_idx, (y1, y2) in enumerate(row_boxes):
+            row_img = column_img[y1:y2, :]
+            bubble_scores = []
+            for c_idx, bx in enumerate(bubble_xs):
+                by = (y2 + y1) // 2
+                radius = int(min((y2-y1), w//choices) * 0.38)
+                mask = np.zeros_like(row_img, dtype=np.uint8)
+                cv2.circle(mask, (int(bx), (y2-y1)//2), radius, 255, -1)
+                bubble_region = cv2.bitwise_and(row_img, row_img, mask=mask)
+                # Score: mean intensity (lower means more filled)
+                mean_val = cv2.mean(bubble_region, mask=mask)[0]
+                bubble_scores.append(mean_val)
+                if debug:
+                    color = (0, 255, 0) if mean_val < 180 else (0, 0, 255)
+                    cv2.circle(debug_img, (int(bx), by), radius, color, 2)
+                    cv2.putText(debug_img, chr(65+c_idx), (int(bx)-8, by-8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            min_idx = int(np.argmin(bubble_scores))
+            min_val = bubble_scores[min_idx]
+            sorted_scores = sorted(bubble_scores)
+            # Improved: require the filled bubble to be much darker than the average of the others
+            others = [v for i, v in enumerate(bubble_scores) if i != min_idx]
+            if min_val < 180 and (np.mean(others) - min_val > 25):
+                detected_answers.append(chr(65 + min_idx))
+                if debug:
+                    cv2.putText(debug_img, chr(65 + min_idx), (10, y1+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+            else:
+                detected_answers.append(None)
+                if debug:
+                    cv2.putText(debug_img, "?", (10, y1+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
+        if debug and output_path:
+            cv2.imwrite(output_path, debug_img)
+            logger.info(f"Saved answer detection debug image: {output_path}")
+
+        return detected_answers
+
+if __name__ == "__main__":
+    import sys
+    import os
+    # Usage: python pdf_processor_stud_answer.py <column_img_path> <col_idx> [--debug]
+    if len(sys.argv) < 3:
+        print("Usage: python pdf_processor_stud_answer.py <column_img_path> <col_idx> [--debug]")
+        sys.exit(1)
+    img_path = sys.argv[1]
+    col_idx = int(sys.argv[2])
+    debug = "--debug" in sys.argv
+
+    # Check if file exists before loading
+    if not os.path.isfile(img_path):
+        print(f"Error: File '{img_path}' does not exist. Please check the file path.")
+        sys.exit(1)
+
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        print(f"Error: Could not load image '{img_path}'. Please check the file format and integrity.")
+        sys.exit(1)
+    processor = StudentAnswerProcessor()
+    answers = processor.detect_answers_in_column(
+        img, col_idx, num_questions=25, choices=4, debug=debug,
+        output_path="column_{}_answers_debug.png".format(col_idx+1) if debug else None
+    )
+    for i, ans in enumerate(answers, 1):
+        print(f"Q{i}: {ans}")
