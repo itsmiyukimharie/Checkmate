@@ -157,6 +157,14 @@ COLUMN_AREAS = {
     3: {'x': 1950, 'y': 780,  'width': 400, 'height': 1590},  # Column 4 (width may be less if grid is not perfectly divisible)
 }
 
+# COLUMN HEADER AREAS (manual definition for each column header in the answer grid)
+COLUMN_HEADER_AREAS = {
+    0: {'x': 150,  'y': 780,  'width': 450, 'height': 50},   # Header for Column 1
+    1: {'x': 750,  'y': 780,  'width': 450, 'height': 50},   # Header for Column 2
+    2: {'x': 1350, 'y': 780,  'width': 450, 'height': 50},   # Header for Column 3
+    3: {'x': 1950, 'y': 780,  'width': 400, 'height': 50},   # Header for Column 4
+}
+
 def get_field_config(field_name):
     """Get configuration for a specific field"""
     return {
@@ -186,6 +194,10 @@ def get_answer_grid_config():
 def get_column_areas():
     """Get manually defined column areas"""
     return COLUMN_AREAS.copy()
+
+def get_column_header_areas():
+    """Get manually defined column header areas"""
+    return COLUMN_HEADER_AREAS.copy()
 
 # QUICK ADJUSTMENT FUNCTIONS
 def adjust_field_coordinates(field_name, x=None, y=None, width=None, height=None):

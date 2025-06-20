@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 try:
     from field_coordinates_config import (
         get_answer_grid_config,
-        get_column_areas,  # Only import manual column areas
+        get_column_areas,
+        get_column_header_areas,  # Always import header areas
     )
     CONFIG_AVAILABLE = True
 except ImportError:
     CONFIG_AVAILABLE = False
     logger.warning("field_coordinates_config.py not found. Using default coordinates.")
-
 
 class StudentAnswerProcessor:
     """
@@ -306,66 +306,105 @@ class StudentAnswerProcessor:
         
         return {'x': x, 'y': y, 'radius': 5}
 
-    def _calculate_fallback_layout(self, question_count):
-        """Fallback layout calculation"""
-        questions_per_column = 25
-        columns_needed = min(4, (question_count + questions_per_column - 1) // questions_per_column)
-        
-        layout = {'columns': columns_needed, 'column_ranges': []}
-        
-        for col in range(columns_needed):
-            start_q = col * questions_per_column + 1
-            end_q = min(start_q + questions_per_column - 1, question_count)
-            if start_q <= question_count:
-                layout['column_ranges'].append({
-                    'column': col, 'start_question': start_q, 
-                    'end_question': end_q, 'question_count': end_q - start_q + 1
-                })
-        
-        return layout
-    
-    def extract_and_save_column_images(self, corrected_image, output_dir):
+    def get_column_header_images(self, corrected_image):
         """
-        Extract and save high-quality images of the four answer columns.
-
-        Args:
-            corrected_image: Perspective-corrected full answer sheet image (RGB or grayscale)
-            output_dir: Directory to save the column images
-        Returns:
-            List of saved file paths
+        Extract header images for each column using manually defined header areas.
+        Returns a dict: {col_idx: header_img}
         """
         if not CONFIG_AVAILABLE:
-            logger.error("Configuration not available. Cannot extract columns.")
-            return []
+            logger.error("Configuration not available. Cannot extract headers.")
+            return {}
 
-        import os
         import cv2
-
-        column_areas = get_column_areas()
-        output_dir = os.path.abspath(output_dir)
-        os.makedirs(output_dir, exist_ok=True)
-
-        # Convert to grayscale for consistency, but save as PNG (lossless)
+        header_areas = get_column_header_areas()
+        header_imgs = {}
+        # Convert to grayscale for consistency
         if len(corrected_image.shape) == 3:
             gray = cv2.cvtColor(corrected_image, cv2.COLOR_RGB2GRAY)
         else:
             gray = corrected_image.copy()
-
-        saved_files = []
-        for col_idx, area in column_areas.items():
+        height, width = gray.shape
+        for col_idx, area in header_areas.items():
             x, y, w, h = area['x'], area['y'], area['width'], area['height']
-            # Ensure coordinates are within bounds
-            height, width = gray.shape
             x = max(0, min(x, width - 1))
             y = max(0, min(y, height - 1))
             w = min(w, width - x)
             h = min(h, height - y)
-            col_img = gray[y:y+h, x:x+w]
-            filename = os.path.join(output_dir, f"column_{col_idx+1}_highres.png")
-            success = cv2.imwrite(filename, col_img)
-            if success:
-                logger.info(f"Saved column {col_idx+1} image: {filename}")
-                saved_files.append(filename)
-            else:
-                logger.error(f"Failed to save column {col_idx+1} image: {filename}")
-        return saved_files
+            header_imgs[col_idx] = gray[y:y+h, x:x+w]
+        return header_imgs
+
+    def map_rows_in_column(self, column_img, num_questions=25, debug=False, output_path=None, col_idx=None):
+        """
+        Map each row (question) in a column image using OpenCV.
+        Always skips the header area as defined in config.
+        Uses fixed row height for robust mapping.
+        Starts rows exactly at the header's bottom edge.
+        """
+        import numpy as np
+        import cv2
+
+        h, w = column_img.shape
+
+        # Use header height from config if available, else fallback
+        header_height = 0
+        if CONFIG_AVAILABLE and col_idx is not None:
+            from field_coordinates_config import get_column_header_areas
+            header_areas = get_column_header_areas()
+            if col_idx in header_areas:
+                header_height = header_areas[col_idx]['height']
+        if not header_height or header_height >= h:
+            header_height = int(h * 0.06)
+
+        # Start rows at header's bottom edge
+        answer_area_height = h - header_height
+        row_height = answer_area_height // num_questions
+        row_boxes = []
+        for i in range(num_questions):
+            y1 = header_height + i * row_height
+            y2 = header_height + (i + 1) * row_height if i < num_questions - 1 else h
+            row_boxes.append((y1, y2))
+
+        # Debug visualization
+        if debug and output_path:
+            debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR)
+            for idx, (y1, y2) in enumerate(row_boxes):
+                cv2.rectangle(debug_img, (0, y1), (w-1, y2), (0, 0, 255), 2)
+                cv2.putText(debug_img, f"Q{idx+1}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
+            cv2.imwrite(output_path, debug_img)
+            logger.info(f"Saved row mapping debug image: {output_path}")
+
+        return row_boxes
+
+    def debug_column_row_mapping(self, column_img, num_questions=25, output_path=None, col_idx=None, corrected_image=None):
+        """
+        Visualize and save the row mapping for a column image, including the header area.
+
+        Args:
+            column_img: Grayscale image of a single answer column.
+            num_questions: Number of questions (rows) in the column.
+            output_path: Path to save the debug image.
+            col_idx: Column index (0-based) to fetch header area from config.
+            corrected_image: (Optional) Full corrected image to extract header from config.
+        """
+        # Draw row mapping as before
+        row_boxes = self.map_rows_in_column(column_img, num_questions=num_questions, col_idx=col_idx)
+        h, w = column_img.shape
+        debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR)
+        for idx, (y1, y2) in enumerate(row_boxes):
+            cv2.rectangle(debug_img, (0, y1), (w-1, y2), (0, 0, 255), 2)
+            cv2.putText(debug_img, f"Q{idx+1}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
+
+        # Draw header area if col_idx and corrected_image are provided
+        if col_idx is not None and corrected_image is not None and CONFIG_AVAILABLE:
+            from field_coordinates_config import get_column_header_areas
+            header_areas = get_column_header_areas()
+            if col_idx in header_areas:
+                area = header_areas[col_idx]
+                w_header, h_header = area['width'], area['height']
+                cv2.rectangle(debug_img, (0, 0), (w_header-1, h_header-1), (0, 255, 255), 2)
+                cv2.putText(debug_img, "HEADER", (5, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 128, 255), 2)
+
+        if output_path:
+            cv2.imwrite(output_path, debug_img)
+            logger.info(f"Saved column row mapping debug image: {output_path}")
+        return debug_img

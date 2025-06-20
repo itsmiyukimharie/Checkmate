@@ -765,9 +765,12 @@ class CheckMatePDFProcessor:
             answer_grid = gray[y:y+h, x:x+w] if y + h <= height and x + w <= width else gray[y:height, x:width]
             
             # --- NEW: Extract and save each individual column image ---
+            column_debug_paths = []
             if column_areas and output_dir:
                 import os
+                from pdf_processor_stud_answer import StudentAnswerProcessor
                 os.makedirs(output_dir, exist_ok=True)
+                processor = StudentAnswerProcessor()
                 for col_idx, area in column_areas.items():
                     col_x = area['x']
                     col_y = area['y']
@@ -782,6 +785,17 @@ class CheckMatePDFProcessor:
                     col_filename = os.path.join(output_dir, f"column_{col_idx+1}_highres.png")
                     cv2.imwrite(col_filename, col_img)
                     logger.info(f"Saved column {col_idx+1} image: {col_filename}")
+                    # --- Visualize row mapping for each column, including header ---
+                    debug_row_img_path = os.path.join(output_dir, f"column_{col_idx+1}_rowmap.png")
+                    processor.debug_column_row_mapping(
+                        col_img,
+                        num_questions=25,
+                        output_path=debug_row_img_path,
+                        col_idx=col_idx,
+                        corrected_image=corrected_image
+                    )
+                    logger.info(f"Saved column {col_idx+1} rowmap (with header): {debug_row_img_path}")
+                    column_debug_paths.append(debug_row_img_path)
             # --- END NEW ---
 
             # Create enhanced visualization of answer grid
