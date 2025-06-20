@@ -1029,6 +1029,252 @@ class CheckMatePDFProcessor:
                 'error': str(e)
             }
 
+    def debug_bubble_positions(self, corrected_image, question_count, test_type, output_dir=None):
+        """
+        Debug bubble positions to visualize where the system expects bubbles
+        
+        Args:
+            corrected_image: Perspective corrected image
+            question_count: Number of questions to visualize
+            test_type: Type of test (multiple_choice_4, multiple_choice_5, true_false)
+            output_dir: Directory to save debug images
+            
+        Returns:
+            Dictionary with bubble position analysis
+        """
+        try:
+            logger.info("=== BUBBLE POSITION DEBUG MODE ===")
+            
+            # Convert to grayscale if needed
+            if len(corrected_image.shape) == 3:
+                gray = cv2.cvtColor(corrected_image, cv2.COLOR_RGB2GRAY)
+            else:
+                gray = corrected_image.copy()
+            
+            # Get answer grid config
+            if CONFIG_AVAILABLE:
+                from field_coordinates_config import get_answer_grid_config, calculate_column_layout, get_bubble_coordinates
+                grid_config = get_answer_grid_config()
+                layout = calculate_column_layout(question_count)
+                choices = grid_config['bubbles']['choices'][test_type]
+            else:
+                # Fallback config
+                grid_config = {
+                    'grid': {'x': 50, 'y': 680, 'width': 2380, 'height': 1680},
+                    'columns': {'column_width': 600, 'max_questions_per_column': 25, 'question_start_y': 120},
+                    'bubbles': {'radius': 32, 'spacing': 70, 'start_x_offset': 150}
+                }
+                layout = {'columns': min(4, (question_count + 24) // 25), 'column_ranges': []}
+                for col in range(layout['columns']):
+                    start_q = col * 25 + 1
+                    end_q = min(start_q + 24, question_count)
+                    layout['column_ranges'].append({
+                        'column': col, 'start_question': start_q, 'end_question': end_q
+                    })
+                choices = ['A', 'B', 'C', 'D'] if test_type == 'multiple_choice_4' else ['A', 'B', 'C', 'D', 'E'] if test_type == 'multiple_choice_5' else ['T', 'F']
+            
+            height, width = gray.shape
+            
+            # Create visualization image
+            debug_img = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+            
+            # Draw answer grid boundary
+            grid = grid_config['grid']
+            x, y, w, h = grid['x'], grid['y'], grid['width'], grid['height']
+            
+            # Ensure coordinates are within bounds
+            x = max(0, min(x, width - 1))
+            y = max(0, min(y, height - 1))
+            w = min(w, width - x)
+            h = min(h, height - y)
+            
+            cv2.rectangle(debug_img, (x, y), (x + w, y + h), (0, 255, 0), 3)
+            cv2.putText(debug_img, "ANSWER GRID AREA", (x + 10, y + 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            
+            # Draw column boundaries and bubbles
+            column_width = grid_config['columns']['column_width']
+            bubble_radius = grid_config['bubbles']['radius']
+            bubble_spacing = grid_config['bubbles']['spacing']
+            start_x_offset = grid_config['bubbles']['start_x_offset']
+            question_start_y = grid_config['columns']['question_start_y']
+            question_row_height = grid_config['columns'].get('question_row_height', 20)
+            
+            bubble_positions = []
+            
+            for col_info in layout['column_ranges']:
+                column = col_info['column']
+                col_x = x + (column * column_width)
+                
+                # Draw column separator
+                if column > 0:
+                    cv2.line(debug_img, (col_x, y), (col_x, y + h), (255, 0, 0), 2)
+                
+                # Label column
+                cv2.putText(debug_img, f"COL {column+1}", (col_x + 10, y + 60), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+                
+                # Show first few questions in detail
+                questions_to_show = min(5, col_info['end_question'] - col_info['start_question'] + 1)
+                
+                for i in range(questions_to_show):
+                    q_num = col_info['start_question'] + i
+                    
+                    # Calculate question position
+                    question_in_col = ((q_num - 1) % 25)
+                    question_y = y + question_start_y + (question_in_col * question_row_height)
+                    
+                    # Draw question number
+                    cv2.putText(debug_img, f"Q{q_num}", (col_x + 5, question_y + 5), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
+                    
+                    # Draw bubbles for this question
+                    for choice_idx, choice in enumerate(choices):
+                        if CONFIG_AVAILABLE:
+                            # Use configuration-based coordinates
+                            coords = get_bubble_coordinates(column, q_num, choice_idx, test_type)
+                            bubble_x = coords['x']
+                            bubble_y = coords['y']
+                            radius = coords['radius']
+                        else:
+                            # Fallback calculation
+                            bubble_x = col_x + start_x_offset + (choice_idx * bubble_spacing)
+                            bubble_y = question_y
+                            radius = bubble_radius
+                        
+                        # Draw bubble circle
+                        cv2.circle(debug_img, (int(bubble_x), int(bubble_y)), radius, (0, 255, 255), 2)
+                        
+                        # Label bubble with choice
+                        cv2.putText(debug_img, choice, (int(bubble_x - 5), int(bubble_y - radius - 5)), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
+                        
+                        # Store position info
+                        bubble_positions.append({
+                            'question': q_num,
+                            'choice': choice,
+                            'column': column,
+                            'x': int(bubble_x),
+                            'y': int(bubble_y),
+                            'radius': radius
+                        })
+                
+                # Show ellipsis for remaining questions
+                if questions_to_show < (col_info['end_question'] - col_info['start_question'] + 1):
+                    remaining = (col_info['end_question'] - col_info['start_question'] + 1) - questions_to_show
+                    ellipsis_y = y + question_start_y + (questions_to_show * question_row_height) + 10
+                    cv2.putText(debug_img, f"... +{remaining} more", (col_x + 5, ellipsis_y), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.3, (128, 128, 128), 1)
+            
+            # Add configuration info overlay
+            config_text = [
+                f"Grid: x={x}, y={y}, w={w}, h={h}",
+                f"Columns: {layout['columns']}, Width: {column_width}",
+                f"Bubble: radius={bubble_radius}, spacing={bubble_spacing}",
+                f"Start offset: {start_x_offset}, Question Y: {question_start_y}",
+                f"Row height: {question_row_height}",
+                f"Test type: {test_type}, Choices: {', '.join(choices)}"
+            ]
+            
+            # Draw semi-transparent background for text
+            overlay = debug_img.copy()
+            cv2.rectangle(overlay, (10, height - 150), (800, height - 10), (0, 0, 0), -1)
+            cv2.addWeighted(overlay, 0.7, debug_img, 0.3, 0, debug_img)
+            
+            for i, text in enumerate(config_text):
+                cv2.putText(debug_img, text, (15, height - 140 + (i * 20)), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            
+            # Save debug images
+            if output_dir:
+                debug_dir = os.path.join(output_dir, 'bubble_position_debug')
+                os.makedirs(debug_dir, exist_ok=True)
+                
+                # Save full bubble visualization
+                cv2.imwrite(os.path.join(debug_dir, 'bubble_positions_full.png'), debug_img)
+                logger.info(f"Saved bubble position visualization")
+                
+                # Extract and save just the answer grid region for detailed view
+                if y + h <= height and x + w <= width:
+                    grid_region = debug_img[y:y+h, x:x+w]
+                    cv2.imwrite(os.path.join(debug_dir, 'bubble_positions_grid_only.png'), grid_region)
+                    logger.info(f"Saved detailed grid visualization")
+                
+                # Save bubble position data
+                import json
+                with open(os.path.join(debug_dir, 'bubble_positions.json'), 'w') as f:
+                    json.dump({
+                        'grid_config': grid_config,
+                        'layout': layout,
+                        'bubble_positions': bubble_positions,
+                        'image_size': (width, height),
+                        'test_info': {
+                            'question_count': question_count,
+                            'test_type': test_type,
+                            'choices': choices
+                        }
+                    }, f, indent=2)
+                
+                # Create detailed analysis report
+                with open(os.path.join(debug_dir, 'bubble_analysis.txt'), 'w') as f:
+                    f.write("BUBBLE POSITION ANALYSIS\n")
+                    f.write("="*50 + "\n\n")
+                    f.write(f"Image Size: {width} x {height}\n")
+                    f.write(f"Question Count: {question_count}\n")
+                    f.write(f"Test Type: {test_type}\n")
+                    f.write(f"Choices: {', '.join(choices)}\n\n")
+                    
+                    f.write("GRID CONFIGURATION:\n")
+                    f.write(f"  Position: x={x}, y={y}\n")
+                    f.write(f"  Size: {w} x {h}\n")
+                    f.write(f"  Columns: {layout['columns']}\n")
+                    f.write(f"  Column Width: {column_width}\n\n")
+                    
+                    f.write("BUBBLE CONFIGURATION:\n")
+                    f.write(f"  Radius: {bubble_radius} pixels\n")
+                    f.write(f"  Spacing: {bubble_spacing} pixels\n")
+                    f.write(f"  Start X Offset: {start_x_offset} pixels\n")
+                    f.write(f"  Question Start Y: {question_start_y} pixels\n")
+                    f.write(f"  Question Row Height: {question_row_height} pixels\n\n")
+                    
+                    f.write("COLUMN LAYOUT:\n")
+                    for col_info in layout['column_ranges']:
+                        f.write(f"  Column {col_info['column']}: Q{col_info['start_question']}-{col_info['end_question']}\n")
+                    f.write("\n")
+                    
+                    f.write("SAMPLE BUBBLE POSITIONS (first 5 questions):\n")
+                    for pos in bubble_positions[:20]:  # Show first 20 bubbles
+                        f.write(f"  Q{pos['question']}-{pos['choice']}: ({pos['x']}, {pos['y']}) r={pos['radius']}\n")
+                    
+                    if len(bubble_positions) > 20:
+                        f.write(f"  ... and {len(bubble_positions) - 20} more bubbles\n")
+                    
+                    f.write("\nTROUBLESHOOTING:\n")
+                    f.write("1. Check if bubble circles align with actual bubbles in your PDF\n")
+                    f.write("2. If misaligned, adjust coordinates in field_coordinates_config.py:\n")
+                    f.write("   - ANSWER_GRID: overall position and size\n")
+                    f.write("   - COLUMN_CONFIG: column layout and question spacing\n")
+                    f.write("   - BUBBLE_CONFIG: bubble size and spacing\n")
+                    f.write("3. Use corner adjustment if perspective correction is off\n")
+                
+                logger.info(f"Bubble position analysis saved to: {debug_dir}")
+            
+            return {
+                'success': True,
+                'grid_config': grid_config,
+                'layout': layout,
+                'bubble_positions': bubble_positions,
+                'image_size': (width, height),
+                'visualized_questions': min(question_count, sum(min(5, col['end_question'] - col['start_question'] + 1) for col in layout['column_ranges']))
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in bubble position debug: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
 def main():
     """Main function for command-line usage"""
     parser = argparse.ArgumentParser(description='CheckMate PDF Processor - Extract student info and answers from PDF answer sheets')
@@ -1061,10 +1307,14 @@ def main():
                        help='Debug answer grid coordinates (helps with fine-tuning)')
     parser.add_argument('--debug-headers', action='store_true',
                        help='Debug answer grid headers and spacing')
-    parser.add_argument('--manual-corners', nargs=8, type=int, metavar=('TL_X', 'TL_Y', 'TR_X', 'TR_Y', 'BL_X', 'BL_Y', 'BR_X', 'BR_Y'),
-                       help='Manual corner coordinates: top-left-x top-left-y top-right-x top-right-y bottom-left-x bottom-left-y bottom-right-x bottom-right-y')
+    parser.add_argument('--debug-bubbles', action='store_true',
+                       help='Debug bubble positions (shows where system expects bubbles)')
     parser.add_argument('--debug-corners', action='store_true',
                        help='Debug corner detection and show detected corners')
+    
+    # Corner adjustment options
+    parser.add_argument('--manual-corners', nargs=8, type=int, metavar=('TL_X', 'TL_Y', 'TR_X', 'TR_Y', 'BL_X', 'BL_Y', 'BR_X', 'BR_Y'),
+                       help='Manual corner coordinates: top-left-x top-left-y top-right-x top-right-y bottom-left-x bottom-left-y bottom-right-x bottom-right-y')
     parser.add_argument('--fine-tune-corners', action='store_true',
                        help='Test different corner adjustments for better perspective correction')
     parser.add_argument('--corner-adjustment', nargs=8, type=int, metavar=('TL_DX', 'TL_DY', 'TR_DX', 'TR_DY', 'BL_DX', 'BL_DY', 'BR_DX', 'BR_DY'),
@@ -1245,6 +1495,55 @@ def main():
         print("\nTo use manual corners, use:")
         print(f"--manual-corners TL_X TL_Y TR_X TR_Y BL_X BL_Y BR_X BR_Y")
         print("="*70)
+        
+        return 0
+    
+    # Special debug mode for bubble positions
+    if args.debug_bubbles:
+        if not args.question_count or not args.test_type:
+            logger.error("Bubble position debug requires --question-count and --test-type")
+            return 1
+        
+        # Get corrected image first
+        image = processor.convert_pdf_to_image(args.pdf_path)
+        if image is None:
+            logger.error("Failed to convert PDF to image")
+            return 1
+        
+        corners = processor.detect_corner_markers(image)
+        if corners is None:
+            logger.error("Failed to detect corner markers")
+            return 1
+        
+        corrected_image = processor.apply_perspective_correction(image, corners)
+        if corrected_image is None:
+            logger.error("Failed to apply perspective correction")
+            return 1
+        
+        # Debug bubble positions
+        debug_result = processor.debug_bubble_positions(corrected_image, args.question_count, args.test_type, args.output_dir)
+        
+        if debug_result['success']:
+            print("\n" + "="*70)
+            print("BUBBLE POSITION DEBUG RESULTS")
+            print("="*70)
+            print(f"Image Size: {debug_result['image_size']}")
+            print(f"Grid Layout: {debug_result['layout']['columns']} columns")
+            print(f"Questions Visualized: {debug_result['visualized_questions']} (showing first 5 per column)")
+            print(f"Total Bubble Positions: {len(debug_result['bubble_positions'])}")
+            print(f"Test Type: {args.test_type}")
+            print(f"\nDebug images saved in: {args.output_dir}/bubble_position_debug/")
+            print("Check the files:")
+            print("- bubble_positions_full.png (full image with bubble overlays)")
+            print("- bubble_positions_grid_only.png (detailed grid view)")
+            print("- bubble_positions.json (raw position data)")
+            print("- bubble_analysis.txt (detailed analysis and troubleshooting)")
+            print("\nLook for yellow circles - they should align with actual bubbles!")
+            print("If misaligned, adjust coordinates in field_coordinates_config.py")
+            print("="*70)
+        else:
+            logger.error("Bubble position debug failed!")
+            logger.error(f"Error: {debug_result['error']}")
         
         return 0
     

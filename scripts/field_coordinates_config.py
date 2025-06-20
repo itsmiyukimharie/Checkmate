@@ -36,30 +36,30 @@ STUDENT_REGION = {
 FIELD_COORDINATES = {
     'name': {
         'x': 220,        # X position within student region (left side)
-        'y': 135,         # Y position within student region (top row)
+        'y': 120,         # Y position within student region (top row)
         'width': 1050,    # Field width
-        'height': 85     # Field height
+        'height': 90     # Field height
     },
     
     'id': {
-        'x': 1400,       # X position for ID field (right side)
-        'y': 135,         # Y position within student region (top row)
-        'width': 1200,    # Field width
-        'height': 85     # Field height
+        'x': 1350,       # X position for ID field (right side)
+        'y': 90,         # Y position within student region (top row)
+        'width': 1050,    # Field width
+        'height': 120     # Field height
     },
     
     'course': {
-        'x': 220,         # X position for course field (left side)
-        'y': 215,        # Y position for bottom row
+        'x': 245,         # X position for course field (left side)
+        'y': 210,        # Y position for bottom row
         'width': 1050,    # Field width
-        'height': 85     # Field height
+        'height': 65     # Field height
     },
     
     'section': {
-        'x': 1525,       # X position for section field (right side)
-        'y': 215,        # Y position for bottom row
-        'width': 1050,    # Field width
-        'height': 90     # Field height
+        'x': 1450,       # X position for section field (right side)
+        'y': 210,        # Y position for bottom row
+        'width': 950,    # Field width
+        'height': 65     # Field height
     }
 }
 
@@ -143,17 +143,17 @@ ANSWER_GRID = {
 COLUMN_CONFIG = {
     'column_width': 600,        # Width of each column (570/4)
     'column_spacing': 0,        # Additional spacing between columns
-    'header_height': 15,        # Height of column headers (Q1-25, etc.)
-    'question_row_height': 20,  # Height of each question row
-    'question_start_y': 25,     # Y offset from column top to first question
+    'header_height': 90,        # Height of column headers (Q1-25, etc.)
+    'question_row_height': 60,  # Height of each question row
+    'question_start_y': 190,     # Y offset from column top to first question
     'max_questions_per_column': 25  # Maximum questions per column
 }
 
 # BUBBLE SPECIFICATIONS  
 BUBBLE_CONFIG = {
-    'radius': 32,               # Bubble radius in pixels (smaller)
-    'spacing': 60,             # Horizontal spacing between bubbles (tighter)
-    'start_x_offset': 45,      # X offset from column start to first bubble
+    'radius': 12,               # Bubble radius in pixels (smaller)
+    'spacing': 70,             # Horizontal spacing between bubbles (tighter)
+    'start_x_offset': 155,      # X offset from column start to first bubble
     'choices': {
         'multiple_choice_4': ['A', 'B', 'C', 'D'],
         'multiple_choice_5': ['A', 'B', 'C', 'D', 'E'], 

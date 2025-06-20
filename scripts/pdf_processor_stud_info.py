@@ -687,7 +687,7 @@ class StudentInfoExtractor:
                 cleaned = corrected
             
         elif field_name == 'section':
-            # ENHANCED SECTION CLEANING - Handle spaces properly for "BSIT 2-1"
+            # ENHANCED SECTION CLEANING - Handle spaces properly for "BSIT 2-1" and fix OCR mistakes
             # Sections: alphanumeric, spaces, and dashes
             
             # First, clean up but preserve meaningful spaces and dashes
@@ -698,15 +698,52 @@ class StudentInfoExtractor:
             if len(words) >= 2:
                 # Check if we have a program code + section number pattern
                 program_part = words[0].upper()  # e.g., "BSIT"
-                section_parts = words[1:]  # e.g., ["2-1"] or ["2", "1"]
+                section_parts = words[1:]  # e.g., ["2-40"] or ["2", "40"]
                 
-                # Reconstruct section number if it was split
+                # Reconstruct section number if it was split or fix OCR mistakes
                 if len(section_parts) == 2 and section_parts[0].isdigit() and section_parts[1].isdigit():
-                    # "BSIT" "2" "1" -> "BSIT 2-1"
-                    section_number = f"{section_parts[0]}-{section_parts[1]}"
+                    # "BSIT" "2" "40" -> check if should be "BSIT 2-1"
+                    year = section_parts[0]
+                    section_num = section_parts[1]
+                    
+                    # Fix common OCR mistakes for section numbers
+                    if section_num in ['40', '4O', '4o']:  # Common misreads of "1"
+                        section_num = '1'
+                    elif section_num in ['20', '2O', '2o']:  # Other potential misreads
+                        section_num = '1'
+                    
+                    section_number = f"{year}-{section_num}"
                 elif len(section_parts) == 1:
-                    # "BSIT" "2-1" -> "BSIT 2-1"
-                    section_number = section_parts[0]
+                    # "BSIT" "2-40" -> "BSIT 2-1"
+                    section_text = section_parts[0]
+                    
+                    # Apply OCR corrections to the section part
+                    # Fix common misreads: 2-40 -> 2-1, 2-4O -> 2-1, etc.
+                    corrected_section = section_text
+                    
+                    # Pattern-based corrections for section numbers
+                    section_corrections = [
+                        (r'^2-40$', '2-1'),     # 2-40 -> 2-1
+                        (r'^2-4O$', '2-1'),     # 2-4O -> 2-1 (O instead of 0)
+                        (r'^2-4o$', '2-1'),     # 2-4o -> 2-1 (lowercase o)
+                        (r'^2-20$', '2-1'),     # 2-20 -> 2-1
+                        (r'^2-2O$', '2-1'),     # 2-2O -> 2-1
+                        (r'^3-40$', '3-1'),     # 3-40 -> 3-1
+                        (r'^3-4O$', '3-1'),     # 3-4O -> 3-1
+                        (r'^1-40$', '1-1'),     # 1-40 -> 1-1
+                        (r'^1-4O$', '1-1'),     # 1-4O -> 1-1
+                        (r'^(\d+)-(\d)0$', r'\1-\2'),  # Any X-Y0 -> X-Y (remove trailing 0)
+                        (r'^(\d+)-(\d)O$', r'\1-\2'),  # Any X-YO -> X-Y (O to empty)
+                    ]
+                    
+                    # Apply corrections
+                    for pattern, replacement in section_corrections:
+                        if re.match(pattern, corrected_section):
+                            logger.info(f"Section correction: '{section_text}' -> '{replacement}'")
+                            corrected_section = replacement
+                            break
+                    
+                    section_number = corrected_section
                 else:
                     # Fallback: join remaining parts
                     section_number = ''.join(section_parts)
@@ -716,12 +753,30 @@ class StudentInfoExtractor:
                 # Single word - try to intelligently split if needed
                 single_word = words[0] if words else cleaned
                 
-                # Check for patterns like "BSIT2-1" -> "BSIT 2-1"
+                # Check for patterns like "BSIT2-40" -> "BSIT 2-1"
                 match = re.match(r'^([A-Z]{2,4})(\d+-\d+)$', single_word.upper())
                 if match:
                     program_code = match.group(1)
-                    section_number = match.group(2)
-                    cleaned = f"{program_code} {section_number}"
+                    section_part = match.group(2)
+                    
+                    # Apply same corrections to section part
+                    corrected_section = section_part
+                    section_corrections = [
+                        (r'^2-40$', '2-1'), (r'^2-4O$', '2-1'), (r'^2-4o$', '2-1'),
+                        (r'^2-20$', '2-1'), (r'^2-2O$', '2-1'),
+                        (r'^3-40$', '3-1'), (r'^3-4O$', '3-1'),
+                        (r'^1-40$', '1-1'), (r'^1-4O$', '1-1'),
+                        (r'^(\d+)-(\d)0$', r'\1-\2'),
+                        (r'^(\d+)-(\d)O$', r'\1-\2'),
+                    ]
+                    
+                    for pattern, replacement in section_corrections:
+                        if re.match(pattern, corrected_section):
+                            logger.info(f"Section correction: '{section_part}' -> '{replacement}'")
+                            corrected_section = replacement
+                            break
+                    
+                    cleaned = f"{program_code} {corrected_section}"
                 else:
                     # Keep as is if no clear pattern
                     cleaned = single_word
@@ -809,5 +864,7 @@ class StudentInfoExtractor:
         if height is not None:
             self.student_info_region['height'] = int(height)
         
+        logger.info(f"Updated student region: {self.student_info_region}")
+        logger.info(f"Updated student region: {self.student_info_region}")
         logger.info(f"Updated student region: {self.student_info_region}")
         logger.info(f"Updated student region: {self.student_info_region}")

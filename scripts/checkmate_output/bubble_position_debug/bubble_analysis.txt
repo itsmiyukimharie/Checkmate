@@ -1,0 +1,57 @@
+BUBBLE POSITION ANALYSIS
+==================================================
+
+Image Size: 2480 x 3508
+Question Count: 100
+Test Type: multiple_choice_4
+Choices: A, B, C, D
+
+GRID CONFIGURATION:
+  Position: x=50, y=680
+  Size: 2380 x 1680
+  Columns: 4
+  Column Width: 600
+
+BUBBLE CONFIGURATION:
+  Radius: 12 pixels
+  Spacing: 70 pixels
+  Start X Offset: 155 pixels
+  Question Start Y: 190 pixels
+  Question Row Height: 60 pixels
+
+COLUMN LAYOUT:
+  Column 0: Q1-25
+  Column 1: Q26-50
+  Column 2: Q51-75
+  Column 3: Q76-100
+
+SAMPLE BUBBLE POSITIONS (first 5 questions):
+  Q1-A: (205, 870) r=12
+  Q1-B: (275, 870) r=12
+  Q1-C: (345, 870) r=12
+  Q1-D: (415, 870) r=12
+  Q2-A: (205, 930) r=12
+  Q2-B: (275, 930) r=12
+  Q2-C: (345, 930) r=12
+  Q2-D: (415, 930) r=12
+  Q3-A: (205, 990) r=12
+  Q3-B: (275, 990) r=12
+  Q3-C: (345, 990) r=12
+  Q3-D: (415, 990) r=12
+  Q4-A: (205, 1050) r=12
+  Q4-B: (275, 1050) r=12
+  Q4-C: (345, 1050) r=12
+  Q4-D: (415, 1050) r=12
+  Q5-A: (205, 1110) r=12
+  Q5-B: (275, 1110) r=12
+  Q5-C: (345, 1110) r=12
+  Q5-D: (415, 1110) r=12
+  ... and 60 more bubbles
+
+TROUBLESHOOTING:
+1. Check if bubble circles align with actual bubbles in your PDF
+2. If misaligned, adjust coordinates in field_coordinates_config.py:
+   - ANSWER_GRID: overall position and size
+   - COLUMN_CONFIG: column layout and question spacing
+   - BUBBLE_CONFIG: bubble size and spacing
+3. Use corner adjustment if perspective correction is off

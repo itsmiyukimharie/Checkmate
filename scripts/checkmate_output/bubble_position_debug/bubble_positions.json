@@ -1,0 +1,737 @@
+{
+  "grid_config": {
+    "grid": {
+      "x": 50,
+      "y": 680,
+      "width": 2380,
+      "height": 1680,
+      "columns": 4,
+      "max_questions_per_column": 25,
+      "max_questions_per_page": 100
+    },
+    "columns": {
+      "column_width": 600,
+      "column_spacing": 0,
+      "header_height": 90,
+      "question_row_height": 60,
+      "question_start_y": 190,
+      "max_questions_per_column": 25
+    },
+    "bubbles": {
+      "radius": 12,
+      "spacing": 70,
+      "start_x_offset": 155,
+      "choices": {
+        "multiple_choice_4": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "multiple_choice_5": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "true_false": [
+          "T",
+          "F"
+        ]
+      }
+    },
+    "detection": {
+      "filled_threshold": 0.3,
+      "confidence_threshold": 0.4,
+      "multiple_answers_penalty": 0.5,
+      "no_answer_threshold": 0.15
+    }
+  },
+  "layout": {
+    "columns": 4,
+    "questions_per_column": 25,
+    "column_ranges": [
+      {
+        "column": 0,
+        "start_question": 1,
+        "end_question": 25,
+        "question_count": 25
+      },
+      {
+        "column": 1,
+        "start_question": 26,
+        "end_question": 50,
+        "question_count": 25
+      },
+      {
+        "column": 2,
+        "start_question": 51,
+        "end_question": 75,
+        "question_count": 25
+      },
+      {
+        "column": 3,
+        "start_question": 76,
+        "end_question": 100,
+        "question_count": 25
+      }
+    ]
+  },
+  "bubble_positions": [
+    {
+      "question": 1,
+      "choice": "A",
+      "column": 0,
+      "x": 205,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 1,
+      "choice": "B",
+      "column": 0,
+      "x": 275,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 1,
+      "choice": "C",
+      "column": 0,
+      "x": 345,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 1,
+      "choice": "D",
+      "column": 0,
+      "x": 415,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 2,
+      "choice": "A",
+      "column": 0,
+      "x": 205,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 2,
+      "choice": "B",
+      "column": 0,
+      "x": 275,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 2,
+      "choice": "C",
+      "column": 0,
+      "x": 345,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 2,
+      "choice": "D",
+      "column": 0,
+      "x": 415,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 3,
+      "choice": "A",
+      "column": 0,
+      "x": 205,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 3,
+      "choice": "B",
+      "column": 0,
+      "x": 275,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 3,
+      "choice": "C",
+      "column": 0,
+      "x": 345,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 3,
+      "choice": "D",
+      "column": 0,
+      "x": 415,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 4,
+      "choice": "A",
+      "column": 0,
+      "x": 205,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 4,
+      "choice": "B",
+      "column": 0,
+      "x": 275,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 4,
+      "choice": "C",
+      "column": 0,
+      "x": 345,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 4,
+      "choice": "D",
+      "column": 0,
+      "x": 415,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 5,
+      "choice": "A",
+      "column": 0,
+      "x": 205,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 5,
+      "choice": "B",
+      "column": 0,
+      "x": 275,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 5,
+      "choice": "C",
+      "column": 0,
+      "x": 345,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 5,
+      "choice": "D",
+      "column": 0,
+      "x": 415,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 26,
+      "choice": "A",
+      "column": 1,
+      "x": 805,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 26,
+      "choice": "B",
+      "column": 1,
+      "x": 875,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 26,
+      "choice": "C",
+      "column": 1,
+      "x": 945,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 26,
+      "choice": "D",
+      "column": 1,
+      "x": 1015,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 27,
+      "choice": "A",
+      "column": 1,
+      "x": 805,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 27,
+      "choice": "B",
+      "column": 1,
+      "x": 875,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 27,
+      "choice": "C",
+      "column": 1,
+      "x": 945,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 27,
+      "choice": "D",
+      "column": 1,
+      "x": 1015,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 28,
+      "choice": "A",
+      "column": 1,
+      "x": 805,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 28,
+      "choice": "B",
+      "column": 1,
+      "x": 875,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 28,
+      "choice": "C",
+      "column": 1,
+      "x": 945,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 28,
+      "choice": "D",
+      "column": 1,
+      "x": 1015,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 29,
+      "choice": "A",
+      "column": 1,
+      "x": 805,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 29,
+      "choice": "B",
+      "column": 1,
+      "x": 875,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 29,
+      "choice": "C",
+      "column": 1,
+      "x": 945,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 29,
+      "choice": "D",
+      "column": 1,
+      "x": 1015,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 30,
+      "choice": "A",
+      "column": 1,
+      "x": 805,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 30,
+      "choice": "B",
+      "column": 1,
+      "x": 875,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 30,
+      "choice": "C",
+      "column": 1,
+      "x": 945,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 30,
+      "choice": "D",
+      "column": 1,
+      "x": 1015,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 51,
+      "choice": "A",
+      "column": 2,
+      "x": 1405,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 51,
+      "choice": "B",
+      "column": 2,
+      "x": 1475,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 51,
+      "choice": "C",
+      "column": 2,
+      "x": 1545,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 51,
+      "choice": "D",
+      "column": 2,
+      "x": 1615,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 52,
+      "choice": "A",
+      "column": 2,
+      "x": 1405,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 52,
+      "choice": "B",
+      "column": 2,
+      "x": 1475,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 52,
+      "choice": "C",
+      "column": 2,
+      "x": 1545,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 52,
+      "choice": "D",
+      "column": 2,
+      "x": 1615,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 53,
+      "choice": "A",
+      "column": 2,
+      "x": 1405,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 53,
+      "choice": "B",
+      "column": 2,
+      "x": 1475,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 53,
+      "choice": "C",
+      "column": 2,
+      "x": 1545,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 53,
+      "choice": "D",
+      "column": 2,
+      "x": 1615,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 54,
+      "choice": "A",
+      "column": 2,
+      "x": 1405,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 54,
+      "choice": "B",
+      "column": 2,
+      "x": 1475,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 54,
+      "choice": "C",
+      "column": 2,
+      "x": 1545,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 54,
+      "choice": "D",
+      "column": 2,
+      "x": 1615,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 55,
+      "choice": "A",
+      "column": 2,
+      "x": 1405,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 55,
+      "choice": "B",
+      "column": 2,
+      "x": 1475,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 55,
+      "choice": "C",
+      "column": 2,
+      "x": 1545,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 55,
+      "choice": "D",
+      "column": 2,
+      "x": 1615,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 76,
+      "choice": "A",
+      "column": 3,
+      "x": 2005,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 76,
+      "choice": "B",
+      "column": 3,
+      "x": 2075,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 76,
+      "choice": "C",
+      "column": 3,
+      "x": 2145,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 76,
+      "choice": "D",
+      "column": 3,
+      "x": 2215,
+      "y": 870,
+      "radius": 12
+    },
+    {
+      "question": 77,
+      "choice": "A",
+      "column": 3,
+      "x": 2005,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 77,
+      "choice": "B",
+      "column": 3,
+      "x": 2075,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 77,
+      "choice": "C",
+      "column": 3,
+      "x": 2145,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 77,
+      "choice": "D",
+      "column": 3,
+      "x": 2215,
+      "y": 930,
+      "radius": 12
+    },
+    {
+      "question": 78,
+      "choice": "A",
+      "column": 3,
+      "x": 2005,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 78,
+      "choice": "B",
+      "column": 3,
+      "x": 2075,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 78,
+      "choice": "C",
+      "column": 3,
+      "x": 2145,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 78,
+      "choice": "D",
+      "column": 3,
+      "x": 2215,
+      "y": 990,
+      "radius": 12
+    },
+    {
+      "question": 79,
+      "choice": "A",
+      "column": 3,
+      "x": 2005,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 79,
+      "choice": "B",
+      "column": 3,
+      "x": 2075,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 79,
+      "choice": "C",
+      "column": 3,
+      "x": 2145,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 79,
+      "choice": "D",
+      "column": 3,
+      "x": 2215,
+      "y": 1050,
+      "radius": 12
+    },
+    {
+      "question": 80,
+      "choice": "A",
+      "column": 3,
+      "x": 2005,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 80,
+      "choice": "B",
+      "column": 3,
+      "x": 2075,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 80,
+      "choice": "C",
+      "column": 3,
+      "x": 2145,
+      "y": 1110,
+      "radius": 12
+    },
+    {
+      "question": 80,
+      "choice": "D",
+      "column": 3,
+      "x": 2215,
+      "y": 1110,
+      "radius": 12
+    }
+  ],
+  "image_size": [
+    2480,
+    3508
+  ],
+  "test_info": {
+    "question_count": 100,
+    "test_type": "multiple_choice_4",
+    "choices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ]
+  }
+}

@@ -6,8 +6,8 @@ Grid coordinates: x=50, y=680, w=2380, h=1680
 Grid bottom: 2360 (image height: 3508)
 Grid right: 2430 (image width: 2480)
 Column width: 600
-Bubble spacing: 60
-Start X offset: 1000
+Bubble spacing: 70
+Start X offset: 150
 
 COORDINATE SUGGESTIONS:
 
