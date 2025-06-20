@@ -464,3 +464,122 @@ class CheckmateService:
 
         cv2.imwrite(output_path, debug_img)
 
+    def save_column_areas_debug_image(self, pdf_path, output_path):
+        """
+        Generate and save a debug image showing the answer grid region and the bounding boxes
+        for each column area for fine-tuning.
+        """
+        image = self.convert_pdf_to_image(pdf_path)
+        if image is None:
+            raise Exception("Failed to convert PDF to image.")
+
+        # Use the same fine-tuned corners as in process_pdf
+        corners = self.detect_corner_markers(image)
+        corners = self.fine_tune_corners(image, corners)
+        corrected_image = self.apply_perspective_correction(image, corners)
+        if corrected_image is None:
+            raise Exception("Failed to apply perspective correction.")
+
+        # Draw on a copy of the corrected image
+        debug_img = corrected_image.copy()
+
+        # Get answer grid and column areas
+        try:
+            from scripts.field_coordinates_config import (
+                get_answer_grid_config,
+                get_column_areas
+            )
+        except ImportError:
+            raise Exception("field_coordinates_config.py not found.")
+
+        grid_config = get_answer_grid_config()
+        column_areas = get_column_areas()
+        grid = grid_config['grid']
+
+        # Draw answer grid region
+        cv2.rectangle(debug_img, (grid['x'], grid['y']), (grid['x'] + grid['width'], grid['y'] + grid['height']), (0, 255, 255), 3)
+        cv2.putText(debug_img, "Answer Grid", (grid['x'] + 10, grid['y'] + 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+
+        # Draw each column area
+        colors = [
+            (0, 255, 0),
+            (255, 0, 0),
+            (0, 128, 255),
+            (255, 0, 255),
+            (128, 0, 255),
+            (0, 255, 128),
+        ]
+        for idx, area in column_areas.items():
+            x, y, w, h = area['x'], area['y'], area['width'], area['height']
+            color = colors[idx % len(colors)]
+            cv2.rectangle(debug_img, (x, y), (x + w, y + h), color, 3)
+            cv2.putText(debug_img, f"COL {idx+1}", (x + 10, y + 40), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+
+        cv2.imwrite(output_path, debug_img)
+
+    def save_column_row_debug_images(self, pdf_path, output_dir):
+        """
+        Generate and save debug images for each answer column, showing the header and row mapping.
+        Each image will visualize the header area and all question rows for that column.
+        """
+        import os
+        image = self.convert_pdf_to_image(pdf_path)
+        if image is None:
+            raise Exception("Failed to convert PDF to image.")
+
+        # Use the same fine-tuned corners as in process_pdf
+        corners = self.detect_corner_markers(image)
+        corners = self.fine_tune_corners(image, corners)
+        corrected_image = self.apply_perspective_correction(image, corners)
+        if corrected_image is None:
+            raise Exception("Failed to apply perspective correction.")
+
+        # Get answer grid and column areas
+        try:
+            from scripts.field_coordinates_config import (
+                get_answer_grid_config,
+                get_column_areas,
+                get_column_header_areas,
+                COLUMN_CONFIG
+            )
+        except ImportError:
+            raise Exception("field_coordinates_config.py not found.")
+
+        grid_config = get_answer_grid_config()
+        column_areas = get_column_areas()
+        header_areas = get_column_header_areas()
+        grid = grid_config['grid']
+        max_per_col = COLUMN_CONFIG.get('max_questions_per_column', 25)
+
+        # Ensure output directory exists
+        os.makedirs(output_dir, exist_ok=True)
+
+        # For each column, extract the area and draw header/rows
+        for col_idx, area in column_areas.items():
+            x, y, w, h = area['x'], area['y'], area['width'], area['height']
+            col_img = corrected_image[y:y+h, x:x+w].copy()
+            debug_img = col_img.copy()
+
+            # Draw header area (relative to column)
+            if col_idx in header_areas:
+                hx = header_areas[col_idx]['x'] - x
+                hy = header_areas[col_idx]['y'] - y
+                hw = header_areas[col_idx]['width']
+                hh = header_areas[col_idx]['height']
+                cv2.rectangle(debug_img, (hx, hy), (hx + hw, hy + hh), (0, 255, 255), 2)
+                cv2.putText(debug_img, "HEADER", (hx + 5, hy + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+
+            # Draw row boxes
+            answer_area_top = header_areas[col_idx]['height'] if col_idx in header_areas else int(h * 0.06)
+            answer_area_height = h - answer_area_top
+            row_height = answer_area_height // max_per_col
+            for i in range(max_per_col):
+                y1 = answer_area_top + i * row_height
+                y2 = answer_area_top + (i + 1) * row_height if i < max_per_col - 1 else h
+                cv2.rectangle(debug_img, (0, y1), (w-1, y2), (0, 0, 255), 2)
+                cv2.putText(debug_img, f"Q{col_idx*max_per_col + i + 1}", (5, y1+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
+
+            # Save debug image for this column
+            out_path = os.path.join(output_dir, f"column_{col_idx+1}_header_rows_debug.png")
+            cv2.imwrite(out_path, debug_img)
+

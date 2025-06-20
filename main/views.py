@@ -1131,6 +1131,16 @@ def process_answer_sheets_pdf(request):
         pdf_path="pdf_directory/Test2.pdf",
         output_path="debug_student_info.png"
     )
+    service = CheckmateService()
+    service.save_column_areas_debug_image(
+        pdf_path="pdf_directory/Test2.pdf",
+        output_path="debug_column_areas.png"
+    )
+    service = CheckmateService()
+    service.save_column_row_debug_images(
+        pdf_path="pdf_directory/Test2.pdf",
+        output_dir="column_row_debug"
+    )
     results = service.process_pdfs(temp_files, question_count=question_count, test_type=test_type, output_dir=output_dir)
 
     # Clean up temp files

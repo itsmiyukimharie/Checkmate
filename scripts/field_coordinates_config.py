@@ -151,10 +151,10 @@ COLUMN_CONFIG = {
 
 # COLUMN AREAS (manual definition for each column in the answer grid)
 COLUMN_AREAS = {
-    0: {'x': 120,  'y': 760,  'width': 520, 'height': 1630},  # Column 1
-    1: {'x': 670,  'y': 760,  'width': 520, 'height': 1630},  # Column 2
-    2: {'x': 1220, 'y': 760,  'width': 520, 'height': 1630},  # Column 3
-    3: {'x': 1770, 'y': 760,  'width': 500, 'height': 1630},  # Column 4
+    0: {'x': 160, 'y': 790,  'width': 450, 'height': 1570},  # Column 1
+    1: {'x': 750, 'y': 790,  'width': 450, 'height': 1570},  # Column 2
+    2: {'x': 1340, 'y': 790,  'width': 450, 'height': 1570},  # Column 3
+    3: {'x': 1940, 'y': 790,  'width': 450, 'height': 1570},  # Column 4
 }
 
 # COLUMN HEADER AREAS (manual definition for each column header in the answer grid)
