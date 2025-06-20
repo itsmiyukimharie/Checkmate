@@ -339,6 +339,7 @@ class StudentAnswerProcessor:
         Always skips the header area as defined in config.
         Uses fixed row height for robust mapping.
         Starts rows exactly at the header's bottom edge.
+        Row labels reflect the actual question numbers for each column.
         """
         import numpy as np
         import cv2
@@ -355,21 +356,30 @@ class StudentAnswerProcessor:
         if not header_height or header_height >= h:
             header_height = int(h * 0.06)
 
+        # Determine the starting question number for this column
+        start_question = 1
+        if CONFIG_AVAILABLE and col_idx is not None:
+            from field_coordinates_config import COLUMN_CONFIG
+            max_per_col = COLUMN_CONFIG.get('max_questions_per_column', 25)
+            start_question = col_idx * max_per_col + 1
+
         # Start rows at header's bottom edge
         answer_area_height = h - header_height
         row_height = answer_area_height // num_questions
         row_boxes = []
+        question_numbers = []
         for i in range(num_questions):
             y1 = header_height + i * row_height
             y2 = header_height + (i + 1) * row_height if i < num_questions - 1 else h
             row_boxes.append((y1, y2))
+            question_numbers.append(start_question + i)
 
         # Debug visualization
         if debug and output_path:
             debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR)
             for idx, (y1, y2) in enumerate(row_boxes):
                 cv2.rectangle(debug_img, (0, y1), (w-1, y2), (0, 0, 255), 2)
-                cv2.putText(debug_img, f"Q{idx+1}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
+                cv2.putText(debug_img, f"Q{question_numbers[idx]}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
             cv2.imwrite(output_path, debug_img)
             logger.info(f"Saved row mapping debug image: {output_path}")
 
@@ -389,10 +399,21 @@ class StudentAnswerProcessor:
         # Draw row mapping as before
         row_boxes = self.map_rows_in_column(column_img, num_questions=num_questions, col_idx=col_idx)
         h, w = column_img.shape
+
+        # Determine the starting question number for this column
+        question_numbers = []
+        if CONFIG_AVAILABLE and col_idx is not None:
+            from field_coordinates_config import COLUMN_CONFIG
+            max_per_col = COLUMN_CONFIG.get('max_questions_per_column', 25)
+            start_question = col_idx * max_per_col + 1
+            question_numbers = [start_question + i for i in range(num_questions)]
+        else:
+            question_numbers = [i + 1 for i in range(num_questions)]
+
         debug_img = cv2.cvtColor(column_img, cv2.COLOR_GRAY2BGR)
         for idx, (y1, y2) in enumerate(row_boxes):
             cv2.rectangle(debug_img, (0, y1), (w-1, y2), (0, 0, 255), 2)
-            cv2.putText(debug_img, f"Q{idx+1}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
+            cv2.putText(debug_img, f"Q{question_numbers[idx]}", (5, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
 
         # Draw header area if col_idx and corrected_image are provided
         if col_idx is not None and corrected_image is not None and CONFIG_AVAILABLE:
