@@ -577,77 +577,97 @@ class CheckMatePDFProcessor:
                                 question_count=None, test_type=None):
         """
         Complete processing pipeline for PDF answer sheets
-        
-        Args:
-            pdf_path: Path to PDF file
-            output_dir: Directory to save debug images and results
-            extract_student_info: Whether to extract student information
-            extract_answers: Whether to extract student answers
-            question_count: Number of questions (required if extract_answers=True)
-            test_type: Test type (required if extract_answers=True)
-            
-        Returns:
-            Dictionary with processing results
         """
         try:
             logger.info("="*70)
             logger.info("CHECKMATE PDF PROCESSING PIPELINE")
             logger.info("="*70)
             logger.info(f"Processing: {pdf_path}")
-            
-            # Clear previous debug images
-            self.debug_images = []
-            
+
             # Step 1: Convert PDF to image
             logger.info("Step 1: Converting PDF to image...")
             image = self.convert_pdf_to_image(pdf_path)
             if image is None:
                 return self._create_error_result("Failed to convert PDF to image")
-            
+
             # Step 2: Detect corner markers
             logger.info("Step 2: Detecting corner markers...")
             corners = self.detect_corner_markers(image)
             if corners is None:
                 return self._create_error_result("Failed to detect corner markers")
-            
+
             # Step 3: Apply perspective correction
             logger.info("Step 3: Applying perspective correction...")
             corrected_image = self.apply_perspective_correction(image, corners)
             if corrected_image is None:
                 return self._create_error_result("Failed to apply perspective correction")
-            
-            # Step 4: Extract information based on requests
+
+            # Step 4: Extract student info
             student_info = None
-            student_answers = None
-            
             if extract_student_info:
-                logger.info("Step 4a: Extracting student information...")
+                logger.info("Step 4: Extracting student information...")
                 student_info = self.extract_student_information(corrected_image, output_dir)
-            
+
+            # Step 5: Extract answers using pdf_processor_stud_answer.py logic
+            student_answers = None
             if extract_answers:
-                if question_count is None or test_type is None:
-                    logger.warning("Question count and test type required for answer extraction")
-                    student_answers = {'error': 'Missing question_count or test_type parameters'}
+                logger.info("Step 5: Extracting answers...")
+                from pdf_processor_stud_answer import StudentAnswerProcessor
+                answer_processor = StudentAnswerProcessor()
+                answer_result = answer_processor.extract_student_answers(
+                    corrected_image, question_count, test_type, output_dir
+                )
+                if not answer_result.get('success'):
+                    student_answers = {'error': answer_result.get('error', 'Unknown error')}
                 else:
-                    logger.info("Step 4b: Extracting student answers...")
-                    student_answers = self.extract_student_answers(
-                        corrected_image, question_count, test_type, output_dir
-                    )
-            
-            # Step 5: Save results and debug images
+                    from field_coordinates_config import get_answer_grid_config, get_column_areas, COLUMN_CONFIG
+                    grid_config = get_answer_grid_config() if CONFIG_AVAILABLE else answer_processor._get_fallback_config()
+                    column_areas = get_column_areas() if CONFIG_AVAILABLE else {}
+                    answer_grid = answer_result['answer_grid']
+                    answers = {}
+                    total_detected = 0
+                    for col_idx, area in column_areas.items():
+                        x = area['x'] - grid_config['grid']['x']
+                        y = area['y'] - grid_config['grid']['y']
+                        w = area['width']
+                        h = area['height']
+                        x = max(0, min(x, answer_grid.shape[1] - 1))
+                        y = max(0, min(y, answer_grid.shape[0] - 1))
+                        w = min(w, answer_grid.shape[1] - x)
+                        h = min(h, answer_grid.shape[0] - y)
+                        col_img = answer_grid[y:y+h, x:x+w]
+                        max_per_col = COLUMN_CONFIG.get('max_questions_per_column', 25)
+                        start_q = col_idx * max_per_col + 1
+                        end_q = min(start_q + max_per_col - 1, question_count)
+                        num_q = end_q - start_q + 1
+                        if test_type == "multiple_choice_4":
+                            choices = 4
+                        elif test_type == "multiple_choice_5":
+                            choices = 5
+                        elif test_type == "true_false":
+                            choices = 2
+                        else:
+                            choices = 4
+                        col_answers = answer_processor.detect_answers_in_column(
+                            col_img, col_idx, num_questions=num_q, choices=choices, debug=False
+                        )
+                        for i, ans in enumerate(col_answers):
+                            qnum = start_q + i
+                            answers[qnum] = ans
+                            if ans is not None:
+                                total_detected += 1
+                    student_answers = {
+                        'answers': answers,
+                        'total_detected': total_detected,
+                        'success': True
+                    }
+
+            # Save debug images if needed
             if output_dir:
-                logger.info("Step 5: Saving results and debug images...")
-                os.makedirs(output_dir, exist_ok=True)
-                
-                # Save main debug images
                 self.save_debug_images(output_dir)
-                
-                # Save final corrected image
                 output_path = os.path.join(output_dir, f"{Path(pdf_path).stem}_corrected.png")
                 cv2.imwrite(output_path, cv2.cvtColor(corrected_image, cv2.COLOR_RGB2BGR))
-                logger.info(f"Final corrected image saved: {output_path}")
-            
-            # Return results
+
             result = {
                 'success': True,
                 'pdf_path': pdf_path,
@@ -657,13 +677,13 @@ class CheckMatePDFProcessor:
                 'student_answers': student_answers,
                 'output_dir': output_dir
             }
-            
+
             logger.info("="*70)
             logger.info("✓ PROCESSING COMPLETED SUCCESSFULLY")
             logger.info("="*70)
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"✗ Error in processing pipeline: {str(e)}")
             return self._create_error_result(str(e))
@@ -1385,270 +1405,126 @@ def main():
         return 1
     
     # Create processor
-    processor = CheckMatePDFProcessor(debug_mode=args.debug)
-    
-    # Show configuration status
-    config_status = processor.get_configuration_status()
-    logger.info("Configuration Status:")
-    logger.info(f"  Config File: {'✓ Available' if config_status['config_available'] else '✗ Not found'}")
-    if config_status['student_region']:
-        region = config_status['student_region']
-        logger.info(f"  Student Region: x={region['x']}, y={region['y']}, w={region['width']}, h={region['height']}")
-    
-    # Update student region if provided
-    if args.student_region:
-        x, y, w, h = args.student_region
-        processor.update_student_region(x, y, w, h)
-        logger.info(f"Student region updated: x={x}, y={y}, w={w}, h={h}")
-    
-    # Special debug mode for answer grid
-    if args.debug_answer_grid:
-        # Get corrected image first
-        image = processor.convert_pdf_to_image(args.pdf_path)
-        if image is None:
-            logger.error("Failed to convert PDF to image")
-            return 1
-        
-        corners = processor.detect_corner_markers(image)
-        if corners is None:
-            logger.error("Failed to detect corner markers")
-            return 1
-        
-        corrected_image = processor.apply_perspective_correction(image, corners)
-        if corrected_image is None:
-            logger.error("Failed to apply perspective correction")
-            return 1
-        
-        # Debug the answer grid
-        debug_result = processor.debug_answer_grid(corrected_image, args.output_dir)
-        
-        if debug_result['success']:
-            print("\n" + "="*70)
-            print("ANSWER GRID DEBUG RESULTS")
-            print("="*70)
-            print(f"Image Size: {debug_result['image_size']}")
-            print(f"Grid Bounds: x={debug_result['grid_bounds'][0]}, y={debug_result['grid_bounds'][1]}, w={debug_result['grid_bounds'][2]}, h={debug_result['grid_bounds'][3]}")
-            print(f"Extracted Region: {debug_result['extracted_region_size']}")
-            print(f"Needs Adjustment: {'Yes' if debug_result['needs_adjustment'] else 'No'}")
-            print(f"\nDebug images saved in: {args.output_dir}/answer_grid_debug/")
-            print("Check the files:")
-            print("- full_image_with_grid.png (shows where the grid area is)")
-            print("- answer_grid_region.png (extracted grid area)")
-            print("- answer_grid_with_samples.png (grid with sample bubble positions)")
-            print("- grid_analysis.txt (coordinate analysis and suggestions)")
-            print("="*70)
-        else:
-            logger.error("Answer grid debug failed!")
-            logger.error(f"Error: {debug_result['error']}")
-        
-        return 0
-    
-    # Special debug mode for headers
-    if args.debug_headers:
-        # Get corrected image first
-        image = processor.convert_pdf_to_image(args.pdf_path)
-        if image is None:
-            logger.error("Failed to convert PDF to image")
-            return 1
-        
-        corners = processor.detect_corner_markers(image)
-        if corners is None:
-            logger.error("Failed to detect corner markers")
-            return 1
-        
-        corrected_image = processor.apply_perspective_correction(image, corners)
-        if corrected_image is None:
-            logger.error("Failed to apply perspective correction")
-            return 1
-        
-        # Debug the headers
-        debug_result = processor.debug_answer_grid_headers(corrected_image, args.output_dir)
-        
-        if debug_result['success']:
-            measurements = debug_result['header_measurements']
-            print("\n" + "="*70)
-            print("ANSWER GRID HEADER DEBUG RESULTS")
-            print("="*70)
-            print(f"Header Height: {measurements['header_height']}px")
-            print(f"Question Start Y: {measurements['question_start_y']}px")
-            print(f"Column Width: {measurements['column_width']}px")
-            print(f"Header to Questions Gap: {measurements['header_to_questions_gap']}px")
-            print(f"\nHeader Structure:")
-            print(f"  - Headers span from Y=5 to Y={measurements['header_height']+5}")
-            print(f"  - Questions begin at Y={measurements['question_start_y']}")
-            print(f"  - Each column is {measurements['column_width']}px wide")
-            print(f"  - 4 columns total: Q1-25, Q26-50, Q51-75, Q76-100")
-            print(f"\nDebug images saved in: {args.output_dir}/answer_header_debug/")
-            print("Check the files:")
-            print("- full_image_with_headers.png (shows header locations on full PDF)")
-            print("- header_detail_analysis.png (detailed header structure)")
-            print("- header_analysis.txt (measurements and layout details)")
-            print("="*70)
-        else:
-            logger.error("Header debug failed!")
-            logger.error(f"Error: {debug_result['error']}")
-        
-        return 0
-    
-    # Special debug mode for corners
-    if args.debug_corners:
-        # Get original image and show corner detection
-        image = processor.convert_pdf_to_image(args.pdf_path)
-        if image is None:
-            logger.error("Failed to convert PDF to image")
-            return 1
-        
-        corners = processor.detect_corner_markers(image)
-        if corners is None:
-            logger.error("Failed to detect corner markers")
-            return 1
-        
-        # Apply perspective correction and save debug
-        if args.manual_corners:
-            # Use manual corners
-            manual_corners = [
-                (args.manual_corners[0], args.manual_corners[1]),  # TL
-                (args.manual_corners[2], args.manual_corners[3]),  # TR
-                (args.manual_corners[4], args.manual_corners[5]),  # BL
-                (args.manual_corners[6], args.manual_corners[7])   # BR
-            ]
-            corrected_image = processor.manual_perspective_correction(image, manual_corners)
-        else:
-            corrected_image = processor.apply_perspective_correction(image, corners)
-        
-        if corrected_image is None:
-            logger.error("Failed to apply perspective correction")
-            return 1
-        
-        # Save debug images
-        processor.save_debug_images(args.output_dir, "corner_debug")
-        
-        print("\n" + "="*70)
-        print("CORNER DETECTION DEBUG RESULTS")
-        print("="*70)
-        print(f"Detected corners: {corners}")
-        if args.manual_corners:
-            print(f"Used manual corners: {manual_corners}")
-        print(f"Corrected image shape: {corrected_image.shape}")
-        print(f"Target dimensions: {processor.target_width} x {processor.target_height}")
-        print(f"\nDebug images saved in: {args.output_dir}/main_debug/")
-        print("Check the files:")
-        print("- corner_debug_01_pdf_original.png (original PDF)")
-        print("- corner_debug_02_grayscale.png (grayscale conversion)")
-        print("- corner_debug_03a_corner_detection.png (detected corners marked)")
-        print("- corner_debug_03_perspective_corrected.png (corrected result)")
-        print("\nTo use manual corners, use:")
-        print(f"--manual-corners TL_X TL_Y TR_X TR_Y BL_X BL_Y BR_X BR_Y")
-        print("="*70)
-        
-        return 0
-    
-    # Special debug mode for bubble positions
-    if args.debug_bubbles:
-        if not args.question_count or not args.test_type:
-            logger.error("Bubble position debug requires --question-count and --test-type")
-            return 1
-        
-        # Get corrected image first
-        image = processor.convert_pdf_to_image(args.pdf_path)
-        if image is None:
-            logger.error("Failed to convert PDF to image")
-            return 1
-        
-        corners = processor.detect_corner_markers(image)
-        if corners is None:
-            logger.error("Failed to detect corner markers")
-            return 1
-        
-        corrected_image = processor.apply_perspective_correction(image, corners)
-        if corrected_image is None:
-            logger.error("Failed to apply perspective correction")
-            return 1
-        
-        # Debug bubble positions
-        debug_result = processor.debug_bubble_positions(corrected_image, args.question_count, args.test_type, args.output_dir)
-        
-        if debug_result['success']:
-            print("\n" + "="*70)
-            print("BUBBLE POSITION DEBUG RESULTS")
-            print("="*70)
-            print(f"Image Size: {debug_result['image_size']}")
-            print(f"Grid Layout: {debug_result['layout']['columns']} columns")
-            print(f"Questions Visualized: {debug_result['visualized_questions']} (showing first 5 per column)")
-            print(f"Total Bubble Positions: {len(debug_result['bubble_positions'])}")
-            print(f"Test Type: {args.test_type}")
-            print(f"\nDebug images saved in: {args.output_dir}/bubble_position_debug/")
-            print("Check the files:")
-            print("- bubble_positions_full.png (full image with bubble overlays)")
-            print("- bubble_positions_grid_only.png (detailed grid view)")
-            print("- bubble_positions.json (raw position data)")
-            print("- bubble_analysis.txt (detailed analysis and troubleshooting)")
-            print("\nLook for yellow circles - they should align with actual bubbles!")
-            print("If misaligned, adjust coordinates in field_coordinates_config.py")
-            print("="*70)
-        else:
-            logger.error("Bubble position debug failed!")
-            logger.error(f"Error: {debug_result['error']}")
-        
-        return 0
-    
-    # Determine what to extract
-    extract_student_info = args.student_info and not args.no_student_info
-    extract_answers = args.answers
-    
-    # Process the PDF
-    result = processor.process_pdf_answer_sheet(
-        args.pdf_path,
-        args.output_dir,
-        extract_student_info=extract_student_info,
-        extract_answers=extract_answers,
-        question_count=args.question_count,
-        test_type=args.test_type
-    )
-    
-    # Display results
-    if result['success']:
-        print("\n" + "="*70)
-        print("CHECKMATE PROCESSING RESULTS")
-        print("="*70)
-        
-        if result['student_info']:
-            student_info = result['student_info']
-            print("STUDENT INFORMATION:")
-            print(f"  Name: '{student_info.get('name', 'Not detected')}'")
-            print(f"  ID: '{student_info.get('id', 'Not detected')}'")
-            print(f"  Course: '{student_info.get('course', 'Not detected')}'")
-            print(f"  Section: '{student_info.get('section', 'Not detected')}'")
-            if 'error' in student_info:
-                print(f"  ⚠ Warning: {student_info['error']}")
-            print()
-        
-        if result['student_answers']:
-            answers = result['student_answers']
-            print("STUDENT ANSWERS:")
-            if 'error' in answers:
-                print(f"  ⚠ Error: {answers['error']}")
-            else:
-                print(f"  Total Detected: {answers.get('total_detected', 0)}")
-                if answers.get('answers'):
-                    print(f"  Sample Answers: {dict(list(answers['answers'].items())[:5])}")  # Show first 5
-            print()
-        
-        print(f"Corrected Image Shape: {result['corrected_image_shape']}")
-        if args.debug and result['output_dir']:
-            print(f"Debug images saved in: {result['output_dir']}")
-        
-        print("="*70)
-        return 0
-        
-    else:
-        print("\n" + "="*70)
-        print("✗ PROCESSING FAILED")
-        print("="*70)
-        print(f"Error: {result['error']}")
-        print("="*70)
+    # processor = CheckMatePDFProcessor(debug_mode=args.debug)
+    # Instead, use the service modules directly below
+
+    # --- Extract student info using StudentInfoExtractor ---
+    from pdf_processor_stud_info import StudentInfoExtractor
+    from pdf_processor_stud_answer import StudentAnswerProcessor
+
+    # Convert PDF to image
+    if not os.path.exists(args.pdf_path):
+        logger.error(f"✗ PDF file not found: {args.pdf_path}")
         return 1
 
+    # Convert PDF to image (first page)
+    try:
+        images = pdf2image.convert_from_path(
+            args.pdf_path,
+            dpi=args.dpi if hasattr(args, 'dpi') else 300,
+            first_page=1,
+            last_page=1,
+            fmt='RGB'
+        )
+        if not images:
+            logger.error("No images generated from PDF")
+            return 1
+        image = images[0]
+    except Exception as e:
+        logger.error(f"✗ Error converting PDF to image: {str(e)}")
+        return 1
+
+    # Detect corners and correct perspective (reuse logic from CheckMatePDFProcessor)
+    processor = CheckMatePDFProcessor(debug_mode=args.debug)
+    corners = processor.detect_corner_markers(image)
+    if corners is None:
+        logger.error("Failed to detect corner markers")
+        return 1
+    corrected_image = processor.apply_perspective_correction(image, corners)
+    if corrected_image is None:
+        logger.error("Failed to apply perspective correction")
+        return 1
+
+    # --- Extract student info ---
+    student_info_extractor = StudentInfoExtractor()
+    student_info = student_info_extractor.extract_student_info(corrected_image, args.output_dir)
+
+    # --- Extract student answers ---
+    question_count = args.question_count if hasattr(args, 'question_count') and args.question_count else 100
+    test_type = args.test_type if hasattr(args, 'test_type') and args.test_type else "multiple_choice_4"
+    answer_processor = StudentAnswerProcessor()
+    answer_result = answer_processor.extract_student_answers(
+        corrected_image, question_count, test_type, args.output_dir
+    )
+
+    # --- Print results ---
+    print("\n" + "="*70)
+    print("CHECKMATE PROCESSING RESULTS")
+    print("="*70)
+    if student_info:
+        print("STUDENT INFORMATION:")
+        print(f"  Name: '{student_info.get('name', 'Not detected')}'")
+        print(f"  ID: '{student_info.get('id', 'Not detected')}'")
+        print(f"  Course: '{student_info.get('course', 'Not detected')}'")
+        print(f"  Section: '{student_info.get('section', 'Not detected')}'")
+        if 'error' in student_info:
+            print(f"  ⚠ Warning: {student_info['error']}")
+        print()
+    print("STUDENT ANSWERS:")
+    if not answer_result or not answer_result.get('success'):
+        print("  No answers detected or answer extraction failed.")
+    else:
+        # Use detect_answers_in_column for each column
+        from field_coordinates_config import get_answer_grid_config, get_column_areas, COLUMN_CONFIG
+        grid_config = get_answer_grid_config() if CONFIG_AVAILABLE else answer_processor._get_fallback_config()
+        column_areas = get_column_areas() if CONFIG_AVAILABLE else {}
+        answer_grid = answer_result['answer_grid']
+        answers = {}
+        total_detected = 0
+        for col_idx, area in column_areas.items():
+            x = area['x'] - grid_config['grid']['x']
+            y = area['y'] - grid_config['grid']['y']
+            w = area['width']
+            h = area['height']
+            x = max(0, min(x, answer_grid.shape[1] - 1))
+            y = max(0, min(y, answer_grid.shape[0] - 1))
+            w = min(w, answer_grid.shape[1] - x)
+            h = min(h, answer_grid.shape[0] - y)
+            col_img = answer_grid[y:y+h, x:x+w]
+            max_per_col = COLUMN_CONFIG.get('max_questions_per_column', 25)
+            start_q = col_idx * max_per_col + 1
+            end_q = min(start_q + max_per_col - 1, question_count)
+            num_q = end_q - start_q + 1
+            if test_type == "multiple_choice_4":
+                choices = 4
+            elif test_type == "multiple_choice_5":
+                choices = 5
+            elif test_type == "true_false":
+                choices = 2
+            else:
+                choices = 4
+            col_answers = answer_processor.detect_answers_in_column(
+                col_img, col_idx, num_questions=num_q, choices=choices, debug=False
+            )
+            for i, ans in enumerate(col_answers):
+                qnum = start_q + i
+                answers[qnum] = ans
+                if ans is not None:
+                    total_detected += 1
+        print(f"  Total Detected: {total_detected}")
+        if answers:
+            print("  All Answers:")
+            for qnum in sorted(answers):
+                print(f"    Q{qnum}: {answers[qnum]}")
+        else:
+            print("  No answers found.")
+    print()
+    print(f"Corrected Image Shape: {corrected_image.shape}")
+    if hasattr(args, 'debug') and args.debug and args.output_dir:
+        print(f"Debug images saved in: {args.output_dir}")
+    print("="*70)
+    return 0
 
 if __name__ == "__main__":
     exit(main())
+    

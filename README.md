@@ -108,6 +108,22 @@ Visit `http://127.0.0.1:8000` to access the application.
 - **Answer Key Mode** - Shows filled bubbles for correct answers (for instructors)
 - **Blank Sheet Mode** - Shows empty bubbles for all options (for students)
 
+## Batch Processing
+
+To process all PDFs in a directory and output results as JSON, run:
+
+```bash
+python scripts/pdf_processor_main_prototype.py d:\YUKI\ADET\Checkmate\pdf_directory
+```
+
+You can also specify multiple files or directories:
+
+```bash
+python scripts/pdf_processor_main_prototype.py file1.pdf file2.pdf dir1 dir2
+```
+
+The output will be a JSON array with student info and answers for each PDF.
+
 ## Project Structure
 
 ```
