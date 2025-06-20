@@ -141,7 +141,7 @@ ANSWER_GRID = {
 
 # COLUMN SPECIFICATIONS
 COLUMN_CONFIG = {
-    'column_width': 600,        # Width of each column (570/4)
+    'column_width': 595,        # Width of each column (570/4)
     'column_spacing': 0,        # Additional spacing between columns
     'header_height': 90,        # Height of column headers (Q1-25, etc.)
     'question_row_height': 60,  # Height of each question row
@@ -151,9 +151,9 @@ COLUMN_CONFIG = {
 
 # BUBBLE SPECIFICATIONS  
 BUBBLE_CONFIG = {
-    'radius': 12,               # Bubble radius in pixels (smaller)
-    'spacing': 70,             # Horizontal spacing between bubbles (tighter)
-    'start_x_offset': 155,      # X offset from column start to first bubble
+    'radius': 8,               # Bubble radius in pixels (smaller)
+    'spacing': 72,             # Horizontal spacing between bubbles (tighter)
+    'start_x_offset': 153,      # X offset from column start to first bubble
     'choices': {
         'multiple_choice_4': ['A', 'B', 'C', 'D'],
         'multiple_choice_5': ['A', 'B', 'C', 'D', 'E'], 
