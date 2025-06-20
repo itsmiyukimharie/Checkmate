@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 import logging
+import os
 
 from .services.answer_key_service import AnswerKeyService
 from .services.auth_service import AuthService
@@ -15,6 +16,9 @@ from .utils.form_helpers import FormHelper
 from .utils.session_helpers import SessionHelper
 from .utils.auth_helpers import AuthFormHelper
 from .forms import CreateAnswerKeyForm, CourseForm, CourseFilterForm, StudentForm, StudentFilterForm
+from scripts.pdf_processor_main_prototype import CheckmateService
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 logger = logging.getLogger(__name__)
 
@@ -386,20 +390,23 @@ def delete_course(request, course_id):
 def grade_test(request):
     """Grade Test - Upload answer sheets and process grading"""
     from .services.grade_test_service import GradeTestService
-    
+
     # Get filter options for dropdowns
     filter_options = GradeTestService.get_filter_options(request.user)
-    
+
     # Get overview statistics
     overview_stats = GradeTestService.get_grading_overview_stats(request.user)
-    
+
     # Get grade distribution
     grade_distribution = GradeTestService.get_grade_distribution(request.user)
-    
+
     # Get grading history (default to all time)
     time_filter = request.GET.get('time_filter', 'all')
     grading_history = GradeTestService.get_grading_history(request.user, time_filter)
-    
+
+    # Add user_tests for initial answer key dropdown population
+    user_tests = GradeTestService.get_filtered_answer_keys(request.user, {})
+
     context = {
         'page_title': 'Grade Test',
         'current_page': 'grade_test',
@@ -407,7 +414,8 @@ def grade_test(request):
         'overview_stats': overview_stats,
         'grade_distribution': grade_distribution,
         'grading_history': grading_history,
-        'time_filter': time_filter
+        'time_filter': time_filter,
+        'user_tests': user_tests,  # <-- Ensure this is present for the dropdown
     }
     return render(request, 'main/grade_test.html', context)
 
@@ -415,19 +423,19 @@ def grade_test(request):
 def get_filtered_answer_keys(request):
     """AJAX endpoint to get filtered answer keys"""
     from .services.grade_test_service import GradeTestService
-    
+
     try:
         filters = {
             'course': request.GET.get('course'),
             'academic_year': request.GET.get('academic_year'),
             'semester': request.GET.get('semester')
         }
-        
         # Remove empty filters
-        filters = {k: v for k, v in filters.items() if v}
-        
+        filters = {k: v for k, v in filters.items() if v not in [None, '', 'null', 'undefined']}
+
+        # Always use get_filtered_answer_keys, even if no filters are set
         answer_keys = GradeTestService.get_filtered_answer_keys(request.user, filters)
-        
+
         # Convert to JSON-serializable format
         answer_keys_data = []
         for answer_key in answer_keys:
@@ -443,12 +451,12 @@ def get_filtered_answer_keys(request):
                 'semester': answer_key.course.semester if answer_key.course else '',
                 'created_date': answer_key.created_at.strftime('%Y-%m-%d')
             })
-        
+
         return JsonResponse({
             'success': True,
             'answer_keys': answer_keys_data
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting filtered answer keys: {str(e)}")
         return JsonResponse({
@@ -499,7 +507,7 @@ def get_course_students(request):
 def start_grading_session(request):
     """Start a new grading session"""
     from .services.grade_test_service import GradeTestService
-    
+
     if request.method == 'POST':
         try:
             # Get form data
@@ -508,7 +516,16 @@ def start_grading_session(request):
                 'file_format': request.POST.get('file_format'),
                 'uploaded_files': request.FILES.getlist('student_answer_sheets'),
             }
-            
+
+            # Accept extracted_data JSON if provided (from process-answer-sheets-pdf)
+            extracted_data_json = request.POST.get('extracted_data')
+            if extracted_data_json:
+                import json
+                try:
+                    session_data['extracted_data'] = json.loads(extracted_data_json)
+                except Exception:
+                    session_data['extracted_data'] = None
+
             # Validate data
             validation_errors = GradeTestService.validate_grading_session_data(session_data)
             if validation_errors:
@@ -516,10 +533,10 @@ def start_grading_session(request):
                     'success': False,
                     'errors': validation_errors
                 })
-            
-            # Create grading session
+
+            # Create grading session (pass extracted_data if present)
             result = GradeTestService.create_grading_session(request.user, session_data)
-            
+
             if result['success']:
                 # Store session data for processing
                 request.session['grading_session'] = {
@@ -527,9 +544,10 @@ def start_grading_session(request):
                     'answer_key_id': session_data['answer_key_id'],
                     'file_format': session_data['file_format'],
                     'student_count': len(result['students']),
-                    'uploaded_files_count': len(result['processed_files'])
+                    'uploaded_files_count': len(result['processed_files']),
+                    'extracted_data': session_data.get('extracted_data')
                 }
-                
+
                 return JsonResponse({
                     'success': True,
                     'message': f'Grading session started successfully! Processing {len(result["processed_files"])} files.',
@@ -541,14 +559,14 @@ def start_grading_session(request):
                     'success': False,
                     'error': result['error']
                 })
-                
+
         except Exception as e:
             logger.error(f"Error starting grading session: {str(e)}")
             return JsonResponse({
                 'success': False,
                 'error': 'Failed to start grading session'
             }, status=500)
-    
+
     return JsonResponse({
         'success': False,
         'error': 'Invalid request method'
@@ -1064,3 +1082,61 @@ def analytics(request):
     """Performance Analytics - View common mistakes and trends"""
     context = {'page_title': 'Performance Analytics', 'current_page': 'analytics'}
     return render(request, 'main/analytics.html', context)
+
+@csrf_exempt
+@login_required
+@require_POST
+def process_answer_sheets_pdf(request):
+    """
+    API endpoint to process one or more uploaded PDF answer sheets.
+    Accepts multiple files via 'pdf_files' (multipart/form-data).
+    Returns JSON with extracted student info and answers for each file.
+    """
+    import json
+
+    # Get parameters from POST or use defaults
+    question_count = int(request.POST.get('question_count', 100))
+    test_type = request.POST.get('test_type', 'multiple_choice_4')
+    # Optional: output_dir for debug images (not required for web)
+    output_dir = None
+
+    # Accept multiple files
+    pdf_files = request.FILES.getlist('pdf_files')
+    if not pdf_files:
+        return JsonResponse({'success': False, 'error': 'No PDF files uploaded.'}, status=400)
+
+    # Save uploaded files temporarily and collect paths
+    import tempfile
+    temp_files = []
+    for f in pdf_files:
+        suffix = '.pdf'
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        for chunk in f.chunks():
+            temp.write(chunk)
+        temp.close()
+        temp_files.append(temp.name)
+
+    # Process PDFs
+    service = CheckmateService()
+    results = service.process_pdfs(temp_files, question_count=question_count, test_type=test_type, output_dir=output_dir)
+
+    # Clean up temp files
+    for path in temp_files:
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+
+    return JsonResponse({'success': True, 'results': results})
+
+    # This endpoint is working correctly.
+    # The log message:
+    # [20/Jun/2025 18:28:01] "POST /process-answer-sheets/ HTTP/1.1" 200 1422
+    # means your endpoint is being called and returning a valid response.
+
+    # The log message:
+    # Not Found: /.well-known/appspecific/com.chrome.devtools.json
+    # [20/Jun/2025 18:28:10] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 8507
+    # is unrelated to your grading or answer sheet processing.
+    # It is a request from Chrome DevTools or a browser extension probing for debugging endpoints.
+    # You can safely ignore this 404 error; it does not affect your application.

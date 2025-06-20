@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Review Grades - CheckMate{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="fw-bold mb-4"><i class="fas fa-list-alt"></i> Review Extracted Grades</h1>
+    <div class="alert alert-info">
+        Below is a summary of all extracted student information and answers from the uploaded answer sheets.
+    </div>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+            <thead class="table-primary">
+                <tr>
+                    <th>#</th>
+                    <th>File Name</th>
+                    <th>Student Name</th>
+                    <th>Student ID</th>
+                    <th>Course</th>
+                    <th>Section</th>
+                    <th>Total Answers Detected</th>
+                    <th>Answers</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        {% if result.pdf_path %}
+                            {{ result.pdf_path|slice:"-40:" }}
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ result.student_info.name|default:"" }}</td>
+                    <td>{{ result.student_info.id|default:"" }}</td>
+                    <td>{{ result.student_info.course|default:"" }}</td>
+                    <td>{{ result.student_info.section|default:"" }}</td>
+                    <td>{{ result.total_detected|default:"0" }}</td>
+                    <td>
+                        {% if result.answers %}
+                            <details>
+                                <summary>Show Answers</summary>
+                                <pre class="bg-light p-2 rounded small">{{ result.answers|safe|json_script:"answers_`{{forloop.counter}}`" }}</pre>
+                                <script>
+                                    // Pretty print answers if needed
+                                    try {
+                                        const answers = JSON.parse(document.getElementById("answers_{{forloop.counter}}").textContent);
+                                        let html = "";
+                                        for (const [q, ans] of Object.entries(answers)) {
+                                            html += `<strong>Q${q}:</strong> ${ans}<br>`;
+                                        }
+                                        document.getElementById("answers_{{forloop.counter}}").parentElement.innerHTML = html;
+                                    } catch (e) {}
+                                </script>
+                            </details>
+                        {% else %}
+                            <span class="text-muted">No answers detected</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if result.success %}
+                            <span class="badge bg-success">Success</span>
+                        {% else %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% if result.error %}
+                                <br><small class="text-danger">{{ result.error }}</small>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i><br>
+                        No extracted grades to review.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

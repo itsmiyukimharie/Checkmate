@@ -3,6 +3,8 @@ from django.db.models import Q, Count, Avg
 from ..models import TestInformation, Courses, TestResult, Students
 import logging
 
+from django.utils import timezone  # <-- Add this import
+
 logger = logging.getLogger(__name__)
 
 class GradeTestService:
@@ -48,36 +50,44 @@ class GradeTestService:
     
     @staticmethod
     def get_filtered_answer_keys(user, filters=None):
-        """Get answer keys filtered by course, academic year, and semester"""
+        """Get answer keys filtered by course, academic year, and semester.
+        If filters is None or empty, return all (non-deleted) answer keys for the user.
+        """
         queryset = TestInformation.objects.filter(
             user=user,
-            status='active'  # Only show active tests for grading
-        ).select_related('course')
-        
-        if filters:
+        ).exclude(status='deleted').select_related('course')
+
+        # Allow no filter: if filters is None or empty, return all (non-deleted) answer keys
+        if filters and any(v not in ['', None, 'null', 'undefined'] for v in filters.values()):
             course_filter = filters.get('course')
             academic_year_filter = filters.get('academic_year')
             semester_filter = filters.get('semester')
-            
-            if course_filter:
+
+            if course_filter and course_filter not in ['', None, 'null', 'undefined']:
                 queryset = queryset.filter(course__course_code=course_filter)
-            
-            if academic_year_filter:
+
+            if academic_year_filter and academic_year_filter not in ['', None, 'null', 'undefined']:
                 queryset = queryset.filter(course__academic_year=academic_year_filter)
-            
-            if semester_filter:
+
+            if semester_filter and semester_filter not in ['', None, 'null', 'undefined']:
                 queryset = queryset.filter(course__semester=semester_filter)
-        
+
         return queryset.order_by('-created_at')
     
     @staticmethod
     def get_answer_key_by_id(answer_key_id, user):
         """Get a specific answer key by ID"""
+        # Defensive: Accept both int and str, and ensure correct type
+        try:
+            answer_key_id = int(answer_key_id)
+        except (TypeError, ValueError):
+            raise TestInformation.DoesNotExist("Invalid answer_key_id")
+
         return get_object_or_404(
-            TestInformation, 
-            id=answer_key_id, 
+            TestInformation,
+            id=answer_key_id,
             user=user,
-            status='active'
+            status__in=['active', 'draft']  # Accept both active and draft for grading
         )
     
     @staticmethod
@@ -159,7 +169,6 @@ class GradeTestService:
     @staticmethod
     def get_grading_history(user, time_filter='all'):
         """Get grading history with optional time filtering"""
-        from django.utils import timezone
         from datetime import datetime, timedelta
         
         queryset = TestResult.objects.filter(
@@ -227,104 +236,6 @@ class GradeTestService:
         else:
             return " & ".join(sorted(sections))
     
-    @staticmethod
-    def validate_grading_session_data(data):
-        """Validate data for starting a grading session"""
-        errors = {}
-        
-        # Required fields
-        if not data.get('answer_key_id'):
-            errors['answer_key'] = 'Please select an answer key'
-        
-        if not data.get('file_format'):
-            errors['file_format'] = 'Please select a file format'
-        
-        # Validate file format
-        valid_formats = ['pdf', 'csv', 'image']
-        if data.get('file_format') not in valid_formats:
-            errors['file_format'] = 'Invalid file format selected'
-        
-        # Validate uploaded files match format
-        uploaded_files = data.get('uploaded_files', [])
-        if uploaded_files:
-            file_format = data.get('file_format')
-            invalid_files = []
-            
-            for uploaded_file in uploaded_files:
-                if not GradeTestService._validate_file_format(uploaded_file, file_format):
-                    invalid_files.append(uploaded_file.name)
-            
-            if invalid_files:
-                errors['uploaded_files'] = f'The following files do not match the selected format ({file_format}): {", ".join(invalid_files[:5])}{"..." if len(invalid_files) > 5 else ""}'
-        
-        return errors
-    
-    @staticmethod
-    def _validate_file_format(uploaded_file, expected_format):
-        """Validate if an uploaded file matches the expected format"""
-        file_name = uploaded_file.name.lower()
-        content_type = getattr(uploaded_file, 'content_type', '').lower()
-        
-        if expected_format == 'pdf':
-            return (content_type == 'application/pdf' or 
-                   file_name.endswith('.pdf'))
-        
-        elif expected_format == 'csv':
-            return (content_type == 'text/csv' or 
-                   content_type == 'application/csv' or
-                   file_name.endswith('.csv'))
-        
-        elif expected_format == 'image':
-            return (content_type.startswith('image/') or 
-                   file_name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')))
-        
-        return False
-    
-    @staticmethod
-    def create_grading_session(user, session_data):
-        """Create a new grading session"""
-        try:
-            # Get the answer key
-            answer_key = GradeTestService.get_answer_key_by_id(
-                session_data['answer_key_id'], 
-                user
-            )
-            
-            # Get students for the course (if specified)
-            students = []
-            if answer_key.course:
-                students = GradeTestService.get_students_for_course(
-                    answer_key.course.id, 
-                    user
-                )
-            
-            # Process uploaded files if any
-            uploaded_files = session_data.get('uploaded_files', [])
-            processed_files = []
-            
-            for uploaded_file in uploaded_files:
-                # Process each uploaded file based on format
-                file_result = GradeTestService._process_uploaded_answer_sheet(
-                    uploaded_file, 
-                    answer_key, 
-                    session_data['file_format']
-                )
-                processed_files.append(file_result)
-            
-            return {
-                'success': True,
-                'answer_key': answer_key,
-                'students': list(students),
-                'processed_files': processed_files,
-                'session_id': f"session_{answer_key.id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}"
-            }
-            
-        except Exception as e:
-            logger.error(f"Error creating grading session: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
     
     @staticmethod
     def _process_uploaded_answer_sheet(uploaded_file, answer_key, file_format):

@@ -56,6 +56,45 @@
         margin-bottom: 5px;
         border-radius: 10px;
     }
+
+    /* Add styles for file preview */
+    #uploadedFilesPreview {
+        margin-top: 1rem;
+        max-height: 320px;           /* Fixed height for the preview container */
+        overflow-y: auto;            /* Enable vertical scrolling */
+        border: 1px solid #e0e0e0;   /* Optional: subtle border for clarity */
+        background: #fff;            /* Optional: background for contrast */
+        border-radius: 10px;         /* Optional: match glassmorphism style */
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03); /* Optional: subtle shadow */
+    }
+    .file-preview-list {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+    }
+    .file-preview-list li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+    .file-preview-list li:last-child {
+        border-bottom: none;
+    }
+    .file-remove-btn {
+        border: none;
+        background: none;
+        color: #dc3545;
+        font-size: 1.2rem;
+        cursor: pointer;
+    }
+    .file-remove-btn:focus {
+        outline: none;
+    }
+    .file-clear-btn {
+        margin-top: 0.5rem;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -69,7 +108,7 @@
                 <h5 class="fw-bold"><i class="fas fa-check-circle"></i> Start Grading Session</h5>
             </div>
             <div class="card-body">
-                <form id="gradingForm" method="post" action="{% url 'main:start_grading_session' %}" enctype="multipart/form-data">
+                <form id="gradingForm" method="post" action="#" enctype="multipart/form-data">
                     {% csrf_token %}
                     <!-- Filter Section -->
                     <div class="row mb-4">
@@ -108,122 +147,36 @@
                         <label for="selectTest" class="form-label">Select Answer Key</label>
                         <select class="form-select" id="selectTest" name="answer_key_id" required>
                             <option value="">Choose an answer key...</option>
-                            <!-- This will be populated dynamically based on filters -->
+                            {% for test in user_tests %}
+                                <option value="{{ test.id }}">
+                                    {{ test.test_name }} - {{ test.get_test_type_display }} ({{ test.question_count }} questions)
+                                </option>
+                            {% endfor %}
                         </select>
                         <div class="form-text">Select the test answer key to grade against</div>
                     </div>
-                    
+
+                    <!-- File type dropdown and upload -->
                     <div class="mb-3">
-                        <label for="fileFormat" class="form-label">File Format</label>
-                        <select class="form-select" id="fileFormat" name="file_format" required>
-                            <option value="pdf">PDF Files</option>
-                            <option value="csv">CSV Files</option>
-                            <option value="image">Image Files (JPG, PNG)</option>
+                        <label for="fileTypeSelect" class="form-label">File Type</label>
+                        <select class="form-select" id="fileTypeSelect" name="file_type">
+                            <option value="pdf" selected>PDF</option>
+                            <option value="csv">CSV</option>
+                            <option value="image">Images</option>
                         </select>
-                        <div class="form-text">Select the format of student answer sheets you'll be uploading</div>
                     </div>
-                    
                     <div class="mb-3">
-                        <label class="form-label">Answer Key Upload <span class="badge bg-info">Override</span></label>
-                        <input type="file" class="form-control" id="answerSheets" multiple accept=".pdf,.jpg,.png">
-                        <div class="form-text">
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle"></i> Optional: Upload answer sheet images to override manual answer entry. 
-                                Students' answers are typically entered manually or imported from existing data.
-                            </small>
+                        <label for="studentFiles" class="form-label">Upload Student Answer Sheets</label>
+                        <input type="file" class="form-control" id="studentFiles" name="student_files" multiple accept=".pdf">
+                        <div class="form-text" id="fileTypeHelpText">You can select multiple PDF files.</div>
+                        <div id="uploadedFilesPreview" class="d-none">
+                            <ul class="file-preview-list" id="filePreviewList"></ul>
+                            <button type="button" class="btn btn-sm btn-outline-danger file-clear-btn" id="clearAllFilesBtn">
+                                <i class="fas fa-trash"></i> Clear All
+                            </button>
                         </div>
                     </div>
-                    
-                    <!-- Student Answer Sheets Upload Section -->
-                    <div class="mb-3">
-                        <div class="card border-primary">
-                            <div class="card-header bg-primary text-white">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-upload me-2"></i>Student Answer Sheets
-                                    <span class="badge bg-light text-primary ms-2">Batch Processing</span>
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <label for="studentAnswerSheets" class="form-label">Upload Student Answer Sheets</label>
-                                    <input type="file" class="form-control" id="studentAnswerSheets" name="student_answer_sheets" multiple accept=".pdf">
-                                    <div class="form-text">
-                                        Upload multiple student answer sheets for automatic processing. 
-                                        Students will be automatically detected from the sheets.
-                                        <br><strong>Selected format:</strong> <span id="currentFormatText">PDF Files</span>
-                                    </div>
-                                </div>
-                                
-                                <!-- File preview area -->
-                                <div class="d-none" id="uploadedFilesPreview">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <label class="form-label mb-0">Uploaded Files</label>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="badge bg-secondary" id="fileCountBadge">0 files</span>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleFileView">
-                                                <i class="fas fa-list"></i> Show Details
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" id="clearAllFiles">
-                                                <i class="fas fa-trash"></i> Clear All
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Compact Summary View -->
-                                    <div id="filesSummary" class="border rounded p-3 bg-light">
-                                        <div class="row text-center">
-                                            <div class="col-4">
-                                                <div class="fw-bold text-primary" id="totalFiles">0</div>
-                                                <small class="text-muted">Total Files</small>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="fw-bold text-success" id="totalSize">0 MB</div>
-                                                <small class="text-muted">Total Size</small>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="fw-bold text-info" id="avgSize">0 KB</div>
-                                                <small class="text-muted">Avg. Size</small>
-                                            </div>
-                                        </div>
-                                        <div class="mt-2 text-center">
-                                            <small class="text-muted">File formats: <span id="formatBreakdown"></span></small>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Detailed Files List (Hidden by default) -->
-                                    <div class="d-none mt-3" id="filesDetailedView">
-                                        <div class="border rounded" style="max-height: 300px; overflow-y: auto;">
-                                            <div id="filesList" class="list-group list-group-flush">
-                                                <!-- Files will be listed here -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Upload progress -->
-                                <div class="d-none" id="uploadProgress">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="small">Upload Progress</span>
-                                        <span class="small" id="progressText">0%</span>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
-                                    </div>
-                                </div>
-                                
-                                <!-- File Format Warning -->
-                                <div class="alert alert-warning d-none" id="formatWarning">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <strong>Format Mismatch:</strong> Some files don't match the selected format. 
-                                    Please ensure all files are in the correct format or change the file format selection.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary rounded-pill">
-                        <i class="fas fa-play"></i> Start Grading Session
-                    </button>
+                    <!-- No submit button for now -->
                 </form>
             </div>
         </div>
@@ -393,24 +346,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterAcademicYear = document.getElementById('filterAcademicYear');
     const filterSemester = document.getElementById('filterSemester');
     const selectTest = document.getElementById('selectTest');
-    
-    // Function to filter answer keys based on selected filters
+    // Only keep filter and answer key logic
+
     function filterAnswerKeys() {
         const selectedCourse = filterCourse.value;
         const selectedYear = filterAcademicYear.value;
         const selectedSemester = filterSemester.value;
-        
-        // Clear current options
+
         selectTest.innerHTML = '<option value="">Loading answer keys...</option>';
-        
-        // Build query parameters
+
         const params = new URLSearchParams();
         if (selectedCourse) params.append('course', selectedCourse);
         if (selectedYear) params.append('academic_year', selectedYear);
         if (selectedSemester) params.append('semester', selectedSemester);
-        
-        // Fetch filtered answer keys
-        fetch(`{% url 'main:get_filtered_answer_keys' %}?${params.toString()}`, {
+
+        // Use the correct URL for AJAX
+        fetch("{% url 'main:get_filtered_answer_keys' %}?" + params.toString(), {
             method: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -420,7 +371,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             selectTest.innerHTML = '<option value="">Choose an answer key...</option>';
-            
             if (data.success && data.answer_keys.length > 0) {
                 data.answer_keys.forEach(answerKey => {
                     const option = document.createElement('option');
@@ -442,542 +392,102 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Add event listeners to filter dropdowns
     filterCourse.addEventListener('change', filterAnswerKeys);
     filterAcademicYear.addEventListener('change', filterAnswerKeys);
     filterSemester.addEventListener('change', filterAnswerKeys);
-    
-    // Initialize with all answer keys
     filterAnswerKeys();
-    
-    // History filter buttons
-    const historyFilterButtons = document.querySelectorAll('.btn-group .btn[data-filter]');
-    historyFilterButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const filter = this.getAttribute('data-filter');
-            
-            // Remove active class from all buttons
-            historyFilterButtons.forEach(btn => btn.classList.remove('active'));
-            // Add active class to clicked button
-            this.classList.add('active');
-            
-            // Fetch filtered history
-            fetch(`{% url 'main:get_grading_history' %}?time_filter=${filter}`, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateHistoryTable(data.grading_history);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching grading history:', error);
-            });
-        });
-    });
-    
-    // File format change handler
-    const fileFormatSelect = document.getElementById('fileFormat');
-    const studentAnswerSheets = document.getElementById('studentAnswerSheets');
-    const currentFormatText = document.getElementById('currentFormatText');
-    
-    if (fileFormatSelect && studentAnswerSheets) {
-        fileFormatSelect.addEventListener('change', function() {
-            const format = this.value;
-            let acceptTypes = '';
-            let formatText = '';
-            
-            switch(format) {
-                case 'pdf':
-                    acceptTypes = '.pdf';
-                    formatText = 'PDF Files';
-                    break;
-                case 'csv':
-                    acceptTypes = '.csv';
-                    formatText = 'CSV Files';
-                    break;
-                case 'image':
-                    acceptTypes = '.jpg,.jpeg,.png,.gif,.bmp';
-                    formatText = 'Image Files (JPG, PNG, etc.)';
-                    break;
-                default:
-                    acceptTypes = '.pdf,.csv,.jpg,.jpeg,.png';
-                    formatText = 'All Supported Files';
-            }
-            
-            studentAnswerSheets.setAttribute('accept', acceptTypes);
-            currentFormatText.textContent = formatText;
-            
-            // Always clear files when format changes (whether initialized or not)
-            const hadFiles = studentAnswerSheets.files.length > 0;
-            studentAnswerSheets.value = '';
-            document.getElementById('uploadedFilesPreview').classList.add('d-none');
-            hideFormatWarning();
-            
-            // Show notification if this is a user-initiated change AND files were cleared
-            if (this.dataset.initialized === 'true' && hadFiles) {
-                showToast(`File format changed to: ${formatText}. Previous files have been cleared.`, 'warning');
-            } else if (this.dataset.initialized === 'true') {
-                showToast(`File format changed to: ${formatText}.`, 'info');
-            }
-        });
-        
-        // Initialize with default format (without triggering change event)
-        const defaultFormat = fileFormatSelect.value || 'pdf';
-        let acceptTypes = '';
-        let formatText = '';
-        
-        switch(defaultFormat) {
-            case 'pdf':
-                acceptTypes = '.pdf';
-                formatText = 'PDF Files';
-                break;
-            case 'csv':
-                acceptTypes = '.csv';
-                formatText = 'CSV Files';
-                break;
-            case 'image':
-                acceptTypes = '.jpg,.jpeg,.png,.gif,.bmp';
-                formatText = 'Image Files (JPG, PNG, etc.)';
-                break;
-            default:
-                acceptTypes = '.pdf,.csv,.jpg,.jpeg,.png';
-                formatText = 'All Supported Files';
+
+    // --- File type dropdown logic ---
+    const fileTypeSelect = document.getElementById('fileTypeSelect');
+    const studentFilesInput = document.getElementById('studentFiles');
+    const fileTypeHelpText = document.getElementById('fileTypeHelpText');
+    const uploadedFilesPreview = document.getElementById('uploadedFilesPreview');
+    const filePreviewList = document.getElementById('filePreviewList');
+    const clearAllFilesBtn = document.getElementById('clearAllFilesBtn');
+
+    // Store selected files in a DataTransfer object for easy manipulation
+    let fileBuffer = new DataTransfer();
+
+    function getAcceptAndHelpText(type) {
+        if (type === 'pdf') {
+            return {accept: '.pdf', help: 'You can select multiple PDF files.'};
+        } else if (type === 'csv') {
+            return {accept: '.csv', help: 'You can select multiple CSV files.'};
+        } else if (type === 'image') {
+            return {accept: '.jpg,.jpeg,.png,.gif,.bmp', help: 'You can select multiple image files (JPG, PNG, GIF, BMP).'};
         }
-        
-        // Set initial values without triggering notifications
-        studentAnswerSheets.setAttribute('accept', acceptTypes);
-        currentFormatText.textContent = formatText;
-        
-        // Mark as initialized so subsequent changes will show notifications
-        fileFormatSelect.dataset.initialized = 'true';
+        return {accept: '', help: 'You can select multiple files.'};
     }
-    
-    // Student answer sheets upload handler with immediate validation
-    if (studentAnswerSheets) {
-        studentAnswerSheets.addEventListener('change', function(e) {
-            const files = Array.from(e.target.files);
-            
-            if (files.length === 0) {
-                document.getElementById('uploadedFilesPreview').classList.add('d-none');
-                hideFormatWarning();
-                return;
-            }
-            
-            // Immediate validation of file formats
-            const validationResult = validateFileFormats(files, fileFormatSelect.value);
-            
-            if (!validationResult.valid) {
-                // Show format warning immediately
-                showFormatWarning(validationResult.invalidFiles);
-                
-                // Silently remove invalid files and keep only valid ones
-                const invalidCount = validationResult.invalidFiles.length;
-                const validCount = validationResult.validFiles.length;
-                
-                if (validCount > 0) {
-                    // Keep only valid files
-                    updateFileInput(validationResult.validFiles);
-                    displayUploadedFiles(validationResult.validFiles);
-                    
-                    showToast(`Kept ${validCount} valid file${validCount !== 1 ? 's' : ''}, removed ${invalidCount} invalid file${invalidCount !== 1 ? 's' : ''}.`, 'warning');
-                } else {
-                    // No valid files, clear everything
-                    this.value = '';
-                    document.getElementById('uploadedFilesPreview').classList.add('d-none');
-                    showToast(`All ${invalidCount} file${invalidCount !== 1 ? 's were' : ' was'} removed due to format mismatch.`, 'error');
-                }
-            } else {
-                // All files are valid
-                hideFormatWarning();
-                displayUploadedFiles(files);
-                
-                // Show success message for large uploads
-                if (files.length > 10) {
-                    showToast(`Successfully loaded ${files.length} files`, 'success');
-                }
-            }
+
+    fileTypeSelect.addEventListener('change', function() {
+        const {accept, help} = getAcceptAndHelpText(this.value);
+        studentFilesInput.value = '';
+        fileBuffer = new DataTransfer();
+        studentFilesInput.setAttribute('accept', accept);
+        fileTypeHelpText.textContent = help;
+        uploadedFilesPreview.classList.add('d-none');
+        filePreviewList.innerHTML = '';
+    });
+
+    function refreshFilePreview() {
+        filePreviewList.innerHTML = '';
+        const files = fileBuffer.files;
+        if (files.length === 0) {
+            uploadedFilesPreview.classList.add('d-none');
+            return;
+        }
+        uploadedFilesPreview.classList.remove('d-none');
+        Array.from(files).forEach((file, idx) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span title="${file.name}">${file.name} <small class="text-muted">(${Math.round(file.size/1024)} KB)</small></span>
+                <button type="button" class="file-remove-btn" title="Remove file" data-idx="${idx}">&times;</button>
+            `;
+            filePreviewList.appendChild(li);
         });
     }
-    
-    // Toggle detailed file view
-    const toggleFileView = document.getElementById('toggleFileView');
-    const filesDetailedView = document.getElementById('filesDetailedView');
-    
-    if (toggleFileView) {
-        toggleFileView.addEventListener('click', function() {
-            const isHidden = filesDetailedView.classList.contains('d-none');
-            if (isHidden) {
-                filesDetailedView.classList.remove('d-none');
-                this.innerHTML = '<i class="fas fa-compress"></i> Hide Details';
-            } else {
-                filesDetailedView.classList.add('d-none');
-                this.innerHTML = '<i class="fas fa-list"></i> Show Details';
+
+    // When files are selected
+    studentFilesInput.addEventListener('change', function(e) {
+        // Only allow files matching the current accept type
+        const accept = studentFilesInput.getAttribute('accept');
+        Array.from(this.files).forEach(file => {
+            // Accept can be comma separated, check extension
+            const allowed = accept.split(',').map(s => s.trim().toLowerCase());
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (allowed.includes(ext)) {
+                fileBuffer.items.add(file);
             }
         });
-    }
-    
+        this.files = fileBuffer.files;
+        refreshFilePreview();
+    });
+
+    // Remove a single file
+    filePreviewList.addEventListener('click', function(e) {
+        if (e.target.classList.contains('file-remove-btn')) {
+            const idx = parseInt(e.target.getAttribute('data-idx'));
+            const newBuffer = new DataTransfer();
+            Array.from(fileBuffer.files).forEach((file, i) => {
+                if (i !== idx) newBuffer.items.add(file);
+            });
+            fileBuffer = newBuffer;
+            studentFilesInput.files = fileBuffer.files;
+            refreshFilePreview();
+        }
+    });
+
     // Clear all files
-    const clearAllFiles = document.getElementById('clearAllFiles');
-    if (clearAllFiles) {
-        clearAllFiles.addEventListener('click', function() {
-            if (confirm('Are you sure you want to remove all uploaded files?')) {
-                studentAnswerSheets.value = '';
-                document.getElementById('uploadedFilesPreview').classList.add('d-none');
-                hideFormatWarning();
-                showToast('All files removed', 'info');
-            }
-        });
-    }
-    
-    // Form submission
-    const form = document.getElementById('gradingForm');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            if (!selectTest.value) {
-                showToast('Please select an answer key first.', 'warning');
-                selectTest.focus();
-                return;
-            }
-            
-            const fileFormat = document.getElementById('fileFormat').value;
-            const studentFiles = document.getElementById('studentAnswerSheets').files;
-            
-            if (studentFiles.length === 0) {
-                if (!confirm('No student answer sheets uploaded. Continue with manual grading session?')) {
-                    return;
-                }
-            }
-            
-            // Show loading state
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
-            submitBtn.disabled = true;
-            
-            // Submit form via AJAX
-            const formData = new FormData(form);
-            
-            fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast(data.message, 'success');
-                    
-                    // Reset form after short delay
-                    setTimeout(() => {
-                        form.reset();
-                        document.getElementById('uploadedFilesPreview').classList.add('d-none');
-                        
-                        // Reset filters
-                        filterCourse.selectedIndex = 0;
-                        filterAcademicYear.selectedIndex = 0;
-                        filterSemester.selectedIndex = 0;
-                        filterAnswerKeys(); // Refresh answer keys list
-                        
-                        // Refresh grading history
-                        location.reload();
-                    }, 2000);
-                } else {
-                    showToast(data.error || 'Failed to start grading session', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('An error occurred while starting the grading session', 'error');
-            })
-            .finally(() => {
-                // Reset button
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            });
-        });
-    }
+    clearAllFilesBtn.addEventListener('click', function() {
+        fileBuffer = new DataTransfer();
+        studentFilesInput.value = '';
+        studentFilesInput.files = fileBuffer.files;
+        refreshFilePreview();
+    });
+
+    // Initialize preview if files are present (e.g., after back navigation)
+    refreshFilePreview();
 });
-
-// Helper functions
-function updateHistoryTable(historyData) {
-    const tbody = document.querySelector('#gradingHistoryTable tbody');
-    const emptyState = document.getElementById('emptyState');
-    
-    if (historyData.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center py-4">
-                    <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
-                    <div class="text-muted">No grading history found for this period</div>
-                    <small class="text-muted">Try selecting a different time filter</small>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    tbody.innerHTML = historyData.map(session => {
-        const scoreClass = session.average_score >= 90 ? 'success' : 
-                          session.average_score >= 75 ? 'primary' :
-                          session.average_score >= 60 ? 'warning' : 'danger';
-        
-        return `
-            <tr>
-                <td>
-                    <strong>${session.test_name}</strong>
-                    <br><small class="text-muted">${session.test_type} - ${session.question_count} questions</small>
-                </td>
-                <td>
-                    ${session.course_code ? `<span class="badge bg-primary">${session.course_code}</span><br><small class="text-muted">${session.course_name}</small>` : '<span class="text-muted">No course</span>'}
-                </td>
-                <td>
-                    <span class="fw-bold">${session.student_count}</span> students
-                    <br><small class="text-muted">${session.sections}</small>
-                </td>
-                <td>
-                    <span class="badge bg-${scoreClass} fs-6">${session.average_score}%</span>
-                    <div class="progress mt-1" style="height: 5px;">
-                        <div class="progress-bar bg-${scoreClass}" style="width: ${session.average_score}%"></div>
-                    </div>
-                </td>
-                <td>
-                    <span class="fw-bold">${new Date(session.graded_date).toLocaleDateString()}</span>
-                    <br><small class="text-muted">${new Date(session.graded_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
-                </td>
-                <td>
-                    <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
-                            <i class="fas fa-download"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function validateFileFormats(files, selectedFormat) {
-    const validFiles = [];
-    const invalidFiles = [];
-    
-    files.forEach(file => {
-        const fileName = file.name.toLowerCase();
-        const fileType = file.type.toLowerCase();
-        let isValid = false;
-        
-        switch(selectedFormat) {
-            case 'pdf':
-                isValid = fileType === 'application/pdf' || fileName.endsWith('.pdf');
-                break;
-            case 'csv':
-                isValid = fileType === 'text/csv' || fileType === 'application/csv' || fileName.endsWith('.csv');
-                break;
-            case 'image':
-                isValid = fileType.startsWith('image/') || 
-                         fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || 
-                         fileName.endsWith('.png') || fileName.endsWith('.gif') || 
-                         fileName.endsWith('.bmp');
-                break;
-        }
-        
-        if (isValid) {
-            validFiles.push(file);
-        } else {
-            invalidFiles.push(file);
-        }
-    });
-    
-    return {
-        valid: invalidFiles.length === 0,
-        validFiles: validFiles,
-        invalidFiles: invalidFiles
-    };
-}
-
-function showFormatWarning(invalidFiles) {
-    const warning = document.getElementById('formatWarning');
-    warning.classList.remove('d-none');
-    
-    const fileNames = invalidFiles.map(f => f.name);
-    const displayNames = fileNames.length > 3 
-        ? fileNames.slice(0, 3).join(', ') + ` and ${fileNames.length - 3} more`
-        : fileNames.join(', ');
-    
-    warning.innerHTML = `
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Format Mismatch:</strong> The following files don't match the selected format: 
-        <br><code>${displayNames}</code>
-        <br><small class="text-muted mt-1">Please select the correct file format or choose different files.</small>
-    `;
-}
-
-function hideFormatWarning() {
-    document.getElementById('formatWarning').classList.add('d-none');
-}
-
-function updateFileInput(validFiles) {
-    const dt = new DataTransfer();
-    validFiles.forEach(file => dt.items.add(file));
-    document.getElementById('studentAnswerSheets').files = dt.files;
-}
-
-function displayUploadedFiles(files) {
-    const previewContainer = document.getElementById('uploadedFilesPreview');
-    const filesList = document.getElementById('filesList');
-    const fileCountBadge = document.getElementById('fileCountBadge');
-    const totalFiles = document.getElementById('totalFiles');
-    const totalSize = document.getElementById('totalSize');
-    const avgSize = document.getElementById('avgSize');
-    const formatBreakdown = document.getElementById('formatBreakdown');
-    
-    // Clear existing files
-    filesList.innerHTML = '';
-    
-    // Calculate statistics
-    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
-    const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
-    const avgKB = files.length > 0 ? ((totalBytes / files.length) / 1024).toFixed(1) : 0;
-    
-    // Format breakdown
-    const formats = {};
-    files.forEach(file => {
-        const ext = file.name.split('.').pop().toUpperCase();
-        formats[ext] = (formats[ext] || 0) + 1;
-    });
-    
-    const formatText = Object.entries(formats)
-        .map(([ext, count]) => `${ext} (${count})`)
-        .join(', ');
-    
-    // Update summary
-    fileCountBadge.textContent = `${files.length} file${files.length !== 1 ? 's' : ''}`;
-    totalFiles.textContent = files.length;
-    totalSize.textContent = totalMB + ' MB';
-    avgSize.textContent = avgKB + ' KB';
-    formatBreakdown.textContent = formatText;
-    
-    // Populate detailed list (but keep it hidden by default)
-    files.forEach((file, index) => {
-        const fileItem = document.createElement('div');
-        fileItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
-        
-        // File info (more compact)
-        const fileInfo = document.createElement('div');
-        fileInfo.className = 'd-flex align-items-center flex-grow-1 min-width-0';
-        fileInfo.innerHTML = `
-            <i class="fas ${getFileIcon(file.type)} me-2 text-muted flex-shrink-0"></i>
-            <div class="min-width-0 flex-grow-1">
-                <div class="fw-bold text-truncate" style="max-width: 300px;" title="${file.name}">${file.name}</div>
-                <small class="text-muted">${formatFileSize(file.size)}</small>
-            </div>
-        `;
-        
-        // Remove button
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'btn btn-sm btn-outline-danger flex-shrink-0 ms-2';
-        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-        removeBtn.onclick = () => removeFile(index);
-        removeBtn.title = 'Remove file';
-        
-        fileItem.appendChild(fileInfo);
-        fileItem.appendChild(removeBtn);
-        filesList.appendChild(fileItem);
-    });
-    
-    previewContainer.classList.remove('d-none');
-}
-
-function getFileIcon(fileType) {
-    if (fileType.includes('pdf')) return 'fa-file-pdf text-danger';
-    if (fileType.includes('csv')) return 'fa-file-csv text-success';
-    if (fileType.includes('image')) return 'fa-file-image text-primary';
-    return 'fa-file text-muted';
-}
-
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function removeFile(index) {
-    const fileInput = document.getElementById('studentAnswerSheets');
-    const dt = new DataTransfer();
-    const files = Array.from(fileInput.files);
-    
-    files.forEach((file, i) => {
-        if (i !== index) {
-            dt.items.add(file);
-        }
-    });
-    
-    fileInput.files = dt.files;
-    
-    if (fileInput.files.length === 0) {
-        document.getElementById('uploadedFilesPreview').classList.add('d-none');
-        hideFormatWarning();
-    } else {
-        displayUploadedFiles(Array.from(fileInput.files));
-    }
-}
-
-function showToast(message, type = 'info') {
-    // Create toast notification
-    const toastId = 'toast-' + Date.now();
-    const toast = document.createElement('div');
-    toast.id = toastId;
-    toast.className = 'toast align-items-center text-white bg-' + type + ' border-0 position-fixed';
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px;';
-    toast.setAttribute('role', 'alert');
-    
-    const iconMap = {
-        'success': 'fa-check-circle',
-        'error': 'fa-exclamation-circle',
-        'warning': 'fa-exclamation-triangle',
-        'info': 'fa-info-circle'
-    };
-    
-    toast.innerHTML = 
-        '<div class="d-flex">' +
-            '<div class="toast-body d-flex align-items-center">' +
-                '<i class="fas ' + (iconMap[type] || iconMap.info) + ' me-2 fa-lg"></i>' +
-                '<span>' + message + '</span>' +
-            '</div>' +
-            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
-        '</div>';
-    
-    document.body.appendChild(toast);
-    
-    const bsToast = new bootstrap.Toast(toast, {
-        animation: true,
-        autohide: true,
-        delay: 5000
-    });
-    
-    bsToast.show();
-    
-    toast.addEventListener('hidden.bs.toast', () => {
-        if (toast.parentNode) {
-            toast.remove();
-        }
-    });
-}
 </script>
 
 {% endblock %}
-      
