@@ -721,11 +721,21 @@ class StudentInfoExtractor:
         elif field_name == 'section':
             # ENHANCED SECTION CLEANING - Handle spaces properly for "BSIT 2-1" and fix OCR mistakes
             # Sections: alphanumeric, spaces, and dashes
-            
+
             # First, clean up but preserve meaningful spaces and dashes
             temp = ''.join(c if c.isalnum() or c in '- ' else ' ' for c in cleaned)
             words = temp.split()
-            
+
+            # --- FIX: Replace common OCR confusion of 'S' for 'B' at start of section code ---
+            if words and words[0].startswith('S') and len(words[0]) >= 4:
+                # If the first word is 'SSIT', 'SIT', or similar, replace leading S with B
+                if words[0][:2] == 'SS':
+                    words[0] = 'B' + words[0][1:]
+                elif words[0][:1] == 'S':
+                    # Only replace if the next letters are 'SIT' or 'IT'
+                    if words[0][1:4] == 'SIT' or words[0][1:3] == 'IT':
+                        words[0] = 'B' + words[0][1:]
+
             # Smart reconstruction for section format
             if len(words) >= 2:
                 # Check if we have a program code + section number pattern
@@ -784,7 +794,14 @@ class StudentInfoExtractor:
             else:
                 # Single word - try to intelligently split if needed
                 single_word = words[0] if words else cleaned
-                
+
+                # --- FIX: Replace common OCR confusion for single word as well ---
+                if single_word.startswith('S') and len(single_word) >= 4:
+                    if single_word[:2] == 'SS':
+                        single_word = 'B' + single_word[1:]
+                    elif single_word[1:4] == 'SIT' or single_word[1:3] == 'IT':
+                        single_word = 'B' + single_word[1:]
+
                 # Check for patterns like "BSIT2-40" -> "BSIT 2-1"
                 match = re.match(r'^([A-Z]{2,4})(\d+-\d+)$', single_word.upper())
                 if match:
