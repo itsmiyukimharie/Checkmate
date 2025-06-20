@@ -520,8 +520,8 @@ class StudentAnswerProcessor:
         return detected_answers
 
 if __name__ == "__main__":
-    import sys
-    import os
+    # Remove CLI/testing code, this file is now a service module only.
+    pass
     # Usage: python pdf_processor_stud_answer.py <column_img_path> <col_idx> [--debug]
     if len(sys.argv) < 3:
         print("Usage: python pdf_processor_stud_answer.py <column_img_path> <col_idx> [--debug]")
