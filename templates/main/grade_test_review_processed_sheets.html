@@ -41,11 +41,24 @@
                                     {{ entry.student_section|default:"—" }}
                                 </td>
                                 <td>
-                                    <span 
-                                        class="{% if entry.status == 'Valid' %}text-success{% else %}text-danger{% endif %}" 
-                                        data-bs-toggle="tooltip" 
-                                        data-bs-placement="top" 
-                                        title="{{ entry.message|default:'No message' }}">
+                                    <span
+                                        class="d-inline-flex align-items-center px-2 py-0 rounded-pill fw-semibold status-badge
+                                            {% if entry.status == 'Valid' %}
+                                                bg-success-subtle text-success border border-success
+                                            {% else %}
+                                                bg-danger-subtle text-danger border border-danger
+                                            {% endif %}"
+                                        style="cursor:pointer; font-size:0.95em; line-height:1.2; padding:2px 8px; transition: box-shadow 0.2s;"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="{{ entry.message|default:'No message' }}"
+                                        tabindex="0"
+                                    >
+                                        {% if entry.status == 'Valid' %}
+                                            <i class="fas fa-check-circle me-1" style="font-size:1em;"></i>
+                                        {% else %}
+                                            <i class="fas fa-times-circle me-1" style="font-size:1em;"></i>
+                                        {% endif %}
                                         {{ entry.status|default:"—" }}
                                     </span>
                                 </td>
@@ -90,7 +103,23 @@
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         tooltipTriggerList.forEach(function (tooltipTriggerEl) {
             new bootstrap.Tooltip(tooltipTriggerEl)
-        })
+        });
+
+        // Add focus/hover effect for status badges
+        document.querySelectorAll('.status-badge').forEach(function(el) {
+            el.addEventListener('focus', function() {
+                el.style.boxShadow = '0 0 0 0.2rem rgba(0,123,255,.25)';
+            });
+            el.addEventListener('blur', function() {
+                el.style.boxShadow = '';
+            });
+            el.addEventListener('mouseenter', function() {
+                el.style.boxShadow = '0 0 0 0.2rem rgba(0,123,255,.15)';
+            });
+            el.addEventListener('mouseleave', function() {
+                el.style.boxShadow = '';
+            });
+        });
     });
 </script>
 {% endblock %}
