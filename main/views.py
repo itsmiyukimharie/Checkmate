@@ -1196,16 +1196,28 @@ def review_processed_sheets(request):
                 if grading_results_json:
                     grading_results = json.loads(grading_results_json)
 
+            # Get the selected answer key (TestInformation)
+            if answer_key_id:
+                try:
+                    answer_key = TestInformation.objects.get(id=answer_key_id, user=request.user)
+                except TestInformation.DoesNotExist:
+                    answer_key = None
+
+            allowed_choices = answer_key.get_answer_choices() if answer_key else []
+            question_count = answer_key.question_count if answer_key else 0
+
             # Try to resolve student info for each result
             if grading_results:
                 for result in grading_results:
                     student_id_str = result.get("student_info", {}).get("id")
                     student_obj = None
-                    message = None
                     student_section = None
                     student_db_id = None
                     student_full_name = None
-                    status = "Invalid"
+                    status = "Valid"
+                    messages = []
+
+                    # Student DB lookup
                     if student_id_str:
                         student_obj = GradeReviewService.get_student_by_student_id_for_user(student_id_str, request.user)
                         if student_obj:
@@ -1217,12 +1229,33 @@ def review_processed_sheets(request):
                                 student_full_name = f"{student_obj.last_name}, {student_obj.first_name} {mi}"
                             else:
                                 student_full_name = f"{student_obj.last_name}, {student_obj.first_name}"
-                            status = "Valid"
-                            message = "Student is enrolled in you class."
                         else:
-                            message = f"Student with ID '{student_id_str}' not found in your class."
+                            status = "Invalid"
+                            messages.append(f"Student with ID '{student_id_str}' not found for your account.")
                     else:
-                        message = "No student ID detected in answer sheet."
+                        status = "Invalid"
+                        messages.append("No student ID detected in answer sheet.")
+
+                    # Validate answers
+                    answers = result.get("answers", {})
+                    answered_count = len([v for v in answers.values() if v is not None])
+                    if answered_count > question_count:
+                        status = "Invalid"
+                        messages.append(f"Answered questions ({answered_count}) exceed allowed ({question_count}).")
+
+                    # Check for invalid answer choices
+                    invalid_answers = []
+                    for qnum, ans in answers.items():
+                        if ans is not None and ans not in allowed_choices:
+                            invalid_answers.append(f"Q{qnum}: '{ans}'")
+                    if invalid_answers:
+                        status = "Invalid"
+                        messages.append("Invalid answer(s) detected: " + ", ".join(invalid_answers))
+
+                    # If no messages and status is valid, add a positive message
+                    if not messages and status == "Valid":
+                        messages.append("Student found in database and answers are valid.")
+
                     resolved_students.append({
                         "input": result,
                         "student_obj": str(student_obj) if student_obj else None,
@@ -1230,15 +1263,9 @@ def review_processed_sheets(request):
                         "student_section": student_section,
                         "student_id": student_db_id,
                         "status": status,
-                        "message": message
+                        "messages": messages,
                     })
 
-            # Get the selected answer key (TestInformation)
-            if answer_key_id:
-                try:
-                    answer_key = TestInformation.objects.get(id=answer_key_id, user=request.user)
-                except TestInformation.DoesNotExist:
-                    answer_key = None
         except Exception:
             grading_results = None
 

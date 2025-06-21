@@ -8,6 +8,29 @@
 
     <div class="card mb-4">
         <div class="card-body">
+            <h5 class="card-title mb-3">Test Information</h5>
+            {% if answer_key %}
+                <ul class="list-group list-group-flush mb-2">
+                    <li class="list-group-item"><strong>Course:</strong> {{ answer_key.course }}</li>
+                    <li class="list-group-item"><strong>Name:</strong> {{ answer_key.name }}</li>
+                    <li class="list-group-item"><strong>Test Name:</strong> {{ answer_key.test_name }}</li>
+                    <li class="list-group-item"><strong>Test Type:</strong> 
+                        {% if answer_key.get_test_type_display %}
+                            {{ answer_key.get_test_type_display }}
+                        {% else %}
+                            {{ answer_key.test_type }}
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item"><strong>Question Count:</strong> {{ answer_key.question_count }}</li>
+                </ul>
+            {% else %}
+                <span class="text-muted">No answer key selected.</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
             <h5 class="card-title">Processed Students</h5>
             {% if resolved_students %}
                 <div class="table-responsive">
@@ -48,16 +71,16 @@
                                             {% else %}
                                                 bg-danger-subtle text-danger border border-danger
                                             {% endif %}"
-                                        style="cursor:pointer; font-size:0.95em; line-height:1.2; padding:2px 8px; transition: box-shadow 0.2s;"
+                                        style="cursor:pointer; font-size:0.92em; line-height:1.1; padding:1px 7px; transition: box-shadow 0.2s;"
                                         data-bs-toggle="tooltip"
                                         data-bs-placement="top"
-                                        title="{{ entry.message|default:'No message' }}"
+                                        title="{% if entry.messages %}{% for msg in entry.messages %}{{ msg }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% else %}No message{% endif %}"
                                         tabindex="0"
                                     >
                                         {% if entry.status == 'Valid' %}
-                                            <i class="fas fa-check-circle me-1" style="font-size:1em;"></i>
+                                            <i class="fas fa-check-circle me-1" style="font-size:0.95em;"></i>
                                         {% else %}
-                                            <i class="fas fa-times-circle me-1" style="font-size:1em;"></i>
+                                            <i class="fas fa-times-circle me-1" style="font-size:0.95em;"></i>
                                         {% endif %}
                                         {{ entry.status|default:"—" }}
                                     </span>
@@ -69,17 +92,6 @@
                 </div>
             {% else %}
                 <div class="alert alert-warning mb-0">No processed students found.</div>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Answer Key Info</h5>
-            {% if answer_key %}
-                <pre>{{ answer_key|pprint }}</pre>
-            {% else %}
-                <span class="text-muted">No answer key selected.</span>
             {% endif %}
         </div>
     </div>
