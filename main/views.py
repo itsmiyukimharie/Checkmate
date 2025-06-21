@@ -1174,6 +1174,7 @@ def review_processed_sheets(request):
     Accepts JSON body (list of results) or form POST with 'grading_results'.
     """
     import json
+    from .models import TestInformation, TestResult
 
     grading_results = None
     resolved_students = []
@@ -1249,6 +1250,12 @@ def review_processed_sheets(request):
                         status = "Invalid"
                         messages.append("No student ID detected in answer sheet.")
 
+                    # --- Check for duplicate TestResult for this student and test ---
+                    if status == "Valid" and student_obj and answer_key:
+                        if TestResult.objects.filter(test_information=answer_key, student=student_obj).exists():
+                            status = "Invalid"
+                            messages.append("This student already has a recorded result for this test.")
+
                     # Only consider answers within the valid question range
                     valid_qnums = [str(i) for i in range(1, question_count + 1)]
                     answered_count = len([v for k, v in answers.items() if k in valid_qnums and v is not None])
@@ -1315,20 +1322,83 @@ def review_processed_sheets(request):
         'grading_results': grading_results,
         'resolved_students': resolved_students,
         'answer_key': answer_key,
-        'status_counts': json.dumps(status_counts),
-        'score_labels': json.dumps(score_labels),
-        'score_data': json.dumps(score_data),
+        'status_counts': status_counts,
+        'score_labels': score_labels,
+        'score_data': score_data,
     }
     return render(request, 'main/grade_test_review_processed_sheets.html', context)
 
-    # This endpoint is working correctly.
-    # The log message:
-    # [20/Jun/2025 18:28:01] "POST /process-answer-sheets/ HTTP/1.1" 200 1422
-    # means your endpoint is being called and returning a valid response.
 
-    # The log message:
-    # Not Found: /.well-known/appspecific/com.chrome.devtools.json
-    # [20/Jun/2025 18:28:10] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 8507
-    # is unrelated to your grading or answer sheet processing.
-    # It is a request from Chrome DevTools or a browser extension probing for debugging endpoints.
-    # You can safely ignore this 404 error; it does not affect your application.
+@csrf_exempt
+@login_required
+@require_POST
+def save_reviewed_sheets(request):
+    """
+    Endpoint to save reviewed/graded student sheets.
+    Expects JSON body with resolved_students and answer_key_id.
+    """
+    import json
+    from .models import TestInformation, Students, TestResult
+
+    try:
+        if request.content_type == "application/json":
+            data = json.loads(request.body.decode('utf-8'))
+        else:
+            data = request.POST
+
+        resolved_students = data.get('resolved_students')
+        answer_key_id = data.get('answer_key_id')
+
+        if not resolved_students or not answer_key_id:
+            return JsonResponse({'success': False, 'message': 'Missing data.'}, status=400)
+
+        # Get the TestInformation object
+        try:
+            test_info = TestInformation.objects.get(id=answer_key_id, user=request.user)
+        except TestInformation.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Test information not found.'}, status=404)
+
+        # --- Update test_info status to "Active" ---
+        test_info.status = "Active"
+        test_info.save(update_fields=["status"])
+
+        saved_count = 0
+        for entry in resolved_students:
+            # Only save if status is Passed or Failed
+            if entry.get('status') not in ("Passed", "Failed"):
+                continue
+
+            student_id = entry.get('student_id')
+            score = entry.get('score')
+            total_questions = entry.get('score_display').split('/')[-1].strip() if entry.get('score_display') else None
+            correct_answers = entry.get('score')
+
+            # Validate student_id and score
+            if not student_id or score is None or total_questions is None:
+                continue
+
+            try:
+                student = Students.objects.get(student_id=student_id, user=request.user)
+            except Students.DoesNotExist:
+                continue
+
+            # Save or update the TestResult
+            test_result, created = TestResult.objects.update_or_create(
+                test_information=test_info,
+                student=student,
+                defaults={
+                    'score': float(score),
+                    'total_questions': int(total_questions),
+                    'correct_answers': int(correct_answers),
+                }
+            )
+            saved_count += 1
+
+        # Only update status if at least one result was saved
+        if saved_count > 0:
+            test_info.status = "Active"
+            test_info.save(update_fields=["status"])
+
+        return JsonResponse({'success': True, 'message': f'{saved_count} results saved successfully!'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error saving results: {str(e)}'}, status=400)
