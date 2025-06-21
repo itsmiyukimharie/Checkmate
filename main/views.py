@@ -1164,6 +1164,15 @@ def process_answer_sheets_pdf(request):
 
     return JsonResponse({'success': True, 'results': results})
 
+@login_required
+def review_processed_sheets(request):
+    """
+    View to display the results of processed answer sheets.
+    The actual grading results JSON should be retrieved from sessionStorage via JS,
+    or you can update this view to accept POST/GET data as needed.
+    """
+    return render(request, 'main/grade_test_review_processed_sheets.html')
+
     # This endpoint is working correctly.
     # The log message:
     # [20/Jun/2025 18:28:01] "POST /process-answer-sheets/ HTTP/1.1" 200 1422

@@ -178,8 +178,8 @@
                     </div>
                     <!-- Add Grade (PDF) button -->
                     <div class="mb-3" id="gradePdfBtnContainer">
-                        <button type="submit" class="btn btn-primary btn-block" id="gradePdfBtn" formaction="{% url 'main:process_answer_sheets_pdf' %}">
-                            <i class="fas fa-file-pdf"></i> Grade (PDF)
+                        <button type="submit" class="btn btn-primary btn-block" id="gradePdfBtn">
+                            <i class="fas fa-file-pdf"></i> Start Grading Session
                         </button>
                     </div>
                     <!-- No submit button for now -->
@@ -345,6 +345,28 @@
     </div>
 </div>
 
+<!-- Loading Modal -->
+<div class="modal fade" id="gradingLoadingModal" tabindex="-1" aria-labelledby="gradingLoadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background: rgba(30, 34, 90, 0.92); border-radius: 1.2rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37); border: 1px solid rgba(255,255,255,0.18); color: #fff;">
+      <div class="modal-header border-0" style="background: transparent;">
+        <h5 class="modal-title fw-bold" id="gradingLoadingModalLabel">
+          <i class="fas fa-spinner fa-spin"></i> Processing Files
+        </h5>
+      </div>
+      <div class="modal-body text-center">
+        <div class="mb-3">
+          <div class="progress" style="height: 24px; background: rgba(255,255,255,0.15);">
+            <div id="gradingProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%">0%</div>
+          </div>
+        </div>
+        <div id="gradingStatusText" class="fw-bold mb-2">Uploading and processing your files. Please wait...</div>
+        <div class="text-muted small" style="color: #e0e0e0 !important;">This may take a few moments depending on file size.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Filter change handlers
@@ -498,6 +520,106 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize preview if files are present (e.g., after back navigation)
     refreshFilePreview();
+
+    // Bootstrap modal instance
+    let gradingModal = null;
+    function showGradingModal() {
+        if (!gradingModal) {
+            gradingModal = new bootstrap.Modal(document.getElementById('gradingLoadingModal'));
+        }
+        gradingModal.show();
+    }
+    function hideGradingModal() {
+        if (gradingModal) gradingModal.hide();
+    }
+
+    // Progress bar helpers
+    function updateProgressBar(percent, statusText) {
+        const bar = document.getElementById('gradingProgressBar');
+        const status = document.getElementById('gradingStatusText');
+        bar.style.width = percent + '%';
+        bar.textContent = percent + '%';
+        if (statusText) status.textContent = statusText;
+    }
+
+    document.getElementById('gradingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const fileType = document.getElementById('fileTypeSelect').value;
+        const form = e.target;
+        const formData = new FormData(form);
+
+        if (fileType === 'pdf') {
+            showGradingModal();
+            updateProgressBar(10, "Uploading files...");
+
+            // Use XMLHttpRequest for upload progress
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', "{% url 'main:process_answer_sheets_pdf' %}");
+            xhr.setRequestHeader('X-CSRFToken', form.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    let percent = Math.round((event.loaded / event.total) * 60); // Upload is 60% of the process
+                    updateProgressBar(percent, "Uploading files...");
+                }
+            };
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.HEADERS_RECEIVED) {
+                    updateProgressBar(70, "Processing files on server...");
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    updateProgressBar(100, "Processing complete!");
+                    setTimeout(() => {
+                        hideGradingModal();
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            if (data.success) {
+                                sessionStorage.setItem('gradingResults', JSON.stringify(data.results));
+                                window.location.href = "{% url 'main:review_processed_sheets' %}";
+                            } else {
+                                alert(data.error || 'Processing failed.');
+                            }
+                        } catch (err) {
+                            alert('Failed to parse server response.');
+                        }
+                    }, 500);
+                } else {
+                    hideGradingModal();
+                    alert('An error occurred while processing the answer sheets.');
+                }
+            };
+
+            xhr.onerror = function() {
+                hideGradingModal();
+                alert('A network error occurred.');
+            };
+
+            xhr.send(formData);
+
+            // Simulate progress bar for server-side processing
+            let fakeProgress = 70;
+            function simulateServerProgress() {
+                if (fakeProgress < 95) {
+                    fakeProgress += Math.random() * 2;
+                    updateProgressBar(Math.floor(fakeProgress), "Processing files on server...");
+                    setTimeout(simulateServerProgress, 400);
+                }
+            }
+            setTimeout(simulateServerProgress, 1000);
+
+        } else if (fileType === 'csv') {
+            alert('CSV grading is not implemented yet.');
+        } else if (fileType === 'image') {
+            alert('Image grading is not implemented yet.');
+        } else {
+            alert('Unsupported file type selected.');
+        }
+    });
 });
 </script>
 

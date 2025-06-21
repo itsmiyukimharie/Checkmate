@@ -28,11 +28,13 @@ urlpatterns = [
     path('answer-keys/delete/<int:test_id>/', views.delete_test, name='delete_test'),
     path('grade-test/', views.grade_test, name='grade_test'),
     path('grade-test/filter-answer-keys/', views.get_filtered_answer_keys, name='get_filtered_answer_keys'),
+    path('process-answer-sheets-pdf/', views.process_answer_sheets_pdf, name='process_answer_sheets_pdf'),
+    path('review-processed-sheets/', views.review_processed_sheets, name='review_processed_sheets'),
     path('grade-test/course-students/', views.get_course_students, name='get_course_students'),
     path('grade-test/history/', views.get_grading_history, name='get_grading_history'),
     path('export-results/', views.export_results, name='export_results'),
     path('analytics/', views.analytics, name='analytics'),
     path('landingpage/', views.landingpage, name='landingpage'),
     path('answer-keys/download-template/', views.download_template, name='download_template'),
-    path('process-answer-sheets-pdf/', views.process_answer_sheets_pdf, name='process_answer_sheets_pdf'),
+    
 ]
