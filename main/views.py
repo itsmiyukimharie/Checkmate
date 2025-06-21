@@ -1180,6 +1180,11 @@ def review_processed_sheets(request):
     answer_key = None
     answer_key_id = None
 
+    # Analytics data
+    status_counts = {"Passed": 0, "Failed": 0, "Valid": 0, "Invalid": 0}
+    score_labels = []
+    score_data = []
+
     if request.method == "POST":
         try:
             if request.content_type == "application/json":
@@ -1208,7 +1213,16 @@ def review_processed_sheets(request):
 
             # Try to resolve student info for each result
             if grading_results:
+                # Build answer key mapping: {question_number: correct_answer}
+                answer_key_map = {}
+                if answer_key:
+                    answer_key_map = {
+                        str(ak.question_number): ak.answer
+                        for ak in answer_key.answer_keys.all()
+                    }
+
                 for result in grading_results:
+                    answers = result.get("answers", {})
                     student_id_str = result.get("student_info", {}).get("id")
                     student_obj = None
                     student_section = None
@@ -1217,13 +1231,12 @@ def review_processed_sheets(request):
                     status = "Valid"
                     messages = []
 
-                    # Student DB lookup
+                    # Student DB lookup (existing code)
                     if student_id_str:
                         student_obj = GradeReviewService.get_student_by_student_id_for_user(student_id_str, request.user)
                         if student_obj:
                             student_section = student_obj.section
                             student_db_id = student_obj.student_id
-                            # Format: Last Name, First Name, Middle Initial.
                             if student_obj.middle_name:
                                 mi = student_obj.middle_name.strip()[0].upper() + "." if student_obj.middle_name.strip() else ""
                                 student_full_name = f"{student_obj.last_name}, {student_obj.first_name} {mi}"
@@ -1236,25 +1249,52 @@ def review_processed_sheets(request):
                         status = "Invalid"
                         messages.append("No student ID detected in answer sheet.")
 
-                    # Validate answers
-                    answers = result.get("answers", {})
-                    answered_count = len([v for v in answers.values() if v is not None])
+                    # Only consider answers within the valid question range
+                    valid_qnums = [str(i) for i in range(1, question_count + 1)]
+                    answered_count = len([v for k, v in answers.items() if k in valid_qnums and v is not None])
                     if answered_count > question_count:
                         status = "Invalid"
                         messages.append(f"Answered questions ({answered_count}) exceed allowed ({question_count}).")
 
-                    # Check for invalid answer choices
+                    # Check for invalid answer choices (only for valid questions)
                     invalid_answers = []
-                    for qnum, ans in answers.items():
+                    for qnum in valid_qnums:
+                        ans = answers.get(qnum)
                         if ans is not None and ans not in allowed_choices:
                             invalid_answers.append(f"Q{qnum}: '{ans}'")
                     if invalid_answers:
                         status = "Invalid"
                         messages.append("Invalid answer(s) detected: " + ", ".join(invalid_answers))
 
+                    # --- Score calculation (only for valid questions) ---
+                    score = 0
+                    total_items = len(valid_qnums)
+                    for qnum in valid_qnums:
+                        correct_ans = answer_key_map.get(qnum)
+                        student_ans = answers.get(qnum)
+                        if correct_ans is not None and student_ans is not None and str(student_ans).strip().upper() == str(correct_ans).strip().upper():
+                            score += 1
+                    score_display = f"{score} / {total_items}"
+
                     # If no messages and status is valid, add a positive message
                     if not messages and status == "Valid":
                         messages.append("Student found in database and answers are valid.")
+
+                    # --- Pass/Fail logic ---
+                    if status == "Valid" and total_items > 0:
+                        percent = (score / total_items) * 100
+                        if percent >= 75:
+                            status = "Passed"
+                            messages.append(f"Score is {percent:.2f}%. Student passed.")
+                        else:
+                            status = "Failed"
+                            messages.append(f"Score is {percent:.2f}%. Student failed.")
+
+                    # --- Analytics data ---
+                    status_counts[status] = status_counts.get(status, 0) + 1
+                    if status in ("Passed", "Failed"):
+                        score_labels.append(student_full_name or student_id_str or "Unknown")
+                        score_data.append(score)
 
                     resolved_students.append({
                         "input": result,
@@ -1264,6 +1304,8 @@ def review_processed_sheets(request):
                         "student_id": student_db_id,
                         "status": status,
                         "messages": messages,
+                        "score": score,
+                        "score_display": score_display,
                     })
 
         except Exception:
@@ -1273,6 +1315,9 @@ def review_processed_sheets(request):
         'grading_results': grading_results,
         'resolved_students': resolved_students,
         'answer_key': answer_key,
+        'status_counts': json.dumps(status_counts),
+        'score_labels': json.dumps(score_labels),
+        'score_data': json.dumps(score_data),
     }
     return render(request, 'main/grade_test_review_processed_sheets.html', context)
 
