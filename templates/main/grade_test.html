@@ -268,7 +268,7 @@
                 </thead>
                 <tbody>
                     {% for session in grading_history %}
-                    <tr>
+                    <tr data-test-id="{{ session.test_info.id }}">
                         <td>
                             <strong>{{ session.test_info.test_name }}</strong>
                             <br><small class="text-muted">{{ session.test_info.get_test_type_display }} - {{ session.test_info.question_count }} questions</small>
@@ -372,6 +372,26 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Graded Students Modal -->
+<div class="modal fade" id="gradingHistoryViewModal" tabindex="-1" aria-labelledby="gradingHistoryViewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="gradingHistoryViewModalLabel">
+          <i class="fas fa-users"></i> Graded Students
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="gradingHistoryViewModalBody">
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-spinner fa-spin fa-2x"></i>
+          <div>Loading students...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -668,6 +688,142 @@ document.addEventListener('DOMContentLoaded', function() {
             const url = new URL(window.location.href);
             url.searchParams.set('time_filter', filter);
             window.location.href = url.toString();
+        });
+    });
+
+    // View Results button functionality
+    document.querySelectorAll('.btn-outline-info[title="View Results"]').forEach(function(btn, idx) {
+        btn.addEventListener('click', function() {
+            // Get test id (you may need to add a data attribute for this)
+            const row = btn.closest('tr');
+            const testName = row.querySelector('td strong').textContent.trim();
+            const testType = row.querySelector('td small.text-muted').textContent.trim();
+            const testId = row.getAttribute('data-test-id');
+            const modal = new bootstrap.Modal(document.getElementById('gradingHistoryViewModal'));
+            const modalBody = document.getElementById('gradingHistoryViewModalBody');
+            const modalTitle = document.getElementById('gradingHistoryViewModalLabel');
+            modalTitle.innerHTML = `<i class="fas fa-users"></i> Graded Students<br><small class="text-muted">${testName} <span class="mx-1">|</span> ${testType}</small>`;
+            modalBody.innerHTML = `<div class="text-center py-5 text-muted">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <div>Loading students...</div>
+            </div>`;
+            modal.show();
+
+            // AJAX to fetch students for this test
+            fetch("{% url 'main:get_test_students' %}?test_id=" + encodeURIComponent(testId), {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.students.length > 0) {
+                    let html = `
+                        <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Student Name</th>
+                                    <th>Student ID</th>
+                                    <th>Section</th>
+                                    <th>Score</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    data.students.forEach((student, i) => {
+                        // Calculate percentage
+                        let percent = '';
+                        if (student.score_display && student.score_display.includes('/')) {
+                            const [score, total] = student.score_display.split('/').map(s => parseFloat(s.trim()));
+                            if (!isNaN(score) && !isNaN(total) && total > 0) {
+                                percent = ((score / total) * 100).toFixed(1) + '%';
+                            } else {
+                                percent = '—';
+                            }
+                        } else {
+                            percent = '—';
+                        }
+                        html += `
+                            <tr>
+                                <td>${i+1}</td>
+                                <td>${student.full_name || '<span class="text-danger">Not found</span>'}</td>
+                                <td>${student.student_id || '—'}</td>
+                                <td>${student.section || '—'}</td>
+                                <td>${student.score_display || '—'}</td>
+                                <td>${percent}</td>
+                            </tr>
+                        `;
+                    });
+                    html += `</tbody></table></div>`;
+                    modalBody.innerHTML = html;
+                } else {
+                    modalBody.innerHTML = `<div class="text-center py-5 text-muted">
+                        <i class="fas fa-user-times fa-2x mb-2"></i>
+                        <div>No students found for this test.</div>
+                    </div>`;
+                }
+            })
+            .catch(() => {
+                modalBody.innerHTML = `<div class="text-danger text-center py-5">Failed to load students.</div>`;
+            });
+        });
+    });
+
+    // Export to CSV functionality
+    document.querySelectorAll('.btn-outline-success[title="Download Report"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const row = btn.closest('tr');
+            const testId = row.getAttribute('data-test-id');
+            const testName = row.querySelector('td strong').textContent.trim();
+
+            // Fetch students for this test
+            fetch("{% url 'main:get_test_students' %}?test_id=" + encodeURIComponent(testId), {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.students.length > 0) {
+                    // Prepare CSV content
+                    let csv = 'No,Student Name,Student ID,Section,Score,Percentage\n';
+                    data.students.forEach((student, i) => {
+                        // Calculate percentage
+                        let percent = '';
+                        if (student.score_display && student.score_display.includes('/')) {
+                            const [score, total] = student.score_display.split('/').map(s => parseFloat(s.trim()));
+                            if (!isNaN(score) && !isNaN(total) && total > 0) {
+                                percent = ((score / total) * 100).toFixed(1) + '%';
+                            } else {
+                                percent = '';
+                            }
+                        }
+                        csv += [
+                            i + 1,
+                            `"${student.full_name || ''}"`,
+                            `"${student.student_id || ''}"`,
+                            `"${student.section || ''}"`,
+                            `"${student.score_display || ''}"`,
+                            `"${percent}"`
+                        ].join(',') + '\n';
+                    });
+
+                    // Download CSV
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${testName.replace(/[^a-z0-9]/gi, '_')}_results.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert('No students found for this test.');
+                }
+            })
+            .catch(() => {
+                alert('Failed to export CSV.');
+            });
         });
     });
 });

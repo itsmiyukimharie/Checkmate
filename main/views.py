@@ -1402,3 +1402,22 @@ def save_reviewed_sheets(request):
         return JsonResponse({'success': True, 'message': f'{saved_count} results saved successfully!'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error saving results: {str(e)}'}, status=400)
+    
+from .models import TestResult
+@login_required
+def get_test_students(request):
+    test_id = request.GET.get('test_id')
+    if not test_id:
+        return JsonResponse({"success": False, "students": [], "error": "No test_id provided."})
+    results = TestResult.objects.filter(test_information_id=test_id).select_related('student', 'test_information')
+    students = []
+    for r in results:
+        s = r.student
+        students.append({
+            "full_name": f"{s.last_name}, {s.first_name} {s.middle_name[0] + '.' if s.middle_name else ''}" if s else None,
+            "student_id": s.student_id if s else None,
+            "section": s.section if s else None,
+            "score_display": f"{r.score} / {r.test_information.question_count}" if r.test_information else str(r.score),
+            "status": r.status if hasattr(r, 'status') else '',
+        })
+    return JsonResponse({"success": True, "students": students})
