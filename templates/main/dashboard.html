@@ -3,134 +3,230 @@
 {% block title %}Dashboard - CheckMate{% endblock %}
 
 {% block extra_head %}
-<!-- Fonts & UI Libraries -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tsparticles@3/tsparticles.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.8.2/dist/vanilla-tilt.min.js"></script>
-
-<style>
-  /* —— Layout —— */
-  body {
-    margin: 0;
-    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-    font-family: 'Poppins', sans-serif;
-    color: #fff;
-    overflow-x: hidden;
-  }
-
-  #tsparticles {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-  }
-
-  /* —— Base Glass Card —— */
-  .glass-card {
-    position: relative;
-    background: rgba(255, 255, 255, 0.15); /* faint glass */
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border-radius: 16px; /* Rounded corners */
-    overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    transition: transform 0.45s cubic-bezier(0.25, 1, 0.3, 1), box-shadow 0.45s;
-  }
-
-  .glass-card:hover { 
-    transform: translateY(-8px) scale(1.03); 
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); 
-  }
-
-  /* —— Metric Cards —— */
-  .metric-card { position: relative; }
-  .metric-card .card-body { position: relative; z-index: 1; }
-  .metric-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background-size: 200% 200%;
-    animation: bgShift 8s ease infinite;
-    z-index: 0;
-  }
-
-  /* Individual pastel gradient backgrounds for content cards */
-  .metric-purple::before { background: linear-gradient(135deg, #b3a0f0 0%, #d0b7f6 100%); }
-  .metric-pink::before   { background: linear-gradient(135deg, #ffb3d9 0%, #fdd6e5 100%); }
-  .metric-aqua::before   { background: linear-gradient(135deg, #a0eaff 0%, #b5d8f6 100%); }
-  .metric-gold::before   { background: linear-gradient(135deg, #fdd5a0 0%, #f7d7b9 100%); }
-
-  @keyframes bgShift { 
-    0% {background-position: 0 50%;} 
-    50% {background-position: 100% 50%;} 
-    100% {background-position: 0 50%;}
-  }
-
-  /* —— Typography —— */
-  .card-body h4 { font-size: 2rem; font-weight: 600; margin-bottom: 0.25rem; }
-  .card-body p { font-size: 1.1rem; margin: 0; font-weight: 400; }
-  .dashboard-title { font-size: 2.6rem; font-weight: 700; text-shadow: 2px 2px 6px rgba(0,0,0,0.4); }
-
-  /* —— List & Headers —— */
-  .list-group-item { background: transparent; border: none; color: #fff; padding: 12px 0; }
-  .list-group-item i { margin-right: 8px; }
-  .card-header { background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.2); font-weight: 600; font-size: 1.1rem; }
-
-  /* —— Buttons —— */
-  .btn-glass {
-    position: relative;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: #fff;
-    backdrop-filter: blur(10px);
-    border-radius: 16px; /* Rounded corners */
-    font-weight: 500;
-    overflow: hidden;
-    transition: transform 0.25s ease, box-shadow 0.25s;
-  }
-  .btn-glass::after {
-    content: "";
-    position: absolute;
-    inset: -100% -100% 0 0;
-    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.5) 60%, transparent 100%);
-    transform: translateX(-100%);
-    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .btn-glass:hover::after { transform: translateX(100%); }
-  .btn-glass:hover { transform: translateY(-3px); box-shadow: 0 4px 18px rgba(0,0,0,0.4); }
-
-  /* —— Charts —— */
-  #accuracyChart { width: 100%; max-height: 220px; }
-
-  @media(max-width: 767px){ .dashboard-title { font-size: 2.1rem; } }
-</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
-<div id="tsparticles"></div>
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <h1 class="h2 fw-bold d-flex align-items-center mb-0">
+      <i class="fas fa-chess-board me-2 text-primary"></i> CheckMate Dashboard
+    </h1>
+    <a href="{% url 'main:grade_test' %}" class="btn btn-primary d-flex align-items-center">
+      <i class="fas fa-bolt me-2"></i> Quick Grade
+    </a>
+  </div>
 
-<div class="d-flex justify-content-between align-items-center mb-5 flex-wrap gap-3">
-  <h1 class="dashboard-title d-flex align-items-center"><i class="fas fa-tachometer-alt me-3"></i> Dashboard</h1>
-  <a href="{% url 'main:grade_test' %}" class="btn btn-glass d-flex align-items-center"><i class="fas fa-bolt me-2"></i> Quick Grade</a>
+  <!-- Top Metrics -->
+  <div class="row g-4 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0">
+        <div class="card-body">
+          <div class="fs-3 fw-bold text-primary"><i class="fas fa-users me-2"></i>{{ total_students }}</div>
+          <div class="small text-muted">Students</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0">
+        <div class="card-body">
+          <div class="fs-3 fw-bold text-info"><i class="fas fa-book me-2"></i>{{ total_courses }}</div>
+          <div class="small text-muted">Courses</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0">
+        <div class="card-body">
+          <div class="fs-3 fw-bold text-warning"><i class="fas fa-file-alt me-2"></i>{{ total_tests }}</div>
+          <div class="small text-muted">Tests</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0">
+        <div class="card-body">
+          <div class="fs-3 fw-bold text-success"><i class="fas fa-check-circle me-2"></i>{{ graded_tests }}</div>
+          <div class="small text-muted">Graded</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0">
+        <div class="card-body">
+          <div class="fs-3 fw-bold text-secondary"><i class="fas fa-percentage me-2"></i>{{ avg_score|default:"0" }}%</div>
+          <div class="small text-muted">Avg. Score</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0">
+        <div class="card-body">
+          <div class="fs-3 fw-bold text-danger"><i class="fas fa-trophy me-2"></i>{{ pass_rate|default:"0" }}%</div>
+          <div class="small text-muted">Pass Rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-4 mb-4">
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-chart-bar text-primary me-2"></i>Average Score Per Course
+        </div>
+        <div class="card-body">
+          <canvas id="avgScoreCourseChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-chart-bar text-success me-2"></i>Pass Rate Per Course
+        </div>
+        <div class="card-body">
+          <canvas id="passRateCourseChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-chart-pie text-warning me-2"></i>Students Per Course
+        </div>
+        <div class="card-body">
+          <canvas id="studentsCourseChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Activity & Quick Links -->
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-history text-info me-2"></i>Recent Test Results
+        </div>
+        <div class="card-body px-0">
+          <ul class="list-group list-group-flush">
+            {% for result in recent_activity %}
+            <li class="list-group-item d-flex align-items-center">
+              <span class="me-2 text-success"><i class="fas fa-user-check"></i></span>
+              <span>
+                <b>{{ result.student }}</b> scored <b>{{ result.score }}</b> on <b>{{ result.test_information.test_name }}</b>
+                <span class="d-block small text-muted">{{ result.created_at|date:"M d, Y H:i" }}</span>
+              </span>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-center text-muted">
+              No recent activity to show.
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-link text-secondary me-2"></i>Quick Links
+        </div>
+        <div class="card-body d-grid gap-3">
+          <a href="{% url 'main:add_course' %}" class="btn btn-outline-primary btn-lg">
+            <i class="fas fa-plus-circle me-2"></i> Manage Course
+          </a>
+          <a href="{% url 'main:student_management' %}" class="btn btn-outline-info btn-lg">
+            <i class="fas fa-user-graduate me-2"></i> Manage Students
+          </a>
+          <a href="{% url 'main:answer_keys' %}" class="btn btn-outline-warning btn-lg">
+            <i class="fas fa-key me-2"></i> Manage Answer Keys
+          </a>
+          <a href="{% url 'main:grade_test' %}" class="btn btn-outline-success btn-lg">
+            <i class="fas fa-chart-line me-2"></i> Start Grading
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  /* —— Particles —— */
-  tsParticles.load("tsparticles", {
-    fullScreen:{enable:false}, background:{color:"transparent"},
-    particles:{number:{value:60},size:{value:3},move:{enable:true,speed:1},opacity:{value:0.5},color:{value:"#ffffff"},links:{enable:true,color:"#ffffff",opacity:0.25}},
-    interactivity:{events:{onhover:{enable:true,mode:"repulse"},onclick:{enable:true,mode:"push"}},modes:{repulse:{distance:100},push:{quantity:4}}}
-  });
+document.addEventListener('DOMContentLoaded', function() {
+  // 1. Bar chart: Average Score Per Course
+  const avgScoreCourseLabels = ["Math", "Science", "English", "History"];
+  const avgScoreCourseData = [85, 78, 92, 88];
 
-  /* —— Doughnut —— */
-  const ctx=document.getElementById('accuracyChart');
-  if(ctx){new Chart(ctx,{type:'doughnut',data:{labels:['Accuracy',''],datasets:[{data:[87,13],backgroundColor:['rgba(255,255,255,0.9)','rgba(255,255,255,0.15)'],borderWidth:0}]},options:{cutout:'75%',plugins:{tooltip:{enabled:false},legend:{display:false}}}});}
+  // 2. Bar chart: Pass Rate Per Course
+  const passRateCourseLabels = ["Math", "Science", "English", "History"];
+  const passRateCourseData = [90, 75, 98, 80];
 
-  /* —— Tilt —— */
-  VanillaTilt.init(document.querySelectorAll('[data-tilt]'),{max:8,speed:600});
+  // 3. Pie chart: Students Per Course
+  const studentsCourseLabels = ["Math", "Science", "English", "History"];
+  const studentsCourseData = [30, 25, 20, 15];
+
+  // Average Score Per Course
+  const avgScoreCourseChart = document.getElementById('avgScoreCourseChart');
+  if (avgScoreCourseChart) {
+    new Chart(avgScoreCourseChart, {
+      type: 'bar',
+      data: {
+        labels: avgScoreCourseLabels,
+        datasets: [{
+          label: 'Average Score',
+          data: avgScoreCourseData,
+          backgroundColor: '#4e6bff',
+          borderRadius: 8
+        }]
+      },
+      options: {
+        plugins: { legend: {display: false} },
+        scales: { y: { beginAtZero: true, max: 100 } }
+      }
+    });
+  }
+
+  // Pass Rate Per Course
+  const passRateCourseChart = document.getElementById('passRateCourseChart');
+  if (passRateCourseChart) {
+    new Chart(passRateCourseChart, {
+      type: 'bar',
+      data: {
+        labels: passRateCourseLabels,
+        datasets: [{
+          label: 'Pass Rate (%)',
+          data: passRateCourseData,
+          backgroundColor: '#28a745',
+          borderRadius: 8
+        }]
+      },
+      options: {
+        plugins: { legend: {display: false} },
+        scales: { y: { beginAtZero: true, max: 100 } }
+      }
+    });
+  }
+
+  // Students Per Course Pie
+  const studentsCourseChart = document.getElementById('studentsCourseChart');
+  if (studentsCourseChart) {
+    new Chart(studentsCourseChart, {
+      type: 'pie',
+      data: {
+        labels: studentsCourseLabels,
+        datasets: [{
+          data: studentsCourseData,
+          backgroundColor: ['#4e6bff', '#28a745', '#ffc107', '#dc3545'],
+        }]
+      },
+      options: {
+        plugins: { legend: {position: 'bottom'} }
+      }
+    });
+  }
+});
 </script>
 {% endblock %}

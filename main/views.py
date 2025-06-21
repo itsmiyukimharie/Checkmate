@@ -19,16 +19,88 @@ from .forms import CreateAnswerKeyForm, CourseForm, CourseFilterForm, StudentFor
 from scripts.pdf_processor_main_prototype import CheckmateService
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.db.models import Avg, Count, Q
+from datetime import timedelta
+from django.utils import timezone
+from .models import Students, Courses, TestInformation, TestResult
 
 logger = logging.getLogger(__name__)
 
 @login_required
 def dashboard(request):
-    """Dashboard page - main entry point"""
+    user = request.user
+
+    # Metrics
+    total_students = Students.objects.filter(user=user).count()
+    total_courses = Courses.objects.filter(user=user).count()
+    total_tests = TestInformation.objects.filter(user=user).count()
+    graded_tests = TestResult.objects.filter(test_information__user=user).values('test_information').distinct().count()
+    total_test_results = TestResult.objects.filter(test_information__user=user).count()
+    avg_score = TestResult.objects.filter(test_information__user=user).aggregate(avg=Avg('score'))['avg']
+    avg_score = round(avg_score, 2) if avg_score is not None else 0
+
+    # Pass rate (assuming 50% is passing)
+    pass_count = TestResult.objects.filter(test_information__user=user, score__gte=50).count()
+    fail_count = TestResult.objects.filter(test_information__user=user, score__lt=50).count()
+    pass_rate = round((pass_count / total_test_results) * 100, 2) if total_test_results else 0
+
+    # Recent activity: last 5 test results
+    recent_activity = (
+        TestResult.objects.filter(test_information__user=user)
+        .select_related('student', 'test_information')
+        .order_by('-created_at')[:5]
+    )
+
+    # Test creation trend (last 6 months)
+    now = timezone.now()
+    test_trend_labels = []
+    test_trend_data = []
+    for i in range(5, -1, -1):
+        month_date = (now - timedelta(days=30*i))
+        label = month_date.strftime('%b %Y')
+        test_trend_labels.append(label)
+        count = TestInformation.objects.filter(
+            user=user,
+            created_at__year=month_date.year,
+            created_at__month=month_date.month
+        ).count()
+        test_trend_data.append(count)
+
+    # Average score trend (last 6 months)
+    score_trend_labels = test_trend_labels[:]  # Use same months as above
+    score_trend_data = []
+    for i in range(5, -1, -1):
+        month_date = (now - timedelta(days=30*i))
+        month_start = month_date.replace(day=1)
+        # Get the first day of the next month
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year+1, month=1)
+        else:
+            month_end = month_start.replace(month=month_start.month+1)
+        avg = TestResult.objects.filter(
+            test_information__user=user,
+            created_at__gte=month_start,
+            created_at__lt=month_end
+        ).aggregate(avg=Avg('score'))['avg']
+        score_trend_data.append(round(avg, 2) if avg is not None else 0)
+
+    # Pass/fail data for pie
+    pass_fail_data = [pass_count, fail_count]
+
     context = {
-        'page_title': 'Dashboard',
-        'current_page': 'dashboard',
-        'user': request.user
+        'total_students': total_students,
+        'total_courses': total_courses,
+        'total_tests': total_tests,
+        'graded_tests': graded_tests,
+        'total_test_results': total_test_results,
+        'avg_score': avg_score,
+        'pass_rate': pass_rate,
+        'recent_activity': recent_activity,
+        'test_trend_labels': test_trend_labels,
+        'test_trend_data': test_trend_data,
+        'score_trend_labels': score_trend_labels,
+        'score_trend_data': score_trend_data,
+        'pass_fail_data': pass_fail_data,
     }
     return render(request, 'main/dashboard.html', context)
 
