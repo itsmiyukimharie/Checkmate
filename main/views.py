@@ -1164,14 +1164,90 @@ def process_answer_sheets_pdf(request):
 
     return JsonResponse({'success': True, 'results': results})
 
+from .models import TestInformation
+from .services.grade_review import GradeReviewService
+
 @login_required
 def review_processed_sheets(request):
     """
     View to display the results of processed answer sheets.
-    The actual grading results JSON should be retrieved from sessionStorage via JS,
-    or you can update this view to accept POST/GET data as needed.
+    Accepts JSON body (list of results) or form POST with 'grading_results'.
     """
-    return render(request, 'main/grade_test_review_processed_sheets.html')
+    import json
+
+    grading_results = None
+    resolved_students = []
+    answer_key = None
+    answer_key_id = None
+
+    if request.method == "POST":
+        try:
+            if request.content_type == "application/json":
+                raw_body = request.body.decode('utf-8')
+                data = json.loads(raw_body)
+                if isinstance(data, list):
+                    grading_results = data
+                elif isinstance(data, dict) and 'grading_results' in data:
+                    grading_results = data['grading_results']
+                answer_key_id = data.get('answer_key_id') if isinstance(data, dict) else None
+            else:
+                grading_results_json = request.POST.get('grading_results')
+                answer_key_id = request.POST.get('answer_key_id')
+                if grading_results_json:
+                    grading_results = json.loads(grading_results_json)
+
+            # Try to resolve student info for each result
+            if grading_results:
+                for result in grading_results:
+                    student_id_str = result.get("student_info", {}).get("id")
+                    student_obj = None
+                    message = None
+                    student_section = None
+                    student_db_id = None
+                    student_full_name = None
+                    status = "Invalid"
+                    if student_id_str:
+                        student_obj = GradeReviewService.get_student_by_student_id_for_user(student_id_str, request.user)
+                        if student_obj:
+                            student_section = student_obj.section
+                            student_db_id = student_obj.student_id
+                            # Format: Last Name, First Name, Middle Initial.
+                            if student_obj.middle_name:
+                                mi = student_obj.middle_name.strip()[0].upper() + "." if student_obj.middle_name.strip() else ""
+                                student_full_name = f"{student_obj.last_name}, {student_obj.first_name} {mi}"
+                            else:
+                                student_full_name = f"{student_obj.last_name}, {student_obj.first_name}"
+                            status = "Valid"
+                            message = "Student is enrolled in you class."
+                        else:
+                            message = f"Student with ID '{student_id_str}' not found in your class."
+                    else:
+                        message = "No student ID detected in answer sheet."
+                    resolved_students.append({
+                        "input": result,
+                        "student_obj": str(student_obj) if student_obj else None,
+                        "student_full_name": student_full_name,
+                        "student_section": student_section,
+                        "student_id": student_db_id,
+                        "status": status,
+                        "message": message
+                    })
+
+            # Get the selected answer key (TestInformation)
+            if answer_key_id:
+                try:
+                    answer_key = TestInformation.objects.get(id=answer_key_id, user=request.user)
+                except TestInformation.DoesNotExist:
+                    answer_key = None
+        except Exception:
+            grading_results = None
+
+    context = {
+        'grading_results': grading_results,
+        'resolved_students': resolved_students,
+        'answer_key': answer_key,
+    }
+    return render(request, 'main/grade_test_review_processed_sheets.html', context)
 
     # This endpoint is working correctly.
     # The log message:

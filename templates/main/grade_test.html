@@ -367,6 +367,24 @@
   </div>
 </div>
 
+<!-- Error Modal -->
+<div class="modal fade" id="gradingErrorModal" tabindex="-1" aria-labelledby="gradingErrorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="gradingErrorModalLabel"><i class="fas fa-exclamation-triangle"></i> Error</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="gradingErrorModalMessage">
+        <!-- Error message will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Filter change handlers
@@ -549,6 +567,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const form = e.target;
         const formData = new FormData(form);
 
+        // Prevent submission if no files are selected
+        const studentFilesInput = document.getElementById('studentFiles');
+        if (!studentFilesInput.files || studentFilesInput.files.length === 0) {
+            // Show error in a Bootstrap modal if available, else use alert
+            if (window.bootstrap && document.getElementById('gradingErrorModal')) {
+                document.getElementById('gradingErrorModalMessage').textContent = 'Please select at least one file to upload.';
+                new bootstrap.Modal(document.getElementById('gradingErrorModal')).show();
+            } else {
+                alert('Please select at least one file to upload.');
+            }
+            return;
+        }
+
         if (fileType === 'pdf') {
             showGradingModal();
             updateProgressBar(10, "Uploading files...");
@@ -579,8 +610,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         try {
                             const data = JSON.parse(xhr.responseText);
                             if (data.success) {
-                                sessionStorage.setItem('gradingResults', JSON.stringify(data.results));
-                                window.location.href = "{% url 'main:review_processed_sheets' %}";
+                                fetch("{% url 'main:review_processed_sheets' %}", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        "X-CSRFToken": form.querySelector('[name=csrfmiddlewaretoken]').value
+                                    },
+                                    body: JSON.stringify({
+                                        grading_results: data.results,
+                                        answer_key_id: document.getElementById('selectTest').value
+                                    })
+                                })
+                                .then(response => response.text())
+                                .then(html => {
+                                    document.open();
+                                    document.write(html);
+                                    document.close();
+                                });
                             } else {
                                 alert(data.error || 'Processing failed.');
                             }
