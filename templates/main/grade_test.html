@@ -744,12 +744,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             percent = '—';
                         }
+                        // Use raw fields if student is not found
+                        const name = (student.full_name && student.full_name !== "Not found") 
+    ? student.full_name 
+    : (student.raw_student_name || '<span class="text-danger">Not found</span>');
+const id = (student.student_id && student.student_id !== "—") 
+    ? student.student_id 
+    : (student.raw_student_id || '—');
+const section = (student.section && student.section !== "—") 
+    ? student.section 
+    : (student.raw_student_section || '—');
+
+
                         html += `
                             <tr>
                                 <td>${i+1}</td>
-                                <td>${student.full_name || '<span class="text-danger">Not found</span>'}</td>
-                                <td>${student.student_id || '—'}</td>
-                                <td>${student.section || '—'}</td>
+                                <td>${name}</td>
+                                <td>${id}</td>
+                                <td>${section}</td>
                                 <td>${student.score_display || '—'}</td>
                                 <td>${percent}</td>
                             </tr>

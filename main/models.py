@@ -137,7 +137,10 @@ class TestResult(models.Model):
     """Model to represent a student's test result"""
     id = models.AutoField(primary_key=True)
     test_information = models.ForeignKey(TestInformation, on_delete=models.CASCADE, related_name='test_results')
-    student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name='test_results')
+    student = models.ForeignKey(Students, on_delete=models.SET_NULL, null=True, blank=True)
+    raw_student_name = models.CharField(max_length=100, null=True, blank=True)
+    raw_student_id = models.CharField(max_length=50, null=True, blank=True)
+    raw_student_section = models.CharField(max_length=50, null=True, blank=True)
     score = models.FloatField(help_text="Score achieved by the student")
     total_questions = models.IntegerField(help_text="Total number of questions in the test")
     correct_answers = models.IntegerField(help_text="Number of correct answers")

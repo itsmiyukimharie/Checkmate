@@ -1296,7 +1296,10 @@ def review_processed_sheets(request):
 
                 for result in grading_results:
                     answers = result.get("answers", {})
-                    student_id_str = result.get("student_info", {}).get("id")
+                    student_info = result.get("student_info", {})
+                    student_id_str = student_info.get("id")
+                    student_name_str = student_info.get("name")
+                    student_section_str = student_info.get("section")
                     student_obj = None
                     student_section = None
                     student_db_id = None
@@ -1318,6 +1321,10 @@ def review_processed_sheets(request):
                         else:
                             status = "Invalid"
                             messages.append(f"Student with ID '{student_id_str}' not found for your account.")
+                            # --- Show the scanned ID, name, and section in the review table ---
+                            student_db_id = student_id_str  # Use scanned ID for display
+                            student_full_name = student_name_str  # Use scanned name for display
+                            student_section = student_section_str  # Use scanned section for display
                     else:
                         status = "Invalid"
                         messages.append("No student ID detected in answer sheet.")
@@ -1380,11 +1387,14 @@ def review_processed_sheets(request):
                         "student_obj": str(student_obj) if student_obj else None,
                         "student_full_name": student_full_name,
                         "student_section": student_section,
-                        "student_id": student_db_id,
+                        "student_id": student_db_id,  # Will be scanned ID if not found
                         "status": status,
                         "messages": messages,
                         "score": score,
                         "score_display": score_display,
+                        "raw_student_id": student_id_str,  # Always keep the scanned ID for saving
+                        "raw_student_name": student_name_str,      # Pass scanned name to frontend
+                        "raw_student_section": student_section_str, # Pass scanned section to frontend
                     })
 
         except Exception:
@@ -1421,13 +1431,19 @@ def save_reviewed_sheets(request):
         resolved_students = data.get('resolved_students')
         answer_key_id = data.get('answer_key_id')
 
+        # DEBUG: Log received data
+        print("DEBUG: resolved_students =", resolved_students)
+        print("DEBUG: answer_key_id =", answer_key_id)
+
         if not resolved_students or not answer_key_id:
+            print("DEBUG: Missing data.")
             return JsonResponse({'success': False, 'message': 'Missing data.'}, status=400)
 
         # Get the TestInformation object
         try:
             test_info = TestInformation.objects.get(id=answer_key_id, user=request.user)
         except TestInformation.DoesNotExist:
+            print("DEBUG: Test information not found.")
             return JsonResponse({'success': False, 'message': 'Test information not found.'}, status=404)
 
         # --- Update test_info status to "Active" ---
@@ -1436,43 +1452,67 @@ def save_reviewed_sheets(request):
 
         saved_count = 0
         for entry in resolved_students:
-            # Only save if status is Passed or Failed
-            if entry.get('status') not in ("Passed", "Failed"):
-                continue
-
+            # Remove the status check to save all
             student_id = entry.get('student_id')
+            raw_student_id = entry.get('raw_student_id')
             score = entry.get('score')
             total_questions = entry.get('score_display').split('/')[-1].strip() if entry.get('score_display') else None
             correct_answers = entry.get('score')
+            status = entry.get('status')
 
-            # Validate student_id and score
-            if not student_id or score is None or total_questions is None:
+            print(f"DEBUG: Processing entry: student_id={student_id}, raw_student_id={raw_student_id}, score={score}, total_questions={total_questions}, status={status}")
+
+            if not raw_student_id or score is None or total_questions is None:
+                print("DEBUG: Skipping due to missing raw_student_id, score, or total_questions")
                 continue
 
             try:
                 student = Students.objects.get(student_id=student_id, user=request.user)
+                print(f"DEBUG: Found student in DB: {student}")
             except Students.DoesNotExist:
-                continue
+                print("DEBUG: Student not found, will save with student_id=0")
+                student = None
 
-            # Save or update the TestResult
-            test_result, created = TestResult.objects.update_or_create(
-                test_information=test_info,
-                student=student,
-                defaults={
-                    'score': float(score),
-                    'total_questions': int(total_questions),
-                    'correct_answers': int(correct_answers),
-                }
-            )
+            if student:
+                test_result, created = TestResult.objects.update_or_create(
+                    test_information=test_info,
+                    student=student,
+                    defaults={
+                        'score': float(score),
+                        'total_questions': int(total_questions),
+                        'correct_answers': int(correct_answers),
+                        'raw_student_name': entry.get('raw_student_name'),
+                        'raw_student_id': entry.get('raw_student_id'),
+                        'raw_student_section': entry.get('raw_student_section'),
+                    }
+                )
+            else:
+                test_result, created = TestResult.objects.update_or_create(
+                    test_information=test_info,
+                    student=None,
+                    defaults={
+                        'score': float(score),
+                        'total_questions': int(total_questions),
+                        'correct_answers': int(correct_answers),
+                        'raw_student_name': entry.get('raw_student_name'),
+                        'raw_student_id': entry.get('raw_student_id'),
+                        'raw_student_section': entry.get('raw_student_section'),
+                    }
+                )
+                print(f"DEBUG: Saved TestResult with student=None, created={created}")
             saved_count += 1
 
         # Only update status if at least one result was saved
         if saved_count > 0:
             test_info.status = "Active"
             test_info.save(update_fields=["status"])
+            print(f"DEBUG: Updated test_info status to Active, saved_count={saved_count}")
 
         return JsonResponse({'success': True, 'message': f'{saved_count} results saved successfully!'})
     except Exception as e:
+        import traceback
+        print("DEBUG: Exception occurred:", str(e))
+        traceback.print_exc()
         return JsonResponse({'success': False, 'message': f'Error saving results: {str(e)}'}, status=400)
     
 from .models import TestResult
@@ -1486,9 +1526,12 @@ def get_test_students(request):
     for r in results:
         s = r.student
         students.append({
-            "full_name": f"{s.last_name}, {s.first_name} {s.middle_name[0] + '.' if s.middle_name else ''}" if s else None,
-            "student_id": s.student_id if s else None,
-            "section": s.section if s else None,
+            "full_name": (
+                f"{s.last_name}, {s.first_name} {s.middle_name[0] + '.' if s.middle_name else ''}"
+                if s else (r.raw_student_name or '<span class="text-danger">Not found</span>')
+            ),
+            "student_id": s.student_id if s else (r.raw_student_id or '—'),
+            "section": s.section if s else (r.raw_student_section or '—'),
             "score_display": f"{r.score} / {r.test_information.question_count}" if r.test_information else str(r.score),
             "status": r.status if hasattr(r, 'status') else '',
         })

@@ -224,17 +224,12 @@ class GradeTestService:
     @staticmethod
     def _get_sections_from_students(students):
         """Extract unique sections from a list of students"""
+        # students is a queryset or list of Student objects (may include None)
         sections = set()
         for student in students:
-            if student.section:
+            if student and getattr(student, 'section', None):
                 sections.add(student.section)
-        
-        if not sections:
-            return "Not specified"
-        elif len(sections) == 1:
-            return list(sections)[0]
-        else:
-            return " & ".join(sorted(sections))
+        return ', '.join(sorted(sections)) if sections else '—'
     
     
     @staticmethod
