@@ -44,21 +44,23 @@
     nav.main-links { display: flex; gap: 32px; }
 
     nav.main-links a {
-      text-decoration: none;
-      color: #fff;
-      font-weight: 500;
-      transition: color 0.3s cubic-bezier(.4,0,.2,1), border-bottom 0.3s cubic-bezier(.4,0,.2,1), padding-bottom 0.3s cubic-bezier(.4,0,.2,1);
-    }
+  text-decoration: none;
+  color: #fff;
+  font-weight: 500;
+  transition: color 0.3s cubic-bezier(.4,0,.2,1), border-bottom 0.3s cubic-bezier(.4,0,.2,1), padding-bottom 0.3s cubic-bezier(.4,0,.2,1);
+}
 
-    nav.main-links a:hover { color: rgba(255, 255, 255, 0.7); }
+nav.main-links a:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
 
-    nav.main-links a.active {
-      color: #ffd86b;
-      font-weight: 700;
-      border-bottom: 2px solid #ffd86b;
-      padding-bottom: 2px;
-      transition: color 0.3s cubic-bezier(.4,0,.2,1), border-bottom 0.3s cubic-bezier(.4,0,.2,1), padding-bottom 0.3s cubic-bezier(.4,0,.2,1);
-    }
+nav.main-links a.active {
+  color: #ffd86b;
+  font-weight: 700;
+  border-bottom: 2px solid #ffd86b;
+  padding-bottom: 2px;
+  transition: color 0.3s cubic-bezier(.4,0,.2,1), border-bottom 0.3s cubic-bezier(.4,0,.2,1), padding-bottom 0.3s cubic-bezier(.4,0,.2,1);
+}
 
     .actions {
       display: flex;
@@ -186,8 +188,12 @@
       height: auto;
       border-radius: 16px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      transition: max-width 0.4s cubic-bezier(.4,2,.6,1), box-shadow 0.4s;
     }
-
+    .hero-image img.big-step {
+      max-width: 750px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.18);
+    }
     @media (max-width: 900px) {
       .hero {
         flex-direction: column;
@@ -204,7 +210,79 @@
         margin-top: 40px;
         max-width: 80%;
       }
+
+      .hero-image img,
+      .hero-image img.big-step {
+        max-width: 95vw;
+      }
     }
+
+    .step {
+  display: none;
+  margin-top: 32px;
+}
+.step.active {
+  display: block;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.arrow-container {
+  margin-top: 20px;
+}
+
+.next-arrow {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #007BFF;
+  transition: transform 0.3s ease;
+}
+.next-arrow:hover {
+  transform: translateX(5px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.arrow-nav {
+  position: absolute;
+  top: 50%;
+  right: -60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+.arrow {
+  background: none;
+  border: none;
+  font-size: 2.5rem;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.3s, color 0.3s;
+  outline: none;
+  padding: 0 8px;
+  user-select: none;
+}
+.arrow:hover {
+  transform: scale(1.15);
+  color: #e0e0e0;
+}
+@media (max-width: 900px) {
+  .arrow-nav {
+    position: static;
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 24px;
+    right: auto;
+    top: auto;
+    transform: none;
+  }
+}
   </style>
 </head>
 <body>
@@ -219,44 +297,122 @@
       </nav>
     </div>
     <div class="actions">
-      <img src="{% static 'images/envelope.png' %}" alt="Email" class="icon" />
+      <img src="{% static 'images/flowbite_envelope-solid.png' %}" alt="Email" class="icon" />
       <a href="{% url 'main:login' %}" class="login">Log in</a>
       <a href="{% url 'main:signup' %}" class="signup">Sign up</a>
     </div>
   </header>
 
-  <section class="hero">
-    <!-- Total 10 animated shapes -->
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
-    <div class="shape"></div>
+<section class="hero">
+  <!-- Animated shapes -->
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
+  <div class="shape"></div>
 
-    <div class="hero-content">
-      <h1>CheckMate: AI-Powered Test Score Scanner</h1>
-      <p>Save time grading handwritten tests including multiple-choice plus more!</p>
-      <button class="btn-primary" onclick="startApp()">Sign up for free</button>
-      <div class="slider-dots">
-        <span class="active"></span>
-        <span></span>
-      </div>
+<div class="hero-content">
+  <div id="steps">
+    <div class="step active">
+      <h1>How CheckMate Works</h1>
+      <br></br>
+      <h2>CheckMate uses advanced AI to scan, grade, and generate results for multiple-choice tests — saving you hours of manual checking.</h2>
     </div>
-
-    <div class="hero-image">
-      <img src="{% static 'images/CheckMate_Logo.png' %}" alt="App demo on phone" />
+    <div class="step">
+      <h1>Step 1: Create or Upload the Answer Key</h1>
+      <br></br>
+      <h2>Simply create or upload your test’s official answer key to CheckMate. The system uses this to compare student answers with the correct choices.</h2>
     </div>
-  </section>
+    <div class="step">
+      <h1>Step 2: Scan Test Papers</h1>
+      <br></br>
+      <h2>Snap a photo or upload scanned copies of completed multiple-choice sheets. Our AI automatically detects and reads answers — no templates needed!</h2>
+    </div>
+    <div class="step">
+      <h1>Step 3: Instant AI Grading</h1>
+      <br></br>
+      <h2>CheckMate instantly scores each paper, highlights incorrect answers, and calculates total scores. It’s fast, accurate, and completely automated.</h2>
+    </div>
+    <div class="step">
+      <h1>Step 4: Review and Export</h1>
+      <br></br>
+      <h2>Review results in a clean, easy-to-navigate dashboard. Download results for recordkeeping or grade encoding.</h2>
+      <br></br>
+      <button class="btn-primary" onclick="startApp()">Start Grading Now</button>
+    </div>
+  </div>
 
-  <script>
-    function startApp() {
-      window.location.href = "{% url 'main:signup' %}";
+  <!-- Arrows on the right side -->
+  <div class="arrow-nav">
+    <button class="arrow back-arrow" onclick="prevStep()" style="display:none;">&#8592;</button>
+    <button class="arrow next-arrow" onclick="nextStep()">&#8594;</button>
+  </div>
+</div>
+<div class="hero-image">
+    <img id="heroStepImage" src="{% static 'images/CheckMate_Logo.png' %}" alt="CheckMate Logo" />
+  </div>
+</section>
+
+<script>
+  let currentStep = 0;
+  const steps = document.querySelectorAll('.step');
+  const nextArrow = document.querySelector('.next-arrow');
+  const backArrow = document.querySelector('.back-arrow');
+  const heroImages = [
+    "{% static 'images/CheckMate_Logo.png' %}",
+    "{% static 'images/CHECKMATE STEP 1.png' %}",
+    "{% static 'images/CHECKMATE STEP 2.png' %}",
+    "{% static 'images/CHECKMATE STEP 3.png' %}",
+    "{% static 'images/CHECKMATE STEP 4.png' %}"
+  ];
+  const heroStepImage = document.getElementById('heroStepImage');
+
+  function updateArrows() {
+    backArrow.style.display = currentStep === 0 ? 'none' : '';
+    nextArrow.style.display = currentStep === steps.length - 1 ? 'none' : '';
+  }
+
+  function updateHeroImage() {
+    heroStepImage.src = heroImages[currentStep];
+    // Make image bigger for steps 1-4 (index 1-4)
+    if (currentStep >= 1 && currentStep <= 4) {
+      heroStepImage.classList.add('big-step');
+    } else {
+      heroStepImage.classList.remove('big-step');
     }
-  </script>
+  }
+
+  function nextStep() {
+    if (currentStep < steps.length - 1) {
+      steps[currentStep].classList.remove('active');
+      currentStep++;
+      steps[currentStep].classList.add('active');
+      updateArrows();
+      updateHeroImage();
+    }
+  }
+
+  function prevStep() {
+    if (currentStep > 0) {
+      steps[currentStep].classList.remove('active');
+      currentStep--;
+      steps[currentStep].classList.add('active');
+      updateArrows();
+      updateHeroImage();
+    }
+  }
+
+  updateArrows();
+  updateHeroImage();
+
+  function startApp() {
+    window.location.href = "{% url 'main:signup' %}";
+  }
+</script>
 </body>
 </html>

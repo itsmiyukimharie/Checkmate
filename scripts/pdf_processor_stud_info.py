@@ -663,6 +663,10 @@ class StudentInfoExtractor:
             cleaned = cleaned.strip('-')
             # Remove multiple consecutive dashes
             cleaned = re.sub(r'-+', '-', cleaned)
+
+            # --- FIX: Replace trailing '-C' with '-0' if pattern matches ---
+            # Example: 2022-10005-CM-C -> 2022-10005-CM-0
+            cleaned = re.sub(r'-(C)$', r'-0', cleaned)
             
         elif field_name == 'course':
             # ENHANCED COURSE CLEANING - Handle common OCR mistakes

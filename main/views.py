@@ -1493,3 +1493,6 @@ def get_test_students(request):
             "status": r.status if hasattr(r, 'status') else '',
         })
     return JsonResponse({"success": True, "students": students})
+
+def how_it_works(request):
+    return render(request, 'main/how-it-works.html')

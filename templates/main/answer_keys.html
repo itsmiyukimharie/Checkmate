@@ -113,6 +113,7 @@
                                 {% if create_form.question_count.errors %}
                                     <div class="text-danger">{{ create_form.question_count.errors.0 }}</div>
                                 {% endif %}
+                                <small class="form-text text-muted">Minimum 10, maximum 100 questions allowed</small>
                             </div>
                             <div class="mb-3">
                                 <label for="{{ create_form.course.id_for_label }}" class="form-label">Course <span class="text-danger">*</span></label>
@@ -146,8 +147,8 @@
                             </div>
                             <div class="mb-3">
                                 <label for="upload_question_count" class="form-label">Number of Questions</label>
-                                <input type="number" class="form-control rounded-pill" id="upload_question_count" name="question_count" min="1" max="500" value="50" required>
-                                <small class="form-text text-muted">Maximum 500 questions allowed</small>
+                                <input type="number" class="form-control rounded-pill" id="upload_question_count" name="question_count" min="10" max="100" value="50" required>
+                                <small class="form-text text-muted">Minimum 10, maximum 100 questions allowed</small>
                             </div>
                             <div class="mb-3">
                                 <label for="upload_course" class="form-label">Course <span class="text-danger">*</span></label>
@@ -419,8 +420,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="customQuestionCount" class="form-label">Number of Questions</label>
-                        <input type="number" class="form-control" id="customQuestionCount" min="1" max="500" value="50" required>
-                        <small class="form-text text-muted">Enter the number of questions (1-500)</small>
+                        <input type="number" class="form-control" id="customQuestionCount" min="10" max="100" value="50" required>
+                        <small class="form-text text-muted">Enter the number of questions (10-100)</small>
                     </div>
                     <div class="mb-3">
                         <label for="customFileType" class="form-label">File Type</label>
@@ -527,39 +528,41 @@ function downloadCustomTemplate() {
     const testType = document.getElementById('customTestType').value;
     const questionCount = document.getElementById('customQuestionCount').value;
     const fileType = document.getElementById('customFileType').value;
-    
+
     if (!testType || !questionCount || !fileType) {
         showToast('Please fill in all fields', 'warning');
         return;
     }
-    
-    if (questionCount < 1 || questionCount > 500) {
-        showToast('Question count must be between 1 and 500', 'warning');
+
+    if (questionCount < 10 || questionCount > 100) {
+        showToast('Question count must be between 10 and 100', 'warning');
         return;
     }
-    
+
     // Hide modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('customTemplateModal'));
     if (modal) {
         modal.hide();
     }
-    
+
     // Download template
     downloadTemplate(fileType, testType, parseInt(questionCount));
 }
 
-// Add form validation for course selection
+// Add form validation for course selection and question count
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form[method="post"]');
     const courseSelect = document.querySelector('#{{ create_form.course.id_for_label }}');
-    
-    if (form && courseSelect) {
+    const questionCountInput = document.querySelector('#{{ create_form.question_count.id_for_label }}');
+
+    if (form && courseSelect && questionCountInput) {
         form.addEventListener('submit', function(e) {
+            let valid = true;
+
+            // Course validation
             if (!courseSelect.value) {
-                e.preventDefault();
+                valid = false;
                 courseSelect.classList.add('is-invalid');
-                
-                // Show error message
                 let errorDiv = courseSelect.parentNode.querySelector('.course-error');
                 if (!errorDiv) {
                     errorDiv = document.createElement('div');
@@ -567,15 +570,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     courseSelect.parentNode.appendChild(errorDiv);
                 }
                 errorDiv.textContent = 'Please select a course for this test.';
-                
                 courseSelect.focus();
             }
+
+            // Question count validation
+            const qVal = parseInt(questionCountInput.value, 10);
+            if (isNaN(qVal) || qVal < 10 || qVal > 100) {
+                valid = false;
+                questionCountInput.classList.add('is-invalid');
+                let errorDiv = questionCountInput.parentNode.querySelector('.question-count-error');
+                if (!errorDiv) {
+                    errorDiv = document.createElement('div');
+                    errorDiv.className = 'text-danger question-count-error mt-1';
+                    questionCountInput.parentNode.appendChild(errorDiv);
+                }
+                errorDiv.textContent = 'Number of questions must be between 10 and 100.';
+                questionCountInput.focus();
+            }
+
+            if (!valid) {
+                e.preventDefault();
+            }
         });
-        
+
         // Clear error when course is selected
         courseSelect.addEventListener('change', function() {
             this.classList.remove('is-invalid');
             const errorDiv = this.parentNode.querySelector('.course-error');
+            if (errorDiv) {
+                errorDiv.remove();
+            }
+        });
+
+        // Clear error when question count is changed
+        questionCountInput.addEventListener('input', function() {
+            this.classList.remove('is-invalid');
+            const errorDiv = this.parentNode.querySelector('.question-count-error');
             if (errorDiv) {
                 errorDiv.remove();
             }

@@ -36,4 +36,5 @@ urlpatterns = [
     path('grade-test/history/', views.get_grading_history, name='get_grading_history'),
     path('landingpage/', views.landingpage, name='landingpage'),
     path('answer-keys/download-template/', views.download_template, name='download_template'),
+    path('how-it-works/', views.how_it_works, name='how_it_works'),
 ]
