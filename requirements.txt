@@ -1,35 +1,56 @@
-# Django and Core Dependencies
-Django==4.2.7
-django-crispy-forms==2.1
-crispy-bootstrap5==0.7
-
-# Database
-psycopg2-binary==2.9.9
-
-# Image Processing
-Pillow==10.1.0
-
-# PDF Processing
-PyPDF2==3.0.1
-pdf2image==1.16.3
-reportlab==4.4.1
-
-# CSV Processing
-pandas==2.1.4
-
-# Python Utilities
-python-decouple==3.8
-python-dotenv==1.0.0
-
-# File Handling
-openpyxl==3.1.2
-
-# Development Tools (Optional)
-django-debug-toolbar==4.2.0
-
-# Security
-django-cors-headers==4.3.1
-
-# Deployment (Optional)
-gunicorn==21.2.0
-whitenoise==6.6.0
+aiokafka==0.12.0
+art==6.1
+asgiref==3.8.1
+async-timeout==4.0.3
+certifi==2025.1.31
+charset-normalizer==3.4.2
+click==8.2.1
+colorama==0.4.6
+contourpy==1.2.1
+cssbeautifier==1.15.4
+customtkinter==5.2.2
+cycler==0.12.1
+darkdetect==0.8.0
+distlib==0.3.9
+Django==5.2.1
+django-cors-headers==4.7.0
+djangorestframework==3.16.0
+djlint==1.36.4
+EditorConfig==0.17.0
+filelock==3.18.0
+fonttools==4.53.1
+idna==3.10
+jsbeautifier==1.15.4
+json5==0.12.0
+kafka-python==2.0.2
+kiwisolver==1.4.5
+matplotlib==3.9.1
+mysql-connector-python==9.3.0
+mysqlclient==2.2.7
+numpy==2.0.0
+packaging==24.2
+pandas==2.2.3
+pathspec==0.12.1
+pillow==11.2.1
+pipenv==2024.4.1
+platformdirs==4.3.7
+pyodb==0.1.5
+pyodbc==5.2.0
+pyparsing==3.1.2
+python-dateutil==2.9.0.post0
+python-dotenv==1.1.0
+pytz==2024.2
+pywinstyles==1.8
+PyYAML==6.0.2
+regex==2024.11.6
+requests==2.32.4
+setuptools==78.1.0
+six==1.17.0
+sqlparse==0.5.3
+tabulate==0.9.0
+termcolor==2.4.0
+tqdm==4.67.1
+typing_extensions==4.12.2
+tzdata==2025.2
+urllib3==2.4.0
+virtualenv==20.30.0
