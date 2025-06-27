@@ -1,0 +1,844 @@
+{% extends 'base.html' %}
+
+{% block title %}Grade Test - CheckMate{% endblock %}
+
+{% block content %}
+<style>
+    /* Glassmorphism effect */
+    .glassmorphism {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Rounded corners for buttons and cards */
+    .btn, .card {
+        border-radius: 15px;
+    }
+
+    /* Bold font for important texts */
+    .fw-bold {
+        font-weight: bold;
+    }
+
+    /* For the form buttons */
+    .btn-primary, .btn-outline-primary, .btn-outline-secondary, .btn-info, .btn-success, .btn-warning {
+        font-weight: bold;
+    }
+
+    /* Adjustments for tables */
+    .table thead th {
+        font-weight: bold;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #f2f2f2;
+    }
+
+    .progress-bar {
+        font-weight: bold;
+    }
+
+    /* Adjustments for icons */
+    .fas {
+        margin-right: 8px;
+    }
+
+    /* Additional style tweaks for the page */
+    .btn-block {
+        width: 100%;
+    }
+
+    /* Grade distribution styling */
+    .grade-bar {
+        height: 20px;
+        margin-bottom: 5px;
+        border-radius: 10px;
+    }
+
+    /* Add styles for file preview */
+    #uploadedFilesPreview {
+        margin-top: 1rem;
+        max-height: 320px;           /* Fixed height for the preview container */
+        overflow-y: auto;            /* Enable vertical scrolling */
+        border: 1px solid #e0e0e0;   /* Optional: subtle border for clarity */
+        background: #fff;            /* Optional: background for contrast */
+        border-radius: 10px;         /* Optional: match glassmorphism style */
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03); /* Optional: subtle shadow */
+    }
+    .file-preview-list {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+    }
+    .file-preview-list li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+    .file-preview-list li:last-child {
+        border-bottom: none;
+    }
+    .file-remove-btn {
+        border: none;
+        background: none;
+        color: #dc3545;
+        font-size: 1.2rem;
+        cursor: pointer;
+    }
+    .file-remove-btn:focus {
+        outline: none;
+    }
+    .file-clear-btn {
+        margin-top: 0.5rem;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="fw-bold"><i class="fas fa-graduation-cap"></i> Grade Test</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card glassmorphism mb-4">
+            <div class="card-header">
+                <h5 class="fw-bold"><i class="fas fa-check-circle"></i> Start Grading Session</h5>
+            </div>
+            <div class="card-body">
+                <form id="gradingForm" method="post" action="#" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <!-- Filter Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="filterCourse" class="form-label">Course</label>
+                            <select class="form-select" id="filterCourse">
+                                <option value="">All Courses</option>
+                                {% for course in filter_options.courses %}
+                                    <option value="{{ course.course_code }}" data-id="{{ course.id }}">
+                                        {{ course.course_code }} - {{ course.course_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filterAcademicYear" class="form-label">Academic Year</label>
+                            <select class="form-select" id="filterAcademicYear">
+                                <option value="">All Years</option>
+                                {% for year in filter_options.academic_years %}
+                                    <option value="{{ year }}">{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filterSemester" class="form-label">Semester</label>
+                            <select class="form-select" id="filterSemester">
+                                <option value="">All Semesters</option>
+                                {% for semester in filter_options.semesters %}
+                                    <option value="{{ semester }}">{{ semester }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="selectTest" class="form-label">Select Answer Key</label>
+                        <select class="form-select" id="selectTest" name="answer_key_id" required>
+                            <option value="">Choose an answer key...</option>
+                            {% for test in user_tests %}
+                                <option value="{{ test.id }}">
+                                    {{ test.test_name }} - {{ test.get_test_type_display }} ({{ test.question_count }} questions)
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Select the test answer key to grade against</div>
+                    </div>
+
+                    <!-- File type dropdown and upload -->
+                    <div class="mb-3">
+                        <label for="fileTypeSelect" class="form-label">File Type</label>
+                        <select class="form-select" id="fileTypeSelect" name="file_type">
+                            <option value="pdf" selected>PDF</option>
+                            <option value="csv">CSV</option>
+                            <option value="image">Images</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="studentFiles" class="form-label">Upload Student Answer Sheets</label>
+                        <input type="file" class="form-control" id="studentFiles" name="student_files" multiple accept=".pdf">
+                        <div class="form-text" id="fileTypeHelpText">You can select multiple PDF files.</div>
+                        <div id="uploadedFilesPreview" class="d-none">
+                            <ul class="file-preview-list" id="filePreviewList"></ul>
+                            <button type="button" class="btn btn-sm btn-outline-danger file-clear-btn" id="clearAllFilesBtn">
+                                <i class="fas fa-trash"></i> Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Add Grade (PDF) button -->
+                    <div class="mb-3" id="gradePdfBtnContainer">
+                        <button type="submit" class="btn btn-primary btn-block" id="gradePdfBtn">
+                            <i class="fas fa-file-pdf"></i> Start Grading Session
+                        </button>
+                    </div>
+                    <!-- No submit button for now -->
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card glassmorphism">
+            <div class="card-header">
+                <h5 class="fw-bold"><i class="fas fa-chart-bar"></i> Grading Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="fw-bold">Total Tests Graded</h6>
+                    <h3 class="text-primary fw-bold">{{ overview_stats.total_tests_graded }}</h3>
+                    <small class="text-muted">This semester</small>
+                </div>
+                <div class="mb-3">
+                    <h6 class="fw-bold">Students Assessed</h6>
+                    <h3 class="text-info fw-bold">{{ overview_stats.total_students_assessed }}</h3>
+                    <small class="text-muted">Across all courses</small>
+                </div>
+                <div class="mb-3">
+                    <h6 class="fw-bold">Overall Average</h6>
+                    <h3 class="text-success fw-bold">{{ overview_stats.overall_average }}%</h3>
+                    <small class="text-muted">All graded tests</small>
+                </div>
+                <div class="mb-3">
+                    <h6 class="fw-bold">Last Grading Session</h6>
+                    {% if overview_stats.latest_grading_session.test_name %}
+                        <p class="text-muted mb-1">{{ overview_stats.latest_grading_session.test_name }}</p>
+                        <small class="text-muted">{{ overview_stats.latest_grading_session.date|timesince }} ago</small>
+                    {% else %}
+                        <p class="text-muted mb-1">No sessions yet</p>
+                        <small class="text-muted">Start your first grading session</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card glassmorphism mt-3">
+            <div class="card-header">
+                <h5 class="fw-bold"><i class="fas fa-chart-pie"></i> Grade Distribution</h5>
+            </div>
+            <div class="card-body">
+                {% for grade, percentage in grade_distribution.items %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>{{ grade }} {% if grade == 'A' %}(90-100%){% elif grade == 'B' %}(80-89%){% elif grade == 'C' %}(70-79%){% elif grade == 'D' %}(60-69%){% else %}(Below 60%){% endif %}</span>
+                        <span class="fw-bold">{{ percentage }}%</span>
+                    </div>
+                    <div class="progress grade-bar">
+                        <div class="progress-bar {% if grade == 'A' %}bg-success{% elif grade == 'B' %}bg-primary{% elif grade == 'C' %}bg-warning{% elif grade == 'D' %}bg-danger{% else %}bg-dark{% endif %}" style="width: {{ percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grading History - Full Width -->
+<div class="card glassmorphism mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold"><i class="fas fa-history"></i> Grading History</h5>
+        <div class="btn-group" role="group">
+            <a href="?time_filter=all" class="btn btn-sm btn-outline-primary {% if time_filter == 'all' %}active{% endif %}" data-filter="all">All</a>
+            <a href="?time_filter=week" class="btn btn-sm btn-outline-primary {% if time_filter == 'week' %}active{% endif %}" data-filter="week">This Week</a>
+            <a href="?time_filter=month" class="btn btn-sm btn-outline-primary {% if time_filter == 'month' %}active{% endif %}" data-filter="month">This Month</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="gradingHistoryTable">
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Course</th>
+                        <th>Students Graded</th>
+                        <th>Average Score</th>
+                        <th>Date Graded</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in grading_history %}
+                    <tr data-test-id="{{ session.test_info.id }}">
+                        <td>
+                            <strong>{{ session.test_info.test_name }}</strong>
+                            <br><small class="text-muted">{{ session.test_info.get_test_type_display }} - {{ session.test_info.question_count }} questions</small>
+                        </td>
+                        <td>
+                            {% if session.test_info.course %}
+                                <span class="badge bg-primary">{{ session.test_info.course.course_code }}</span>
+                                <br><small class="text-muted">{{ session.test_info.course.course_name }}</small>
+                            {% else %}
+                                <span class="text-muted">No course</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ session.student_count }}</span> students
+                            <br><small class="text-muted">{{ session.sections }}</small>
+                        </td>
+                        <td>
+                            {% if session.average_score >= 90 %}
+                                <span class="badge bg-success fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-success" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% elif session.average_score >= 75 %}
+                                <span class="badge bg-primary fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-primary" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% elif session.average_score >= 60 %}
+                                <span class="badge bg-warning fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-warning" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% else %}
+                                <span class="badge bg-danger fs-6">{{ session.average_score }}%</span>
+                                <div class="progress mt-1" style="height: 5px;">
+                                    <div class="progress-bar bg-danger" style="width: {{ session.average_score }}%"></div>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ session.graded_date|date:"M d, Y" }}</span>
+                            <br><small class="text-muted">{{ session.graded_date|date:"g:i A" }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-info rounded-pill me-1" title="View Results">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success rounded-pill me-1" title="Download Report">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Empty state when no grading history -->
+        <div class="text-center py-5 {% if grading_history %}d-none{% endif %}" id="emptyState">
+            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Grading History</h5>
+            <p class="text-muted">Start your first grading session to see results here.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="gradingLoadingModal" tabindex="-1" aria-labelledby="gradingLoadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background: rgba(30, 34, 90, 0.92); border-radius: 1.2rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37); border: 1px solid rgba(255,255,255,0.18); color: #fff;">
+      <div class="modal-header border-0" style="background: transparent;">
+        <h5 class="modal-title fw-bold" id="gradingLoadingModalLabel">
+          <i class="fas fa-spinner fa-spin"></i> Processing Files
+        </h5>
+      </div>
+      <div class="modal-body text-center">
+        <div class="mb-3">
+          <div class="progress" style="height: 24px; background: rgba(255,255,255,0.15);">
+            <div id="gradingProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%">0%</div>
+          </div>
+        </div>
+        <div id="gradingStatusText" class="fw-bold mb-2">Uploading and processing your files. Please wait...</div>
+        <div class="text-muted small" style="color: #e0e0e0 !important;">This may take a few moments depending on file size.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="gradingErrorModal" tabindex="-1" aria-labelledby="gradingErrorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="gradingErrorModalLabel"><i class="fas fa-exclamation-triangle"></i> Error</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="gradingErrorModalMessage">
+        <!-- Error message will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Graded Students Modal -->
+<div class="modal fade" id="gradingHistoryViewModal" tabindex="-1" aria-labelledby="gradingHistoryViewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="gradingHistoryViewModalLabel">
+          <i class="fas fa-users"></i> Graded Students
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="gradingHistoryViewModalBody">
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-spinner fa-spin fa-2x"></i>
+          <div>Loading students...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter change handlers
+    const filterCourse = document.getElementById('filterCourse');
+    const filterAcademicYear = document.getElementById('filterAcademicYear');
+    const filterSemester = document.getElementById('filterSemester');
+    const selectTest = document.getElementById('selectTest');
+    // Only keep filter and answer key logic
+
+    function filterAnswerKeys() {
+        const selectedCourse = filterCourse.value;
+        const selectedYear = filterAcademicYear.value;
+        const selectedSemester = filterSemester.value;
+
+        selectTest.innerHTML = '<option value="">Loading answer keys...</option>';
+
+        const params = new URLSearchParams();
+        if (selectedCourse) params.append('course', selectedCourse);
+        if (selectedYear) params.append('academic_year', selectedYear);
+        if (selectedSemester) params.append('semester', selectedSemester);
+
+        // Use the correct URL for AJAX
+        fetch("{% url 'main:get_filtered_answer_keys' %}?" + params.toString(), {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            selectTest.innerHTML = '<option value="">Choose an answer key...</option>';
+            if (data.success && data.answer_keys.length > 0) {
+                data.answer_keys.forEach(answerKey => {
+                    const option = document.createElement('option');
+                    option.value = answerKey.id;
+                    option.textContent = answerKey.name;
+                    selectTest.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No answer keys found for selected filters';
+                option.disabled = true;
+                selectTest.appendChild(option);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching answer keys:', error);
+            selectTest.innerHTML = '<option value="">Error loading answer keys</option>';
+        });
+    }
+    
+    filterCourse.addEventListener('change', filterAnswerKeys);
+    filterAcademicYear.addEventListener('change', filterAnswerKeys);
+    filterSemester.addEventListener('change', filterAnswerKeys);
+    filterAnswerKeys();
+
+    // --- File type dropdown logic ---
+    const fileTypeSelect = document.getElementById('fileTypeSelect');
+    const studentFilesInput = document.getElementById('studentFiles');
+    const fileTypeHelpText = document.getElementById('fileTypeHelpText');
+    const uploadedFilesPreview = document.getElementById('uploadedFilesPreview');
+    const filePreviewList = document.getElementById('filePreviewList');
+    const clearAllFilesBtn = document.getElementById('clearAllFilesBtn');
+
+    // Store selected files in a DataTransfer object for easy manipulation
+    let fileBuffer = new DataTransfer();
+
+    function getAcceptAndHelpText(type) {
+        if (type === 'pdf') {
+            return {accept: '.pdf', help: 'You can select multiple PDF files.'};
+        } else if (type === 'csv') {
+            return {accept: '.csv', help: 'You can select multiple CSV files.'};
+        } else if (type === 'image') {
+            return {accept: '.jpg,.jpeg,.png,.gif,.bmp', help: 'You can select multiple image files (JPG, PNG, GIF, BMP).'};
+        }
+        return {accept: '', help: 'You can select multiple files.'};
+    }
+
+    fileTypeSelect.addEventListener('change', function() {
+        const {accept, help} = getAcceptAndHelpText(this.value);
+        studentFilesInput.value = '';
+        fileBuffer = new DataTransfer();
+        studentFilesInput.setAttribute('accept', accept);
+        fileTypeHelpText.textContent = help;
+        uploadedFilesPreview.classList.add('d-none');
+        filePreviewList.innerHTML = '';
+        // Show/hide Grade (PDF) button
+        document.getElementById('gradePdfBtnContainer').style.display = (this.value === 'pdf') ? '' : 'none';
+    });
+
+    // On page load, show/hide Grade (PDF) button based on initial file type
+    document.getElementById('gradePdfBtnContainer').style.display = (fileTypeSelect.value === 'pdf') ? '' : 'none';
+
+    function refreshFilePreview() {
+        filePreviewList.innerHTML = '';
+        const files = fileBuffer.files;
+        if (files.length === 0) {
+            uploadedFilesPreview.classList.add('d-none');
+            return;
+        }
+        uploadedFilesPreview.classList.remove('d-none');
+        Array.from(files).forEach((file, idx) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span title="${file.name}">${file.name} <small class="text-muted">(${Math.round(file.size/1024)} KB)</small></span>
+                <button type="button" class="file-remove-btn" title="Remove file" data-idx="${idx}">&times;</button>
+            `;
+            filePreviewList.appendChild(li);
+        });
+    }
+
+    // When files are selected
+    studentFilesInput.addEventListener('change', function(e) {
+        // Only allow files matching the current accept type
+        const accept = studentFilesInput.getAttribute('accept');
+        Array.from(this.files).forEach(file => {
+            // Accept can be comma separated, check extension
+            const allowed = accept.split(',').map(s => s.trim().toLowerCase());
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (allowed.includes(ext)) {
+                fileBuffer.items.add(file);
+            }
+        });
+        this.files = fileBuffer.files;
+        refreshFilePreview();
+    });
+
+    // Remove a single file
+    filePreviewList.addEventListener('click', function(e) {
+        if (e.target.classList.contains('file-remove-btn')) {
+            const idx = parseInt(e.target.getAttribute('data-idx'));
+            const newBuffer = new DataTransfer();
+            Array.from(fileBuffer.files).forEach((file, i) => {
+                if (i !== idx) newBuffer.items.add(file);
+            });
+            fileBuffer = newBuffer;
+            studentFilesInput.files = fileBuffer.files;
+            refreshFilePreview();
+        }
+    });
+
+    // Clear all files
+    clearAllFilesBtn.addEventListener('click', function() {
+        fileBuffer = new DataTransfer();
+        studentFilesInput.value = '';
+        studentFilesInput.files = fileBuffer.files;
+        refreshFilePreview();
+    });
+
+    // Initialize preview if files are present (e.g., after back navigation)
+    refreshFilePreview();
+
+    // Bootstrap modal instance
+    let gradingModal = null;
+    function showGradingModal() {
+        if (!gradingModal) {
+            gradingModal = new bootstrap.Modal(document.getElementById('gradingLoadingModal'));
+        }
+        gradingModal.show();
+    }
+    function hideGradingModal() {
+        if (gradingModal) gradingModal.hide();
+    }
+
+    // Progress bar helpers
+    function updateProgressBar(percent, statusText) {
+        const bar = document.getElementById('gradingProgressBar');
+        const status = document.getElementById('gradingStatusText');
+        bar.style.width = percent + '%';
+        bar.textContent = percent + '%';
+        if (statusText) status.textContent = statusText;
+    }
+
+    document.getElementById('gradingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const fileType = document.getElementById('fileTypeSelect').value;
+        const form = e.target;
+        const formData = new FormData(form);
+
+        // Prevent submission if no files are selected
+        const studentFilesInput = document.getElementById('studentFiles');
+        if (!studentFilesInput.files || studentFilesInput.files.length === 0) {
+            // Show error in a Bootstrap modal if available, else use alert
+            if (window.bootstrap && document.getElementById('gradingErrorModal')) {
+                document.getElementById('gradingErrorModalMessage').textContent = 'Please select at least one file to upload.';
+                new bootstrap.Modal(document.getElementById('gradingErrorModal')).show();
+            } else {
+                alert('Please select at least one file to upload.');
+            }
+            return;
+        }
+
+        if (fileType === 'pdf') {
+            showGradingModal();
+            updateProgressBar(10, "Uploading files...");
+
+            // Use XMLHttpRequest for upload progress
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', "{% url 'main:process_answer_sheets_pdf' %}");
+            xhr.setRequestHeader('X-CSRFToken', form.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    let percent = Math.round((event.loaded / event.total) * 60); // Upload is 60% of the process
+                    updateProgressBar(percent, "Uploading files...");
+                }
+            };
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.HEADERS_RECEIVED) {
+                    updateProgressBar(70, "Processing files on server...");
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    updateProgressBar(100, "Processing complete!");
+                    setTimeout(() => {
+                        hideGradingModal();
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            if (data.success) {
+                                fetch("{% url 'main:review_processed_sheets' %}", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        "X-CSRFToken": form.querySelector('[name=csrfmiddlewaretoken]').value
+                                    },
+                                    body: JSON.stringify({
+                                        grading_results: data.results,
+                                        answer_key_id: document.getElementById('selectTest').value
+                                    })
+                                })
+                                .then(response => response.text())
+                                .then(html => {
+                                    document.open();
+                                    document.write(html);
+                                    document.close();
+                                });
+                            } else {
+                                alert(data.error || 'Processing failed.');
+                            }
+                        } catch (err) {
+                            alert('Failed to parse server response.');
+                        }
+                    }, 500);
+                } else {
+                    hideGradingModal();
+                    alert('An error occurred while processing the answer sheets.');
+                }
+            };
+
+            xhr.onerror = function() {
+                hideGradingModal();
+                alert('A network error occurred.');
+            };
+
+            xhr.send(formData);
+
+            // Simulate progress bar for server-side processing
+            let fakeProgress = 70;
+            function simulateServerProgress() {
+                if (fakeProgress < 95) {
+                    fakeProgress += Math.random() * 2;
+                    updateProgressBar(Math.floor(fakeProgress), "Processing files on server...");
+                    setTimeout(simulateServerProgress, 400);
+                }
+            }
+            setTimeout(simulateServerProgress, 1000);
+
+        } else if (fileType === 'csv') {
+            alert('CSV grading is not implemented yet.');
+        } else if (fileType === 'image') {
+            alert('Image grading is not implemented yet.');
+        } else {
+            alert('Unsupported file type selected.');
+        }
+    });
+
+    // Grading History Filter Buttons (now use page reload for server-side filtering)
+    const filterButtons = document.querySelectorAll('.card-header .btn-group [data-filter]');
+    filterButtons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            // Redirect to the same page with the correct time_filter parameter
+            const filter = btn.getAttribute('data-filter');
+            const url = new URL(window.location.href);
+            url.searchParams.set('time_filter', filter);
+            window.location.href = url.toString();
+        });
+    });
+
+    // View Results button functionality
+    document.querySelectorAll('.btn-outline-info[title="View Results"]').forEach(function(btn, idx) {
+        btn.addEventListener('click', function() {
+            // Get test id (you may need to add a data attribute for this)
+            const row = btn.closest('tr');
+            const testName = row.querySelector('td strong').textContent.trim();
+            const testType = row.querySelector('td small.text-muted').textContent.trim();
+            const testId = row.getAttribute('data-test-id');
+            const modal = new bootstrap.Modal(document.getElementById('gradingHistoryViewModal'));
+            const modalBody = document.getElementById('gradingHistoryViewModalBody');
+            const modalTitle = document.getElementById('gradingHistoryViewModalLabel');
+            modalTitle.innerHTML = `<i class="fas fa-users"></i> Graded Students<br><small class="text-muted">${testName} <span class="mx-1">|</span> ${testType}</small>`;
+            modalBody.innerHTML = `<div class="text-center py-5 text-muted">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <div>Loading students...</div>
+            </div>`;
+            modal.show();
+
+            // AJAX to fetch students for this test
+            fetch("{% url 'main:get_test_students' %}?test_id=" + encodeURIComponent(testId), {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.students.length > 0) {
+                    let html = `
+                        <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Student Name</th>
+                                    <th>Student ID</th>
+                                    <th>Section</th>
+                                    <th>Score</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    data.students.forEach((student, i) => {
+                        // Calculate percentage
+                        let percent = '';
+                        if (student.score_display && student.score_display.includes('/')) {
+                            const [score, total] = student.score_display.split('/').map(s => parseFloat(s.trim()));
+                            if (!isNaN(score) && !isNaN(total) && total > 0) {
+                                percent = ((score / total) * 100).toFixed(1) + '%';
+                            } else {
+                                percent = '—';
+                            }
+                        } else {
+                            percent = '—';
+                        }
+                        // Use raw fields if student is not found
+                        const name = (student.full_name && student.full_name !== "Not found") 
+    ? student.full_name 
+    : (student.raw_student_name || '<span class="text-danger">Not found</span>');
+const id = (student.student_id && student.student_id !== "—") 
+    ? student.student_id 
+    : (student.raw_student_id || '—');
+const section = (student.section && student.section !== "—") 
+    ? student.section 
+    : (student.raw_student_section || '—');
+
+
+                        html += `
+                            <tr>
+                                <td>${i+1}</td>
+                                <td>${name}</td>
+                                <td>${id}</td>
+                                <td>${section}</td>
+                                <td>${student.score_display || '—'}</td>
+                                <td>${percent}</td>
+                            </tr>
+                        `;
+                    });
+                    html += `</tbody></table></div>`;
+                    modalBody.innerHTML = html;
+                } else {
+                    modalBody.innerHTML = `<div class="text-center py-5 text-muted">
+                        <i class="fas fa-user-times fa-2x mb-2"></i>
+                        <div>No students found for this test.</div>
+                    </div>`;
+                }
+            })
+            .catch(() => {
+                modalBody.innerHTML = `<div class="text-danger text-center py-5">Failed to load students.</div>`;
+            });
+        });
+    });
+
+    // Export to CSV functionality
+    document.querySelectorAll('.btn-outline-success[title="Download Report"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const row = btn.closest('tr');
+            const testId = row.getAttribute('data-test-id');
+            const testName = row.querySelector('td strong').textContent.trim();
+
+            // Fetch students for this test
+            fetch("{% url 'main:get_test_students' %}?test_id=" + encodeURIComponent(testId), {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.students.length > 0) {
+                    // Prepare CSV content
+                    let csv = 'No,Student Name,Student ID,Section,Score,Percentage\n';
+                    data.students.forEach((student, i) => {
+                        // Calculate percentage
+                        let percent = '';
+                        if (student.score_display && student.score_display.includes('/')) {
+                            const [score, total] = student.score_display.split('/').map(s => parseFloat(s.trim()));
+                            if (!isNaN(score) && !isNaN(total) && total > 0) {
+                                percent = ((score / total) * 100).toFixed(1) + '%';
+                            } else {
+                                percent = '';
+                            }
+                        }
+                        csv += [
+                            i + 1,
+                            `"${student.full_name || ''}"`,
+                            `"${student.student_id || ''}"`,
+                            `"${student.section || ''}"`,
+                            `"${student.score_display || ''}"`,
+                            `"${percent}"`
+                        ].join(',') + '\n';
+                    });
+
+                    // Download CSV
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${testName.replace(/[^a-z0-9]/gi, '_')}_results.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert('No students found for this test.');
+                }
+            })
+            .catch(() => {
+                alert('Failed to export CSV.');
+            });
+        });
+    });
+});
+</script>
+
+{% endblock %}

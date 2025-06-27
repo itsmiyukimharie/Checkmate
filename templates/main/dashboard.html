@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - CheckMate{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <h1 class="h2 fw-bold d-flex align-items-center mb-0">
+      <i class="fas fa-chess-board me-2 text-primary"></i> CheckMate Dashboard
+    </h1>
+    <a href="{% url 'main:grade_test' %}" class="btn btn-primary d-flex align-items-center">
+      <i class="fas fa-bolt me-2"></i> Quick Grade
+    </a>
+  </div>
+
+  <!-- Top Metrics -->
+  <div class="row g-4 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
+        <div class="card-body">
+          <div class="fs-1 fw-bold text-primary"><i class="fas fa-users me-2"></i>{{ total_students }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Students</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
+        <div class="card-body">
+          <div class="fs-1 fw-bold text-info"><i class="fas fa-book me-2"></i>{{ total_courses }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Courses</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
+        <div class="card-body">
+          <div class="fs-1 fw-bold text-warning"><i class="fas fa-file-alt me-2"></i>{{ total_tests }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Tests</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
+        <div class="card-body">
+          <div class="fs-1 fw-bold text-success"><i class="fas fa-check-circle me-2"></i>{{ graded_tests }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Graded</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
+        <div class="card-body">
+          <div class="fs-1 fw-bold text-secondary"><i class="fas fa-percentage me-2"></i>{{ avg_score|default:"0" }}%</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Avg. Score</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
+        <div class="card-body">
+          <div class="fs-1 fw-bold text-danger"><i class="fas fa-trophy me-2"></i>{{ pass_rate|default:"0" }}%</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Pass Rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity & Quick Links -->
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-history text-info me-2"></i>Recent Test Results
+        </div>
+        <div class="card-body px-0">
+          <ul class="list-group list-group-flush">
+            {% for result in recent_activity %}
+            <li class="list-group-item d-flex align-items-center">
+              <span class="me-2 text-success"><i class="fas fa-user-check"></i></span>
+              <span>
+                <b>{{ result.student }}</b> scored <b>{{ result.score }}</b> on <b>{{ result.test_information.test_name }}</b>
+                <span class="d-block small text-muted">{{ result.created_at|date:"M d, Y H:i" }}</span>
+              </span>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-center text-muted">
+              No recent activity to show.
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-link text-secondary me-2"></i>Quick Links
+        </div>
+        <div class="card-body d-grid gap-3">
+          <a href="{% url 'main:add_course' %}" class="btn btn-outline-primary btn-lg">
+            <i class="fas fa-plus-circle me-2"></i> Manage Course
+          </a>
+          <a href="{% url 'main:student_management' %}" class="btn btn-outline-info btn-lg">
+            <i class="fas fa-user-graduate me-2"></i> Manage Students
+          </a>
+          <a href="{% url 'main:answer_keys' %}" class="btn btn-outline-warning btn-lg">
+            <i class="fas fa-key me-2"></i> Manage Answer Keys
+          </a>
+          <a href="{% url 'main:grade_test' %}" class="btn btn-outline-success btn-lg">
+            <i class="fas fa-chart-line me-2"></i> Start Grading
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // 1. Bar chart: Average Score Per Course
+  const avgScoreCourseLabels = ["Math", "Science", "English", "History"];
+  const avgScoreCourseData = [85, 78, 92, 88];
+
+  // 2. Bar chart: Pass Rate Per Course
+  const passRateCourseLabels = ["Math", "Science", "English", "History"];
+  const passRateCourseData = [90, 75, 98, 80];
+
+  // 3. Pie chart: Students Per Course
+  const studentsCourseLabels = ["Math", "Science", "English", "History"];
+  const studentsCourseData = [30, 25, 20, 15];
+
+  // Average Score Per Course
+  const avgScoreCourseChart = document.getElementById('avgScoreCourseChart');
+  if (avgScoreCourseChart) {
+    new Chart(avgScoreCourseChart, {
+      type: 'bar',
+      data: {
+        labels: avgScoreCourseLabels,
+        datasets: [{
+          label: 'Average Score',
+          data: avgScoreCourseData,
+          backgroundColor: '#4e6bff',
+          borderRadius: 8
+        }]
+      },
+      options: {
+        plugins: { legend: {display: false} },
+        scales: { y: { beginAtZero: true, max: 100 } }
+      }
+    });
+  }
+
+  // Pass Rate Per Course
+  const passRateCourseChart = document.getElementById('passRateCourseChart');
+  if (passRateCourseChart) {
+    new Chart(passRateCourseChart, {
+      type: 'bar',
+      data: {
+        labels: passRateCourseLabels,
+        datasets: [{
+          label: 'Pass Rate (%)',
+          data: passRateCourseData,
+          backgroundColor: '#28a745',
+          borderRadius: 8
+        }]
+      },
+      options: {
+        plugins: { legend: {display: false} },
+        scales: { y: { beginAtZero: true, max: 100 } }
+      }
+    });
+  }
+
+  // Students Per Course Pie
+  const studentsCourseChart = document.getElementById('studentsCourseChart');
+  if (studentsCourseChart) {
+    new Chart(studentsCourseChart, {
+      type: 'pie',
+      data: {
+        labels: studentsCourseLabels,
+        datasets: [{
+          data: studentsCourseData,
+          backgroundColor: ['#4e6bff', '#28a745', '#ffc107', '#dc3545'],
+        }]
+      },
+      options: {
+        plugins: { legend: {position: 'bottom'} }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

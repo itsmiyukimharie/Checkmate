@@ -1,0 +1,262 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CheckMate - AI-Powered Test Score Scanner</title>
+
+  <!-- Poppins Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background-image: url("{% static 'assets/images/halftone.png' %}"), linear-gradient(135deg, #7b61ff, #5a44cc);
+      background-size: cover;
+      background-blend-mode: overlay;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      z-index: 100;
+    }
+
+    .logo img { height: 60px; }
+
+    nav.main-links { display: flex; gap: 32px; }
+
+    nav.main-links a {
+      text-decoration: none;
+      color: #fff;
+      font-weight: 500;
+      transition: color 0.3s cubic-bezier(.4,0,.2,1), border-bottom 0.3s cubic-bezier(.4,0,.2,1), padding-bottom 0.3s cubic-bezier(.4,0,.2,1);
+    }
+
+    nav.main-links a:hover { color: rgba(255, 255, 255, 0.7); }
+
+    nav.main-links a.active {
+      color: #ffd86b;
+      font-weight: 700;
+      border-bottom: 2px solid #ffd86b;
+      padding-bottom: 2px;
+      transition: color 0.3s cubic-bezier(.4,0,.2,1), border-bottom 0.3s cubic-bezier(.4,0,.2,1), padding-bottom 0.3s cubic-bezier(.4,0,.2,1);
+    }
+
+    .actions {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .actions img.icon {
+      height: 24px;
+      width: 24px;
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    .actions a.login {
+      color: #fff;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .actions a.signup {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: background 0.3s;
+    }
+
+    .actions a.signup:hover { background: rgba(255, 255, 255, 0.4); }
+
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 140px 40px 60px;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    .shape {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.2);
+      mix-blend-mode: overlay;
+      border-radius: 20%;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    /* Original 5 shapes */
+    .shape:nth-child(1) { width: 120px; height: 120px; top: 20%; left: 10%; animation-duration: 5s; }
+    .shape:nth-child(2) { width: 100px; height: 100px; top: 60%; left: 20%; animation-duration: 7s; }
+    .shape:nth-child(3) { width: 150px; height: 150px; top: 40%; right: 15%; animation-duration: 6s; }
+    .shape:nth-child(4) { width: 80px; height: 80px; bottom: 25%; right: 30%; animation-duration: 8s; }
+    .shape:nth-child(5) { width: 200px; height: 200px; bottom: 10%; left: 30%; animation-duration: 10s; }
+
+    /* Additional 5 new animated shapes */
+    .shape:nth-child(6) { width: 90px; height: 90px; top: 15%; right: 5%; animation-duration: 9s; }
+    .shape:nth-child(7) { width: 60px; height: 60px; bottom: 15%; left: 15%; animation-duration: 6.5s; }
+    .shape:nth-child(8) { width: 110px; height: 110px; top: 30%; left: 50%; animation-duration: 7.5s; }
+    .shape:nth-child(9) { width: 70px; height: 70px; bottom: 5%; right: 10%; animation-duration: 8.5s; }
+    .shape:nth-child(10) { width: 140px; height: 140px; top: 5%; right: 35%; animation-duration: 12s; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(45deg); }
+    }
+
+    .hero-content {
+      max-width: 45%;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 16px;
+      padding: 40px;
+    }
+
+    .hero-content h1 { font-size: 3rem; margin-bottom: 16px; }
+
+    .hero-content p { font-size: 1.1rem; margin-bottom: 32px; }
+
+    .btn-primary {
+      padding: 14px 28px;
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn-primary:hover { background: rgba(255, 255, 255, 0.4); }
+
+    .slider-dots {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .slider-dots span {
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 50%;
+      opacity: 0.5;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+
+    .slider-dots span.active { opacity: 1; }
+
+    .hero-image {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
+
+    .hero-image img {
+      width: 100%;
+      max-width: 600px;
+      height: auto;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        flex-direction: column;
+        text-align: center;
+        padding-top: 120px;
+      }
+
+      .hero-content,
+      .hero-image {
+        max-width: 100%;
+      }
+
+      .hero-image {
+        margin-top: 40px;
+        max-width: 80%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-and-nav" style="display: flex; align-items: center; gap: 32px;">
+      <div class="logo">
+        <img src="{% static 'images/CheckMate_Logo.png' %}" alt="CheckMate Logo" />
+      </div>
+      <nav class="main-links">
+        <a href="{% url 'main:landingpage' %}" {% if request.resolver_match.url_name == 'landingpage' %}class="active"{% endif %}>Home</a>
+        <a href="{% url 'main:how_it_works' %}" {% if request.resolver_match.url_name == 'how_it_works' %}class="active"{% endif %}>How it works</a>
+      </nav>
+    </div>
+    <div class="actions">
+      <img src="{% static 'images/envelope.png' %}" alt="Email" class="icon" />
+      <a href="{% url 'main:login' %}" class="login">Log in</a>
+      <a href="{% url 'main:signup' %}" class="signup">Sign up</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <!-- Total 10 animated shapes -->
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+
+    <div class="hero-content">
+      <h1>CheckMate: AI-Powered Test Score Scanner</h1>
+      <p>Save time grading handwritten tests including multiple-choice plus more!</p>
+      <button class="btn-primary" onclick="startApp()">Sign up for free</button>
+      <div class="slider-dots">
+        <span class="active"></span>
+        <span></span>
+      </div>
+    </div>
+
+    <div class="hero-image">
+      <img src="{% static 'images/CheckMate_Logo.png' %}" alt="App demo on phone" />
+    </div>
+  </section>
+
+  <script>
+    function startApp() {
+      window.location.href = "{% url 'main:signup' %}";
+    }
+  </script>
+</body>
+</html>

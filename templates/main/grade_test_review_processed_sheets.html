@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+
+{% block title %}Review Processed Sheets - CheckMate{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="fw-bold mb-4"><i class="fas fa-file-alt"></i> Review Processed Sheets</h1>
+
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Test Information</h5>
+                    {% if answer_key %}
+                        <ul class="list-group list-group-flush mb-2">
+                            <li class="list-group-item"><strong>Course:</strong> {{ answer_key.course }}</li>
+                            <li class="list-group-item"><strong>Name:</strong> {{ answer_key.name }}</li>
+                            <li class="list-group-item"><strong>Test Name:</strong> {{ answer_key.test_name }}</li>
+                            <li class="list-group-item"><strong>Test Type:</strong> 
+                                {% if answer_key.get_test_type_display %}
+                                    {{ answer_key.get_test_type_display }}
+                                {% else %}
+                                    {{ answer_key.test_type }}
+                                {% endif %}
+                            </li>
+                            <li class="list-group-item"><strong>Question Count:</strong> {{ answer_key.question_count }}</li>
+                        </ul>
+                    {% else %}
+                        <span class="text-muted">No answer key selected.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card mb-4">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <h5 class="card-title">Status Analytics</h5>
+                    <div style="height:220px; width:100%; max-width:320px;">
+                        <canvas id="statusPieChart" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Processed Students</h5>
+            {% if resolved_students %}
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Student Name</th>
+                                <th>Student ID</th>
+                                <th>Section</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for entry in resolved_students %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    {% if entry.student_full_name %}
+                                        {{ entry.student_full_name }}
+                                    {% elif entry.student_obj %}
+                                        {{ entry.student_obj }}
+                                    {% else %}
+                                        <span class="text-danger">Not found</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ entry.student_id|default:"—" }}
+                                </td>
+                                <td>
+                                    {{ entry.student_section|default:"—" }}
+                                </td>
+                                <td>
+                                    {{ entry.score_display|default:"—" }}
+                                </td>
+                                <td>
+                                    <span
+                                        class="d-inline-flex align-items-center px-2 py-0 rounded-pill fw-semibold status-badge
+                                            {% if entry.status == 'Passed' %}
+                                                bg-success-subtle text-success border border-success
+                                            {% elif entry.status == 'Failed' %}
+                                                bg-warning-subtle text-warning border border-warning
+                                            {% elif entry.status == 'Valid' %}
+                                                bg-primary-subtle text-primary border border-primary
+                                            {% else %}
+                                                bg-danger-subtle text-danger border border-danger
+                                            {% endif %}"
+                                        style="cursor:pointer; font-size:0.92em; line-height:1.1; padding:1px 7px; transition: box-shadow 0.2s;"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="{% if entry.messages %}{% for msg in entry.messages %}{{ msg }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% else %}No message{% endif %}"
+                                        tabindex="0"
+                                    >
+                                        {% if entry.status == 'Passed' %}
+                                            <i class="fas fa-check-circle me-1" style="font-size:0.95em;"></i>
+                                        {% elif entry.status == 'Failed' %}
+                                            <i class="fas fa-times-circle me-1" style="font-size:0.95em;"></i>
+                                        {% elif entry.status == 'Valid' %}
+                                            <i class="fas fa-info-circle me-1" style="font-size:0.95em;"></i>
+                                        {% else %}
+                                            <i class="fas fa-exclamation-circle me-1" style="font-size:0.95em;"></i>
+                                        {% endif %}
+                                        {{ entry.status|default:"—" }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-warning mb-0">No processed students found.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-3 d-flex justify-content-between align-items-center">
+        <a href="#" class="btn btn-secondary" id="backToGradingBtn">
+            <i class="fas fa-arrow-left"></i> Back to Grading
+        </a>
+        <button class="btn btn-primary" id="saveDataBtn">
+            <i class="fas fa-save"></i> Save Data
+        </button>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmBackModal" tabindex="-1" aria-labelledby="confirmBackModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmBackModalLabel">Confirm Navigation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to go back? Unsaved data will be lost.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <a href="{% url 'main:grade_test' %}" class="btn btn-danger">Yes, Go Back</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Save Data Confirmation Modal -->
+<div class="modal fade" id="confirmSaveModal" tabindex="-1" aria-labelledby="confirmSaveModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmSaveModalLabel">Confirm Save</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to save these results? This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmSaveBtn">Yes, Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" tabindex="-1" aria-labelledby="processingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-body py-5">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+          <span class="visually-hidden">Processing...</span>
+        </div>
+        <div>
+          <span class="fw-semibold fs-5">Saving, please wait...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Prevent browser back navigation
+    history.pushState(null, document.title, location.href);
+    window.addEventListener('popstate', function (event) {
+        history.pushState(null, document.title, location.href);
+        var modal = new bootstrap.Modal(document.getElementById('confirmBackModal'));
+        modal.show();
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Add focus/hover effect for status badges
+        document.querySelectorAll('.status-badge').forEach(function(el) {
+            el.addEventListener('focus', function() {
+                el.style.boxShadow = '0 0 0 0.2rem rgba(0,123,255,.25)';
+            });
+            el.addEventListener('blur', function() {
+                el.style.boxShadow = '';
+            });
+            el.addEventListener('mouseenter', function() {
+                el.style.boxShadow = '0 0 0 0.2rem rgba(0,123,255,.15)';
+            });
+            el.addEventListener('mouseleave', function() {
+                el.style.boxShadow = '';
+            });
+        });
+
+        // --- Chart.js Analytics ---
+        const statusCounts = JSON.parse(document.getElementById('status-counts-data').textContent);
+        const ctxPie = document.getElementById('statusPieChart').getContext('2d');
+        new Chart(ctxPie, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{
+                    data: Object.values(statusCounts),
+                    backgroundColor: [
+                        '#198754', // Passed - green
+                        '#dc3545', // Failed - red
+                        '#0d6efd', // Valid - blue
+                        '#ffc107'  // Invalid - yellow
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        function getJsonData(id) {
+            return JSON.parse(document.getElementById(id).textContent);
+        }
+
+        // Save Data button now opens confirmation modal
+        document.getElementById('saveDataBtn').addEventListener('click', function() {
+            var confirmSaveModal = new bootstrap.Modal(document.getElementById('confirmSaveModal'));
+            confirmSaveModal.show();
+        });
+
+        // When user confirms save, show processing and do the fetch
+        document.getElementById('confirmSaveBtn').addEventListener('click', function() {
+            var confirmSaveModal = bootstrap.Modal.getInstance(document.getElementById('confirmSaveModal'));
+            confirmSaveModal.hide();
+
+            const resolvedStudents = getJsonData('resolved-students-data');
+            const answerKeyId = {{ answer_key.id|default:"null" }};
+            const gradingResults = getJsonData('grading-results-data');
+            const statusCounts = getJsonData('status-counts-data');
+            const scoreLabels = getJsonData('score-labels-data');
+            const scoreData = getJsonData('score-data-data');
+
+            // Show processing modal
+            var processingModal = new bootstrap.Modal(document.getElementById('processingModal'));
+            processingModal.show();
+
+            fetch("{% url 'main:save_reviewed_sheets' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    resolved_students: resolvedStudents,
+                    answer_key_id: answerKeyId,
+                    grading_results: gradingResults,
+                    status_counts: statusCounts,
+                    score_labels: scoreLabels,
+                    score_data: scoreData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                processingModal.hide();
+                if (data.success) {
+                    setTimeout(function() {
+                        window.location.href = "{% url 'main:grade_test' %}";
+                    }, 1000);
+                } else {
+                    alert("Error: " + (data.message || "Could not save results."));
+                }
+            })
+            .catch(err => {
+                processingModal.hide();
+                alert("An error occurred while saving.");
+            });
+        });
+
+        // Back to Grading button with confirmation modal
+        document.getElementById('backToGradingBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            var modal = new bootstrap.Modal(document.getElementById('confirmBackModal'));
+            modal.show();
+        });
+    });
+</script>
+
+{{ resolved_students|json_script:"resolved-students-data" }}
+{{ grading_results|json_script:"grading-results-data" }}
+{{ status_counts|json_script:"status-counts-data" }}
+{{ score_labels|json_script:"score-labels-data" }}
+{{ score_data|json_script:"score-data-data" }}
+{% endblock %}
