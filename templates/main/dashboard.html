@@ -20,88 +20,55 @@
   <!-- Top Metrics -->
   <div class="row g-4 mb-4">
     <div class="col-6 col-md-2">
-      <div class="card text-center shadow-sm border-0">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
         <div class="card-body">
-          <div class="fs-3 fw-bold text-primary"><i class="fas fa-users me-2"></i>{{ total_students }}</div>
-          <div class="small text-muted">Students</div>
+          <div class="fs-1 fw-bold text-primary"><i class="fas fa-users me-2"></i>{{ total_students }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Students</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-2">
-      <div class="card text-center shadow-sm border-0">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
         <div class="card-body">
-          <div class="fs-3 fw-bold text-info"><i class="fas fa-book me-2"></i>{{ total_courses }}</div>
-          <div class="small text-muted">Courses</div>
+          <div class="fs-1 fw-bold text-info"><i class="fas fa-book me-2"></i>{{ total_courses }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Courses</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-2">
-      <div class="card text-center shadow-sm border-0">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
         <div class="card-body">
-          <div class="fs-3 fw-bold text-warning"><i class="fas fa-file-alt me-2"></i>{{ total_tests }}</div>
-          <div class="small text-muted">Tests</div>
+          <div class="fs-1 fw-bold text-warning"><i class="fas fa-file-alt me-2"></i>{{ total_tests }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Tests</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-2">
-      <div class="card text-center shadow-sm border-0">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
         <div class="card-body">
-          <div class="fs-3 fw-bold text-success"><i class="fas fa-check-circle me-2"></i>{{ graded_tests }}</div>
-          <div class="small text-muted">Graded</div>
+          <div class="fs-1 fw-bold text-success"><i class="fas fa-check-circle me-2"></i>{{ graded_tests }}</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Graded</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-2">
-      <div class="card text-center shadow-sm border-0">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
         <div class="card-body">
-          <div class="fs-3 fw-bold text-secondary"><i class="fas fa-percentage me-2"></i>{{ avg_score|default:"0" }}%</div>
-          <div class="small text-muted">Avg. Score</div>
+          <div class="fs-1 fw-bold text-secondary"><i class="fas fa-percentage me-2"></i>{{ avg_score|default:"0" }}%</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Avg. Score</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-2">
-      <div class="card text-center shadow-sm border-0">
+      <div class="card text-center shadow-sm border-0" style="font-size: 1.35rem; min-height: 120px;">
         <div class="card-body">
-          <div class="fs-3 fw-bold text-danger"><i class="fas fa-trophy me-2"></i>{{ pass_rate|default:"0" }}%</div>
-          <div class="small text-muted">Pass Rate</div>
+          <div class="fs-1 fw-bold text-danger"><i class="fas fa-trophy me-2"></i>{{ pass_rate|default:"0" }}%</div>
+          <div class="small text-muted" style="font-size: 1.1rem;">Pass Rate</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Charts Row -->
-  <div class="row g-4 mb-4">
-    <div class="col-lg-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-light fw-semibold">
-          <i class="fas fa-chart-bar text-primary me-2"></i>Average Score Per Course
-        </div>
-        <div class="card-body">
-          <canvas id="avgScoreCourseChart"></canvas>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-light fw-semibold">
-          <i class="fas fa-chart-bar text-success me-2"></i>Pass Rate Per Course
-        </div>
-        <div class="card-body">
-          <canvas id="passRateCourseChart"></canvas>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-light fw-semibold">
-          <i class="fas fa-chart-pie text-warning me-2"></i>Students Per Course
-        </div>
-        <div class="card-body">
-          <canvas id="studentsCourseChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
   <!-- Activity & Quick Links -->
   <div class="row g-4">
     <div class="col-lg-8">
